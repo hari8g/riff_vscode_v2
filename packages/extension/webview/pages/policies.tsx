@@ -33,7 +33,7 @@ export function PoliciesPage() {
   return (
     <div className="stack-lg">
       <div className="page-h">
-        <div><h1>Policies</h1><p className="lead">Policies are data. How the router reads intent, how each intent retrieves context and how budgets split all live in <code>.riaf/*.yaml</code>, versioned with the code. Edits apply to the next request; no release needed.</p></div>
+        <div><h1>Rules</h1><p className="lead">How RIAF reads requests and chooses context. The rules are files in <code>.riaf/</code>, kept with the code. Changes apply to the next request.</p></div>
         <div className="row">
           <Chip mono>{src['version']}</Chip>
           {diag.length ? <Chip tone="ember" dot="var(--ember)">{diag.length} problem{diag.length === 1 ? '' : 's'}</Chip> : <Chip tone="moss" dot="var(--moss)">valid</Chip>}

@@ -91,6 +91,14 @@ export function useTheme(): [Theme, (t: Theme) => void] {
   return [t, setT];
 }
 
+/* ───────────── detail level: simple by default, detailed for engineers ───────────── */
+const DetailCtx = createContext<{ detailed: boolean; setDetailed: (v: boolean) => void }>({ detailed: false, setDetailed: () => undefined });
+export const DetailProvider = DetailCtx.Provider;
+/** Whether the person asked to see the engineering detail (scores, tokens, internals). */
+export const useDetailed = () => useContext(DetailCtx);
+/** Renders its children only in the detailed view. */
+export const Detail = ({ children }: { children: ReactNode }) => (useContext(DetailCtx).detailed ? <>{children}</> : null);
+
 /* ───────────── toasts ───────────── */
 type Toast = { id: number; text: string; kind: 'ok' | 'err' };
 const ToastCtx = createContext<(text: string, kind?: 'ok' | 'err') => void>(() => undefined);

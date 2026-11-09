@@ -25,7 +25,7 @@ export function Governance() {
   const util = (t.utilisation as Msg[]).filter((u) => u['delivered'] > 0);
   return (
     <div className="stack-lg">
-      <div className="page-h"><div><h1>Governance</h1><p className="lead">Every tool call in a governed Claude Code session passes the governor first. It applies the phase budgets, the loop guard and the repeat-read cache, and answers search from the index. What worked becomes priors and skills.</p></div></div>
+      <div className="page-h"><div><h1>AI activity</h1><p className="lead">Every step an AI assistant takes in this repository is checked first. RIAF answers searches from its own index, stops an assistant that goes in circles, and learns which context helped.</p></div></div>
       <section className="stats4 cardish">
         <Stat v={<Count to={t.sessions} />} l="sessions" />
         <Stat v={<Count to={total} />} l="tool calls governed" />

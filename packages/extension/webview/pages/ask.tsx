@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ask, repoName, save, saved } from '../api.js';
-import { Btn, copy, Icon, IntentBar, INTENT_LABEL, pct, useToast } from '../kit.js';
+import { Btn, copy, Icon, IntentBar, INTENT_LABEL, pct, useDetailed, useToast } from '../kit.js';
 import { LENS_INFO, LENSES, type Answer, type Block, type Evidence, type Lens, type Parsed } from '../../src/ask.js';
 import type { PlanStep } from '../../src/askHost.js';
 
@@ -66,8 +66,8 @@ export function Ask({ go }: { go: (page: string, arg?: string) => void }) {
   return (
     <div className="stack-lg askpage">
       <div className="page-h"><div>
-        <h1>Ask</h1>
-        <p className="lead">Ask about {repoName} in your own words. No code knowledge needed. RIAF works out what kind of answer you want, finds the parts of the product involved, and shows you how it got there.</p>
+        <h1>Ask a question</h1>
+        <p className="lead">Ask about {repoName} in your own words. No code knowledge needed. RIAF works out what you want to know, finds the parts of the product involved, and shows how it got the answer.</p>
       </div>{thread.length ? <Btn kind="ghost" sm icon="refresh" onClick={() => setThread([])}>Clear answers</Btn> : null}</div>
 
       <section className="askbox">
@@ -91,20 +91,21 @@ export function Ask({ go }: { go: (page: string, arg?: string) => void }) {
 
 /* ───────── live reading of the question while typing ───────── */
 function Understanding({ text, p, forced, onForce }: { text: string; p: Parsed | null; forced: Lens | null; onForce: (l: Lens) => void }) {
-  if (!text.trim() || !p) return <div className="understand idle"><span className="muted small">As you type, RIAF shows how it reads your question: the kind of answer, the subjects and any time range. Click a reading to steer it.</span></div>;
+  const { detailed } = useDetailed();
+  if (!text.trim() || !p) return <div className="understand idle"><span className="muted small">As you type, RIAF shows how it understands your question. If it gets it wrong, click the kind of answer you want.</span></div>;
   const ranked = [...LENSES].sort((a, b) => p.p[b] - p.p[a]);
   return (
     <div className="understand">
       <div className="u-text" aria-label="Highlighted question">{highlight(p.text, p)}</div>
       <div className="u-row">
-        <span className="u-k">Reading</span>
-        <span className={`u-read ${p.reading}`}>{p.reading === 'single' ? `Clear: ${LENS_INFO[p.primary].label}` : p.reading === 'blended' ? `Two readings: ${LENS_INFO[p.primary].label} + ${LENS_INFO[p.secondary!].label}` : 'Unclear: pick what you want below'}</span>
-        <span className="muted small">certainty {pct(1 - p.H)}</span>
+        <span className="u-k">Understood as</span>
+        <span className={`u-read ${p.reading}`}>{p.reading === 'single' ? LENS_INFO[p.primary].label : p.reading === 'blended' ? `${LENS_INFO[p.primary].label}, and ${LENS_INFO[p.secondary!].label.toLowerCase()}` : 'Not sure yet. Pick what you want below'}</span>
+        {detailed ? <span className="muted small">certainty {pct(1 - p.H)}</span> : null}
       </div>
       <div className="lens-pills" role="radiogroup" aria-label="Kind of answer">
         {ranked.map((l) => (
           <button key={l} role="radio" aria-checked={forced === l} className={`lens-pill ${l === p.primary ? 'top' : ''} ${forced === l ? 'forced' : ''}`} style={{ ['--c' as string]: LENS_INFO[l].color }} onClick={() => onForce(l)} title={LENS_INFO[l].ask}>
-            <span className="lp-fill" style={{ width: pct(p.p[l]) }} /><Icon name={LENS_INFO[l].icon} size={13} /><span>{LENS_INFO[l].label}</span><b>{pct(p.p[l])}</b>
+            <span className="lp-fill" style={{ width: pct(p.p[l]) }} /><Icon name={LENS_INFO[l].icon} size={13} /><span>{LENS_INFO[l].label}</span>{detailed ? <b>{pct(p.p[l])}</b> : null}
           </button>
         ))}
       </div>
@@ -151,7 +152,7 @@ function Glossary() {
     ['Data shape', 'The fields a piece of information has, such as what a dispute records.'],
     ['Automated check', 'A test that runs on every change and fails if behaviour breaks.'],
     ['Area', 'A folder of related code, usually one product capability.'],
-    ['Context pack', 'The exact files and history RIAF would hand a developer or an AI agent for this question.'],
+    ['Prepared context', 'The files and history RIAF hands a developer or AI assistant so they can start straight away.'],
   ];
   return (
     <section className="card glossary">
@@ -165,6 +166,7 @@ function Glossary() {
 function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string, a?: string) => void; onAsk: (q: string, l?: Lens) => void; onCopy: (s: string, what: string) => void; onHandoff: (to: 'claude' | 'copilot', packId: string) => void }) {
   const [shown, setShown] = useState(t.status === 'done' ? STEPS.length : 0);
   const [behind, setBehind] = useState(false);
+  const { detailed } = useDetailed();
   useEffect(() => {
     if (t.status === 'running') {
       const i = setInterval(() => setShown((s) => (s + 1) % (STEPS.length - 1)), 420);
@@ -206,7 +208,7 @@ function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string
 
         {a.followUps.length ? <div className="follow"><span className="u-k">Ask next</span>{a.followUps.map((f) => <button key={f.text} className="follow-q" style={{ ['--c' as string]: LENS_INFO[f.lens].color }} onClick={() => onAsk(f.text)}><Icon name={LENS_INFO[f.lens].icon} size={12} />{f.text}</button>)}</div> : null}
 
-        <div className="reread"><span className="muted small">Not what you meant? Read it as</span>{LENSES.filter((l) => l !== a.lens).map((l) => <button key={l} className="chip quiet" onClick={() => onAsk(t.q, l)}>{LENS_INFO[l].label}</button>)}</div>
+        <div className="reread"><span className="muted small">Not what you meant? Show me</span>{LENSES.filter((l) => l !== a.lens).map((l) => <button key={l} className="chip quiet" onClick={() => onAsk(t.q, l)}>{LENS_INFO[l].label}</button>)}</div>
 
         {a.sources.length ? <details className="sources"><summary>{a.sources.length} source{a.sources.length === 1 ? '' : 's'} behind this answer</summary>
           <div className="src-list">{a.sources.map((s) => <button key={s.label + s.path} className="src" onClick={() => go('repository', s.symbol ?? s.path)} title="Open in Repository"><b>{s.label}</b><code>{s.path}{s.line ? `:${s.line}` : ''}</code></button>)}</div>
@@ -219,9 +221,9 @@ function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string
             <Btn sm icon="send" onClick={() => onHandoff('copilot', r.evidence.pack!.packId)}>Hand to Copilot</Btn>
           </> : null}
           <span className="grow" />
-          <Btn sm kind="ghost" icon="code" onClick={() => setBehind((v) => !v)}>{behind ? 'Hide' : 'Behind the scenes'}</Btn>
+          {detailed ? <Btn sm kind="ghost" icon="code" onClick={() => setBehind((v) => !v)}>{behind ? 'Hide' : 'Behind the scenes'}</Btn> : null}
         </footer>
-        {behind ? <Behind r={r} /> : null}
+        {behind && detailed ? <Behind r={r} /> : null}
       </div> : null}
     </article>
   );
@@ -231,27 +233,28 @@ const LensTag = ({ l }: { l: Lens }) => <span className="lens-tag" style={{ ['--
 
 function Pipeline({ plan, running, shown }: { plan?: PlanStep[]; running: boolean; shown: number }) {
   const [open, setOpen] = useState<string | null>(null);
+  const { detailed } = useDetailed();
   const total = plan?.reduce((a, s) => a + s.ms, 0) ?? 0;
   const step = (id: PlanStep['id']) => plan?.find((s) => s.id === id);
   const ids = plan ? STEPS.filter((id) => step(id)) : STEPS;
   const sel = open ? step(open as PlanStep['id']) : undefined;
   return (
     <div className="pipe">
-      <div className="pipe-h"><span className="u-k">How your question was compiled</span>{plan && !running ? <span className="muted small">{plan.length} steps · {total} ms</span> : <span className="muted small">working…</span>}</div>
+      <div className="pipe-h"><span className="u-k">How RIAF answered</span>{plan && !running ? <span className="muted small">{plan.length} steps{detailed ? ` · ${total} ms` : ''}</span> : <span className="muted small">working…</span>}</div>
       <ol className="pipe-steps">
         {ids.map((id, i) => {
           const s = step(id);
           const state = running ? (i === shown ? 'active' : i < shown ? 'done' : '') : i < shown ? 'done' : '';
           return (
-            <li key={id} className={`pstep ${state} ${open === id ? 'open' : ''}`} onClick={() => s && setOpen(open === id ? null : id)}>
+            <li key={id} className={`pstep ${state} ${open === id ? 'open' : ''}`} onClick={() => s && detailed && setOpen(open === id ? null : id)}>
               <span className="pdot"><Icon name={STEP_ICON[id]} size={13} /></span>
               <span className="pl"><b>{s?.label ?? STEP_LABEL[id]}</b>{s && state === 'done' ? <small>{s.detail}</small> : null}</span>
-              {s && state === 'done' ? <span className="pms">{s.ms} ms</span> : null}
+              {s && state === 'done' && detailed ? <span className="pms">{s.ms} ms</span> : null}
             </li>
           );
         })}
       </ol>
-      {sel ? <div className="pipe-calls"><span className="muted small">Lookups run in this step:</span>{sel.calls.length ? sel.calls.map((c) => <code key={c}>{c}</code>) : <span className="muted small">none, computed locally</span>}</div> : null}
+      {sel && detailed ? <div className="pipe-calls"><span className="muted small">Lookups run in this step:</span>{sel.calls.length ? sel.calls.map((c) => <code key={c}>{c}</code>) : <span className="muted small">none, computed locally</span>}</div> : null}
     </div>
   );
 }

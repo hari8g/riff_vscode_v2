@@ -10,7 +10,7 @@ export function Adapters() {
   const models = Object.entries((d['models'] ?? {}) as Record<string, Msg>);
   return (
     <div className="stack-lg">
-      <div className="page-h"><div><h1>Adapters</h1><p className="lead">One local daemon owns the index; the extension, Claude Code’s MCP server and hooks, and the CLI are its clients. Models are optional: RIAF indexes, routes and compiles without one.</p></div></div>
+      <div className="page-h"><div><h1>Setup</h1><p className="lead">RIAF runs as one local service on this machine. VS Code, Claude Code and the command line all connect to it. AI models are optional; RIAF works without one.</p></div></div>
       <div className="grid2">
         <Card title={<span className="row"><span className="live-dot" />Daemon</span>} sub={info['root']}>
           <div className="kv"><span>version</span><b>{info['version']}</b><span>protocol</span><b>{info['protocol']}</b><span>process</span><b>pid {info['pid']}</b><span>started</span><b>{new Date(info['startedAt']).toLocaleString()}</b></div>

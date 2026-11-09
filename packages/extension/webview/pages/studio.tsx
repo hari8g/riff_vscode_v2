@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ask, save, saved, type Pack, type PackItem, type Policy } from '../api.js';
-import { BRANCH_TEXT, Btn, Card, Chip, Code, copy, Empty, EntropyGauge, fmtK, Icon, INTENT_LABEL, INTENTS, IntentBar, IntentRows, intentVar, pct, shortPath, symKind, symName, symPath, useToast } from '../kit.js';
+import { BRANCH_TEXT, Btn, Card, Chip, Code, copy, Empty, EntropyGauge, fmtK, Icon, INTENT_LABEL, INTENTS, IntentBar, IntentRows, intentVar, pct, shortPath, symKind, symName, symPath, useDetailed, useToast } from '../kit.js';
+import { humanize } from '../../src/ask.js';
 
 const EXAMPLES = [
   'Fix the off-by-one in Gantry.lane: the last lane of every gantry fails',
@@ -14,11 +15,35 @@ const TIERS: Record<number, { label: string; cls: string }> = {
 };
 const KIND_ICON: Record<string, string> = { body: 'code', signature: 'code', test: 'check', summary: 'overview', commit: 'commit', convention: 'rule', skill: 'sparkle', runbook: 'rule', co_change: 'graph', diff: 'code' };
 const RENDERS = ['claude', 'copilot', 'fragment', 'json'] as const;
+const PLAIN_GROUP: Record<number, string> = { 1: 'Overview of the product', 2: 'Code to look at', 3: 'Past changes and team rules', 4: 'How to build and test' };
+const RULE_WORDS: Record<string, string> = {
+  anchor: 'you named it', callers: 'it uses the part you named', callees: 'the part you named relies on it', exercising_test: 'an automated check for it',
+  tests_over: 'an automated check for it', co_change_partners: 'usually changed together with it', module_summaries: 'a summary of the area', repo_map: 'a map of the code',
+  file_skeletons: 'an outline of the file', history: 'a past change to this code', conventions: 'a team rule', runbook: 'how to build and test', skill: 'a habit learned from earlier work',
+  sibling_template: 'similar code to copy from', inheritance_tree: 'shares a design with it', implemented_interfaces: 'the shape it must follow', reference_closure: 'connected to the part you named',
+  one_hop: 'directly connected', dynamic_dispatch_sites: 'may call it indirectly', invariants_on: 'a rule it must keep', both_branch_touched: 'changed on both branches',
+};
+const PLAIN_RULE = (rule: string) => RULE_WORDS[rule] ?? rule.replace(/_/g, ' ');
+const fileWords = (path: string) => {
+  const parts = path.split('/');
+  const base = (parts.pop() ?? path).replace(/\.(test|spec)(?=\.)/, '').replace(/\.[^.]+$/, '');
+  const name = humanize(base.replace(/[-_]/g, ' '));
+  if (/(^|\/)(test|tests|__tests__)\//.test(path) || /\.(test|spec)\./.test(path)) return `Automated checks for ${name.toLowerCase()}`;
+  const area = parts.pop();
+  return area && area !== 'src' ? `${name} (${area})` : name;
+};
+const itemTitle = (i: PackItem) => {
+  const named = i.content.match(/(?:class|function|interface|type)\s+(\w+)/)?.[1];
+  if (i.source.path) return i.tier === 2 && named && i.kind !== 'test' ? humanize(named) : fileWords(i.source.path);
+  if (i.source.commit) return 'A past change';
+  return (i.source.virtual ?? '').replace(/^summary:\/?$/, 'Summary of the product').replace(/^summary:/, 'Summary of ').replace('repo-map', 'Map of the code').replace('architecture', 'How the project is set up').replace('runbook', 'How to build and test');
+};
 
 const where = (i: PackItem) => i.source.path ? `${i.source.path}${i.source.range ? `:${i.source.range.startLine}-${i.source.range.endLine}` : ''}` : i.source.commit ? `commit ${i.source.commit.slice(0, 10)}` : (i.source.virtual ?? '');
 
 export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
   const toast = useToast();
+  const { detailed } = useDetailed();
   const [text, setText] = useState<string>(() => saved('studio.text', ''));
   const [budget, setBudget] = useState<number>(() => saved('studio.budget', 16000));
   const [route, setRoute] = useState<Policy | null>(null);
@@ -60,7 +85,7 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
       setRendered({ claude: r['rendered'] as string });
       setView('items');
       setOpen(null);
-      toast(`Compiled ${p.items.length} items · ${fmtK(p.tokensUsed)} tokens`);
+      toast(detailed ? `Compiled ${p.items.length} items · ${fmtK(p.tokensUsed)} tokens` : `Gathered ${p.items.length} pieces of context`);
     } catch (e) {
       toast((e as Error).message, 'err');
     } finally {
@@ -90,7 +115,7 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
     if (!pack) return;
     try {
       await ask({ type: 'handoff', to, text, packId: pack.packId });
-      toast(to === 'copilot' ? 'Opened Copilot agent mode with the pack' : 'Started Claude Code with the pack');
+      toast(to === 'copilot' ? 'Sent to Copilot' : 'Sent to Claude Code');
     } catch (e) {
       toast((e as Error).message, 'err');
     }
@@ -99,25 +124,56 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
   return (
     <div className="stack-lg">
       <div className="page-h">
-        <div><h1>Studio</h1><p className="lead">Describe the task. RIAF reads it as a <em>distribution</em> of intents, grounds it in your code, and compiles the smallest context a model can act on.</p></div>
+        <div><h1>Prepare a task</h1><p className="lead">{detailed ? <>Describe the task. RIAF reads it as a <em>distribution</em> of intents, grounds it in your code, and compiles the smallest context a model can act on.</> : 'Describe a change you need. RIAF gathers the code, past changes and team rules a developer or AI assistant needs to start, and nothing more.'}</p></div>
       </div>
 
       <section className={`taskline ${busy ? 'busy' : ''}`}>
         <textarea ref={ta} value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLES[ph]} rows={2} spellCheck={false}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void compile(); } }} />
         <div className="taskline-bar">
-          <label className="budget"><span>Budget</span><input type="range" min={2000} max={32000} step={1000} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /><b>{fmtK(budget)}</b></label>
+          {detailed ? <label className="budget"><span>Budget</span><input type="range" min={2000} max={32000} step={1000} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /><b>{fmtK(budget)}</b></label> : null}
           <span className="grow" />
           {routing && <span className="muted small pulse">reading…</span>}
-          <Btn kind="primary" icon="bolt" onClick={() => void compile()} disabled={busy}>{busy ? 'Compiling…' : 'Compile pack'}</Btn>
+          <Btn kind="primary" icon="bolt" onClick={() => void compile()} disabled={busy}>{busy ? (detailed ? 'Compiling…' : 'Preparing…') : detailed ? 'Compile pack' : 'Prepare'}</Btn>
           <kbd className="hint-kbd">⌘↵</kbd>
         </div>
         {!text && <div className="examples">{EXAMPLES.slice(0, 4).map((x) => <Chip key={x} onClick={() => setText(x)}>{x.length > 58 ? `${x.slice(0, 56)}…` : x}</Chip>)}</div>}
       </section>
 
-      {route && <RouteView route={route} go={go} />}
+      {route && (detailed ? <RouteView route={route} go={go} /> : <RouteSimple route={route} go={go} />)}
 
-      {pack ? (
+      {pack && !detailed ? (
+        <Card className="rise" title="Ready to hand off" sub={`${pack.items.length} pieces of context gathered for this task.`}
+          actions={<>
+            <Btn kind="primary" sm icon="send" onClick={() => void handoff('claude')}>Send to Claude Code</Btn>
+            <Btn kind="soft" sm icon="send" onClick={() => void handoff('copilot')}>Send to Copilot</Btn>
+            <Btn kind="ghost" sm icon="copy" onClick={() => void copy(rendered['claude'] ?? '').then(() => toast('Copied'))}>Copy</Btn>
+          </>}>
+          <div className="stack">
+            {[1, 2, 3, 4].map((tier) => {
+              const seen = new Set<string>();
+              const items = pack.items.filter((i) => i.tier === tier).filter((i) => { const k = `${itemTitle(i)}|${i.source.path ?? ''}`; if (seen.has(k)) return false; seen.add(k); return true; });
+              if (!items.length) return null;
+              return (
+                <div key={tier}>
+                  <div className="group-h">{PLAIN_GROUP[tier]} <span className="muted small">({items.length})</span></div>
+                  <div className="plainlist">{items.slice(0, 10).map((i) => (
+                    <div key={i.id}>
+                      <button className="plainrow" onClick={() => setOpen(open === i.id ? null : i.id)}>
+                        <Icon name={KIND_ICON[i.kind] ?? 'code'} size={15} />
+                        <span><b>{itemTitle(i)}</b><span className="muted small">Included because: {PLAIN_RULE(i.why.rule)}</span>{i.source.path ? <> · <code>{i.source.path}</code></> : null}</span>
+                        <Icon name="chevron" size={14} />
+                      </button>
+                      {open === i.id && <div className="item-body"><Code text={i.content} start={i.source.range?.startLine ?? 1} /></div>}
+                    </div>))}
+                    {items.length > 10 ? <span className="muted small">and {items.length - 10} more</span> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ) : pack ? (
         <Card className="rise" title={<span className="row">Context pack <Chip mono>{pack.packId}</Chip></span>}
           sub={`${pack.items.length} items · ${fmtK(pack.tokensUsed)} of ${fmtK(pack.budget)} tokens · ${pack.policyVersion}`}
           actions={<>
@@ -180,9 +236,26 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
           )}
         </Card>
       ) : !route && (
-        <Empty icon="studio" title="Nothing compiled yet">Type a task above. The reading updates as you type; <kbd>⌘↵</kbd> compiles the pack.</Empty>
+        <Empty icon="studio" title="Nothing prepared yet">Describe a task above and press <b>Prepare</b> (or <kbd>⌘↵</kbd>).</Empty>
       )}
     </div>
+  );
+}
+
+/** Plain reading of a task: what kind of work it looks like, a question back if unclear, and the parts it touches. */
+function RouteSimple({ route, go }: { route: Policy; go: (page: string, arg?: string) => void }) {
+  const ranked = INTENTS.map((i) => [i, route.w[i] ?? 0] as const).filter(([i]) => i !== 'unknown').sort((a, b) => b[1] - a[1]);
+  const [top, second] = ranked;
+  const two = route.branch === 'blended' && second;
+  const unclear = route.branch === 'clarify' || route.branch === 'generic';
+  const missing = route.units.flatMap((u) => u.ungrounded).slice(0, 4);
+  return (
+    <section className="looks rise">
+      <div className="looks-t">{unclear ? 'This request is not clear yet.' : <>This looks like <b style={{ color: intentVar(top![0]) }}>{INTENT_LABEL[top![0]]!.toLowerCase()}</b>{two ? <> and <b style={{ color: intentVar(second[0]) }}>{INTENT_LABEL[second[0]]!.toLowerCase()}</b> work</> : ' work'}.</>}</div>
+      {route.question && <div className="ask"><Icon name="alert" size={15} /><span>{route.question.question}</span></div>}
+      {route.anchors.length ? <div className="row wrap"><span className="muted small">Related parts of the code:</span>{route.anchors.slice(0, 6).map((a) => <Chip key={a} onClick={() => go('repository', a)} title={a}>{humanize(a)}</Chip>)}</div> : <span className="muted small">No specific part named; RIAF will search the code.</span>}
+      {missing.length ? <div className="row wrap"><span className="muted small">Not in the code yet:</span>{missing.map((m) => <Chip key={m} tone="ember">{m}</Chip>)}</div> : null}
+    </section>
   );
 }
 

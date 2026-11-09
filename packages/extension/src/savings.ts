@@ -25,9 +25,9 @@ export interface Condition {
 
 /** Frozen benchmark results (docs/eval/reference.json and claude-baseline.json, 2026-11-09, 30 tasks). */
 export const BENCHMARKS: readonly Condition[] = [
-  { id: 'scripted', label: 'Scripted explorer', what: 'grep, glob and read until the gold files are found, no RIAF', tokens: 2941, toolCalls: 11.47, recall: 0.868, source: 'docs/eval/reference.json' },
-  { id: 'claude', label: 'Claude Code alone', what: 'headless Claude Code session per task, no RIAF attached', tokens: 245_956, toolCalls: 8.23, recall: 0.967, usdPerTask: 6.9922 / 30, source: 'docs/eval/claude-baseline.json' },
-  { id: 'riaf', label: 'RIAF pack', what: 'one compiled context pack, one call', tokens: 1488, toolCalls: 1, recall: 0.971, source: 'docs/eval/reference.json' },
+  { id: 'scripted', label: 'Search and read', what: 'an assistant searches and opens files one by one, without RIAF', tokens: 2941, toolCalls: 11.47, recall: 0.868, source: 'docs/eval/reference.json' },
+  { id: 'claude', label: 'Claude Code alone', what: 'a full Claude Code session per task, without RIAF', tokens: 245_956, toolCalls: 8.23, recall: 0.967, usdPerTask: 6.9922 / 30, source: 'docs/eval/claude-baseline.json' },
+  { id: 'riaf', label: 'RIAF', what: 'one prepared package of context, in one step', tokens: 1488, toolCalls: 1, recall: 0.971, source: 'docs/eval/reference.json' },
 ];
 
 /** USD per million input tokens, for pricing the context itself (mirrors @riaf/models PRICES). */

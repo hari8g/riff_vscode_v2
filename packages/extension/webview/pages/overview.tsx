@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
 import { ask, brand, repoName, type Msg } from '../api.js';
-import { Btn, Card, Chip, Count, Donut, Empty, fmtK, Icon, Skeleton, Stat, useToast } from '../kit.js';
+import { Btn, Card, Chip, Count, Detail, Donut, Empty, fmtK, Icon, Skeleton, Stat, useDetailed, useToast } from '../kit.js';
 
 const STAGES = ['scan', 'parse', 'graph', 'history', 'summaries', 'lsp'];
-const STAGE_TEXT: Record<string, string> = { scan: 'files on disk', parse: 'tree-sitter tags', graph: 'symbol graph', history: 'git blame & co-change', summaries: 'bottom-up summaries', lsp: 'language servers' };
+const STAGE_TEXT: Record<string, string> = { scan: 'reads the files', parse: 'finds names in the code', graph: 'links what uses what', history: 'reads the change history', summaries: 'writes short summaries', lsp: 'asks the language tools' };
+const BRANCH_TEXT: Record<string, string> = { single: 'clear', blended: 'two things at once', probe: 'needed a closer look', clarify: 'needed a question back', generic: 'too vague' };
+const DO = [
+  { page: 'ask', icon: 'ask', color: 'var(--teal)', title: 'Ask a question', text: 'How does something work, who knows it, what would a change affect? Ask in your own words.' },
+  { page: 'studio', icon: 'studio', color: 'var(--i-refactor)', title: 'Prepare a task', text: 'Describe a change. RIAF gathers what a developer or AI assistant needs to start.' },
+  { page: 'repository', icon: 'repository', color: 'var(--moss)', title: 'Explore the code', text: 'Browse the product area by area, with a short summary of each part.' },
+  { page: 'savings', icon: 'savings', color: 'var(--i-merge)', title: 'See the savings', text: 'How much AI cost and effort RIAF saves compared with working without it.' },
+];
 const BRANCH_COLORS: Record<string, string> = { single: 'var(--teal)', blended: 'var(--i-refactor)', probe: 'var(--i-review)', clarify: 'var(--ember)', generic: 'var(--slate)' };
 
 export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
   const toast = useToast();
+  const { detailed } = useDetailed();
   const [d, setD] = useState<Msg | null>(null);
   const [busy, setBusy] = useState(false);
   const load = () => void ask({ type: 'load', page: 'overview' }).then(setD).catch((e: Error) => toast(e.message, 'err'));
@@ -27,7 +35,7 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
     setBusy(true);
     try {
       const r = await ask({ type: 'reindex' });
-      toast(`Re-indexed in ${Math.round(r['run']?.ms ?? 0)} ms`);
+      toast(detailed ? `Re-indexed in ${Math.round(r['run']?.ms ?? 0)} ms` : 'Up to date with the latest code');
       load();
     } finally {
       setBusy(false);
@@ -37,27 +45,36 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
     <div className="stack-lg">
       <section className="hero">
         <div className="hero-l">
-          <span className="eyebrow">{brand.mlff && <img src={brand.mlff} alt="" />}MLFF · Multi-Lane Free Flow · repository</span>
+          <span className="eyebrow">{brand.mlff && <img src={brand.mlff} alt="" />}MLFF · Multi-Lane Free Flow</span>
           <h1 className="hero-t">{repoName}</h1>
           <div className="row wrap">
-            {s.head && <Chip mono><Icon name="commit" size={12} />{String(s.head).slice(0, 10)}</Chip>}
-            <Chip tone={pending ? 'ember' : 'moss'} dot={pending ? 'var(--ember)' : 'var(--moss)'}>{pending ? `${pending} pending` : 'index current'}</Chip>
-            <Chip>schema {s.schemaVersion}</Chip>
+            <Chip tone={pending ? 'ember' : 'moss'} dot={pending ? 'var(--ember)' : 'var(--moss)'}>{pending ? `Updating, ${pending} files left` : 'Up to date'}</Chip>
+            <Detail>{s.head && <Chip mono><Icon name="commit" size={12} />{String(s.head).slice(0, 10)}</Chip>}<Chip>schema {s.schemaVersion}</Chip></Detail>
           </div>
           <div className="stats4">
             <Stat v={<Count to={s.blobs} />} l="files" />
-            <Stat v={<Count to={s.symbols} />} l="symbols" />
-            <Stat v={<Count to={s.edges} />} l="graph edges" />
-            <Stat v={<Count to={t.packs} />} l="packs compiled" />
+            <Stat v={<Count to={s.symbols} />} l={detailed ? 'symbols' : 'parts of the code'} />
+            {detailed ? <Stat v={<Count to={s.edges} />} l="graph edges" /> : <Stat v={<Count to={t.toolCalls.total} />} l="AI steps checked" />}
+            <Stat v={<Count to={t.packs} />} l={detailed ? 'packs compiled' : 'tasks prepared'} />
           </div>
         </div>
         <div className="hero-r">
-          <Btn kind="primary" icon="studio" onClick={() => go('studio')}>New task</Btn>
-          <Btn kind="soft" icon="refresh" onClick={() => void reindex()} disabled={busy}>{busy ? 'Indexing…' : 'Re-index'}</Btn>
+          <Btn kind="primary" icon="ask" onClick={() => go('ask')}>Ask a question</Btn>
+          <Btn kind="soft" icon="refresh" onClick={() => void reindex()} disabled={busy}>{busy ? 'Updating…' : detailed ? 'Re-index' : 'Refresh'}</Btn>
         </div>
       </section>
 
-      <Card title="Incremental pipeline" sub="Each stage only touches what changed since its last run: blobs are content-hashed, and every stage keeps its own done-bit.">
+      {!detailed ? <>
+        <h2 className="section-t">What would you like to do?</h2>
+        <section className="doit">{DO.map((d, i) => (
+          <button key={d.page} style={{ ['--c' as string]: d.color, animationDelay: `${i * 50}ms` }} onClick={() => go(d.page)}>
+            <span className="doit-i"><Icon name={d.icon} size={18} /></span><b>{d.title}</b><span className="muted">{d.text}</span>
+          </button>))}
+        </section>
+      </> : null}
+
+      <Detail>
+      <Card title="How RIAF keeps up with the code" sub="Each step only redoes what changed since its last run.">
         <div className="pipeline">
           {stages.map((x, i) => (
             <div key={x['stage']} className={`pnode ${x['pending'] ? 'busy' : ''} ${x['lastError'] ? 'err' : ''}`} style={{ animationDelay: `${i * 70}ms` }}>
@@ -72,23 +89,24 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
       </Card>
 
       <div className="grid2">
-        <Card title="How requests were read" sub="Branch the router chose for each request: one clear intent, a blend, or an uncertain reading.">
+        <Card title="How requests were read" sub="Whether each request was clear, mixed two things, or needed a question back.">
           {routes ? (
             <div className="donut-wrap">
               <Donut parts={branches.map(([b, n]) => ({ label: b, value: n, color: BRANCH_COLORS[b] ?? 'var(--slate)' }))} label={<Count to={routes} />} sub="requests" />
-              <div className="legend col">{branches.sort((a, b) => b[1] - a[1]).map(([b, n]) => <span key={b}><i className="sw" style={{ background: BRANCH_COLORS[b] }} />{b}<b>{n}</b></span>)}</div>
+              <div className="legend col">{branches.sort((a, b) => b[1] - a[1]).map(([b, n]) => <span key={b}><i className="sw" style={{ background: BRANCH_COLORS[b] }} />{BRANCH_TEXT[b] ?? b}<b>{n}</b></span>)}</div>
             </div>
-          ) : <Empty icon="studio" title="No requests yet">Compile a pack in the Studio to see how RIAF reads tasks.</Empty>}
+          ) : <Empty icon="studio" title="No requests yet">Prepare a task to see how RIAF reads requests.</Empty>}
         </Card>
-        <Card title="Learning loop" sub="Governed sessions feed priors and distil skills from what worked.">
+        <Card title="Learning from use" sub="Each AI session teaches RIAF which context was useful.">
           <div className="stats3">
-            <Stat v={<Count to={t.sessions} />} l="sessions" />
-            <Stat v={<Count to={t.toolCalls.total} />} l="governed tool calls" />
-            <Stat v={<Count to={t.skills} />} l="skills learned" accent="var(--moss)" />
+            <Stat v={<Count to={t.sessions} />} l="AI sessions" />
+            <Stat v={<Count to={t.toolCalls.total} />} l="AI steps checked" />
+            <Stat v={<Count to={t.skills} />} l="habits learned" accent="var(--moss)" />
           </div>
-          <div className="row" style={{ marginTop: 14 }}><Btn kind="ghost" sm icon="governance" onClick={() => go('governance')}>Open governance</Btn></div>
+          <div className="row" style={{ marginTop: 14 }}><Btn kind="ghost" sm icon="governance" onClick={() => go('governance')}>Open AI activity</Btn></div>
         </Card>
       </div>
+      </Detail>
     </div>
   );
 }

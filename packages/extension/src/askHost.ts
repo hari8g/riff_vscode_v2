@@ -1,5 +1,5 @@
 import type { RpcResult, WikiNodeShape } from '@riaf/kernel';
-import { areaName, areaOf, composeAnswer, isTest, LENSES, parseQuestion, stem, type Answer, type Evidence, type Lens, type Parsed, type SubjectHit } from './ask.js';
+import { areaName, areaOf, composeAnswer, isTest, LENS_INFO, LENSES, parseQuestion, stem, type Answer, type Evidence, type Lens, type Parsed, type SubjectHit } from './ask.js';
 import type { Rpc } from './tools.js';
 
 /** One step of the compiled question plan, as shown to the person asking. */
@@ -64,7 +64,7 @@ export async function answerQuestion(rpc: Rpc, text: string, lens?: Lens): Promi
   const route = await rpc.call('route', { text, ide: { interactive: true } });
   const lenses: Lens[] = [parsed.primary, ...(parsed.secondary ? [parsed.secondary] : [])];
   lap({ id: 'understand', label: 'Understand the question', calls: ['parse', 'route'],
-    detail: `Read as “${lenses.join(' + ')}”${parsed.timeframe ? `, limited to the ${parsed.timeframe.label}` : ''}; ${parsed.subjects.length} subject${parsed.subjects.length === 1 ? '' : 's'} spotted.` });
+    detail: `You asked: ${lenses.map((l) => LENS_INFO[l].label.toLowerCase()).join(' and ')}${parsed.timeframe ? `, for the ${parsed.timeframe.label}` : ''}.` });
 
   // 2. Locate: look up every candidate, then rank (named code, word overlap, kind, area, router grounding).
   const calls: string[] = [];
@@ -107,7 +107,7 @@ export async function answerQuestion(rpc: Rpc, text: string, lens?: Lens): Promi
   const unmatched = terms.filter((t) => !(t.words ?? [t.text]).some((w) => stem(w).length >= 3 && found.some((f) => f.includes(stem(w))))).map((t) => t.text);
   const areaIds = new Set([...namedAreas, ...subjects.slice(0, 3).map((s) => s.area).filter(Boolean)]);
   lap({ id: 'locate', label: 'Find what it is about', calls,
-    detail: subjects.length ? `Ranked ${cands.size} candidate${cands.size === 1 ? '' : 's'}; kept ${subjects.length} in ${areaIds.size || 1} area${areaIds.size === 1 ? '' : 's'}${missing.length ? `; ${missing.length} name${missing.length === 1 ? '' : 's'} not in the code` : ''}.` : missing.length ? `Nothing in the code matches ${missing.map((m) => `“${m}”`).join(', ')}.` : 'No specific part named; answering at the product level.' });
+    detail: subjects.length ? `Found ${subjects.length} matching part${subjects.length === 1 ? '' : 's'} in ${areaIds.size || 1} area${areaIds.size === 1 ? '' : 's'}${missing.length ? `; ${missing.length} name${missing.length === 1 ? ' is' : 's are'} not in the code` : ''}.` : missing.length ? `Nothing in the code matches ${missing.map((m) => `“${m}”`).join(', ')}.` : 'Nothing specific named, so answering for the whole product.' });
 
   // 3. Gather evidence for the lenses in play.
   const need = Object.assign({}, ...lenses.map((l) => NEEDS[l])) as (typeof NEEDS)[Lens];
@@ -142,18 +142,18 @@ export async function answerQuestion(rpc: Rpc, text: string, lens?: Lens): Promi
   }
   await Promise.all(tasks);
   lap({ id: 'gather', label: 'Gather the evidence', calls: gathered,
-    detail: [evidence.impact ? `${evidence.impact.closure.length} dependent parts, ${evidence.impact.tests.length} checks` : '', evidence.history ? `${evidence.history.commits.length} changes` : '', evidence.areas.length ? `${evidence.areas.length} area page${evidence.areas.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'Nothing more needed.' });
+    detail: [evidence.impact ? `${evidence.impact.closure.length} parts that depend on it` : '', evidence.impact ? `${evidence.impact.tests.length} automated checks` : '', evidence.history ? `${evidence.history.commits.length} past changes` : '', evidence.areas.length ? `${evidence.areas.length} area summar${evidence.areas.length === 1 ? 'y' : 'ies'}` : ''].filter(Boolean).join(', ') || 'Nothing more was needed.' });
 
   // 4. Compile a context pack: what a developer (or an agent) would be handed for the same question.
   if (need.pack) {
     const r = await rpc.call('pack.compile', { request: { text, ide: { interactive: true } }, target: 'json', sessionId: 'ask', budget: 8000 });
     evidence.pack = { packId: r.pack.packId, tokensUsed: r.pack.tokensUsed, budget: r.pack.budget, items: r.pack.items.length, files: [...new Set(r.pack.items.map((i) => ('path' in i.source ? i.source.path : undefined)).filter((p): p is string => !!p))] };
-    lap({ id: 'compile', label: 'Compile a context pack', calls: ['pack.compile'], detail: `${r.pack.items.length} items, ${r.pack.tokensUsed.toLocaleString()} of ${r.pack.budget.toLocaleString()} tokens, ready to hand to a developer.` });
+    lap({ id: 'compile', label: 'Prepare context for a developer', calls: ['pack.compile'], detail: `${r.pack.items.length} pieces of context a developer or AI could start from.` });
   }
 
   // 5. Compose the plain-language answer.
   const answer = composeAnswer(parsed, evidence);
-  lap({ id: 'compose', label: 'Write the answer', calls: [], detail: `${answer.blocks.length} views, ${answer.sources.length} sources, confidence ${answer.confidence}.` });
+  lap({ id: 'compose', label: 'Write the answer', calls: [], detail: `Based on ${answer.sources.length} source${answer.sources.length === 1 ? '' : 's'}.` });
   return { parsed, plan, evidence, answer };
 }
 
