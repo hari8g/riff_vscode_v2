@@ -140,18 +140,23 @@ export function runGraphStage(store: Store, opts: { events?: EventBus<PipelineEv
   const changedSet = new Set(changed);
   const affected = new Set<string>();
   const firstRun = store.edges.count() === 0;
+  const namesKey = (p: string) => `graph.names:${p}`;
+  const currentNames = new Map<string, Set<string>>();
+  for (const p of changed) currentNames.set(p, new Set((idx.byPath.get(p) ?? []).filter((s) => s.kind !== 'file').map((s) => s.name)));
   if (!firstRun) {
     for (const p of changed) {
-      // edges from unchanged files into a changed file may now dangle (renamed or removed symbols)
+      // edges from unchanged files that now dangle (a symbol was renamed, removed or changed kind)
       for (const e of store.edges.incomingToPath(p)) {
+        if (idx.byId.has(e.dst)) continue;
         const src = idx.byId.get(e.src);
         const srcPath = src?.path ?? e.src.slice(0, e.src.indexOf('#'));
         if (!changedSet.has(srcPath)) affected.add(srcPath);
       }
-      // references elsewhere that may now bind to names defined in the changed file
-      for (const s of idx.byPath.get(p) ?? []) {
-        if (s.kind === 'file') continue;
-        for (const r of store.refs.byName(s.name)) if (!changedSet.has(r.path)) affected.add(r.path);
+      // references elsewhere that may now bind to names this change introduced
+      const before = new Set<string>(JSON.parse(store.kv.get(namesKey(p)) ?? '[]') as string[]);
+      for (const name of currentNames.get(p)!) {
+        if (before.has(name)) continue;
+        for (const r of store.refs.byName(name)) if (!changedSet.has(r.path)) affected.add(r.path);
       }
     }
   }
@@ -165,6 +170,10 @@ export function runGraphStage(store: Store, opts: { events?: EventBus<PipelineEv
       edges += es.length;
     }
     store.edges.deleteDangling();
+    for (const [p, names] of currentNames) {
+      if (idx.byPath.has(p)) store.kv.set(namesKey(p), JSON.stringify([...names].sort()));
+      else store.kv.delete(namesKey(p));
+    }
     store.merkle.markDone(GRAPH_STAGE, pending);
     store.kv.set(GRAPH_VERSION_KEY, String(Number(store.kv.get(GRAPH_VERSION_KEY) ?? '0') + 1));
   });

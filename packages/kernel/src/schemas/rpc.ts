@@ -18,7 +18,25 @@ const StageStatusSchema = z.object({
   lastError: z.string().optional(),
 });
 
+/** Protocol version; additive changes (new methods, new optional fields) keep the major (ADR-0004). */
+export const RPC_PROTOCOL_VERSION = '1.1' as const;
+
 export const RPC = {
+  'daemon.info': {
+    params: z.object({}),
+    result: z.object({
+      protocol: z.string(),
+      version: z.string(),
+      pid: z.number().int(),
+      root: z.string(),
+      startedAt: z.string(),
+      methods: z.array(z.string()),
+    }),
+  },
+  'daemon.shutdown': {
+    params: z.object({}),
+    result: z.object({ ok: z.literal(true) }),
+  },
   'index.status': {
     params: z.object({}),
     result: z.object({
@@ -32,8 +50,20 @@ export const RPC = {
     }),
   },
   'index.rebuild': {
-    params: z.object({ stages: z.array(z.string()).optional(), full: z.boolean().default(false) }),
-    result: z.object({ scheduled: z.array(z.string()) }),
+    params: z.object({
+      stages: z.array(z.string()).optional(),
+      full: z.boolean().default(false),
+      /** Wait for the run and return its summary (since 1.1). */
+      wait: z.boolean().default(false),
+    }),
+    result: z.object({
+      scheduled: z.array(z.string()),
+      run: z.object({
+        reason: z.string(),
+        ms: z.number().nonnegative(),
+        stages: z.array(z.object({ stage: z.string(), changed: z.number().int().nonnegative(), ms: z.number().nonnegative(), error: z.string().optional() })),
+      }).optional(),
+    }),
   },
   'route': {
     params: RouteRequestSchema,
@@ -49,11 +79,20 @@ export const RPC = {
     result: z.object({ pack: PackSchema, rendered: z.string() }),
   },
   'graph.jump': {
-    params: z.object({ symbol: SymbolIdSchema.optional(), path: RepoPathSchema.optional(), line: z.number().int().nonnegative().optional() })
-      .refine((p) => p.symbol !== undefined || p.path !== undefined, 'symbol or path is required'),
+    params: z.object({
+      symbol: SymbolIdSchema.optional(),
+      path: RepoPathSchema.optional(),
+      line: z.number().int().nonnegative().optional(),
+      /** Free-text lookup: qualified name (`TollSession.close`), bare name, or `path:line` (since 1.1). */
+      query: z.string().min(1).optional(),
+    }).refine((p) => p.symbol !== undefined || p.path !== undefined || p.query !== undefined, 'symbol, path or query is required'),
     result: z.object({
-      definition: z.object({ symbol: SymbolIdSchema, path: RepoPathSchema, startLine: z.number().int(), endLine: z.number().int(), signature: z.string() }).optional(),
-      references: z.array(z.object({ symbol: SymbolIdSchema, path: RepoPathSchema, line: z.number().int(), kind: z.string() })),
+      definition: z.object({
+        symbol: SymbolIdSchema, path: RepoPathSchema, startLine: z.number().int(), endLine: z.number().int(), signature: z.string(),
+        kind: z.string().optional(), doc: z.string().optional(),
+      }).optional(),
+      alternatives: z.array(SymbolIdSchema).default([]),
+      references: z.array(z.object({ symbol: SymbolIdSchema, path: RepoPathSchema, line: z.number().int(), kind: z.string(), confidence: z.number().optional() })),
       blame: z.array(z.object({ commit: GitShaSchema, summary: z.string().optional(), at: z.string() })),
       skills: z.array(z.object({ purpose: z.string(), playbook: z.string() })),
     }),

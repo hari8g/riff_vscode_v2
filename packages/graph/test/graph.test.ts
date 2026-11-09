@@ -63,6 +63,14 @@ describe('graph build on toll-ts', () => {
     const again = await reindex(store, graph, root);
     expect(again.graph.changed).toEqual([]);
 
+    // a comment-only edit rebuilds exactly that file: no names added or removed, no dangling edges
+    const ledger = join(root, 'src/toll/ledger.ts');
+    const fs0 = await import('node:fs');
+    fs0.appendFileSync(ledger, '\n// note\n');
+    const touched = await reindex(store, graph, root);
+    expect(touched.graph.changed).toEqual(['src/toll/ledger.ts']);
+    expect(touched.graph.affected).toEqual([]);
+
     const plate = join(root, 'src/toll/plate.ts');
     const src = (await import('node:fs')).readFileSync(plate, 'utf8').replace('export function validatePlate', 'export function isValidPlate').replace('return plateChecksum', 'return plateChecksum');
     writeFileSync(plate, src);

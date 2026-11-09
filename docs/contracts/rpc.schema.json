@@ -1,4 +1,70 @@
 {
+  "daemon.info": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "root": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "pid",
+        "root",
+        "startedAt",
+        "methods"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "daemon.shutdown": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "additionalProperties": false
+    }
+  },
   "index.status": {
     "params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -96,6 +162,10 @@
         "full": {
           "default": false,
           "type": "boolean"
+        },
+        "wait": {
+          "default": false,
+          "type": "boolean"
         }
       }
     },
@@ -108,6 +178,53 @@
           "items": {
             "type": "string"
           }
+        },
+        "run": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string"
+            },
+            "ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "stages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "string"
+                  },
+                  "changed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "ms": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "stage",
+                  "changed",
+                  "ms"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "reason",
+            "ms",
+            "stages"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1418,6 +1535,10 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -1448,6 +1569,12 @@
             },
             "signature": {
               "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "doc": {
+              "type": "string"
             }
           },
           "required": [
@@ -1458,6 +1585,14 @@
             "signature"
           ],
           "additionalProperties": false
+        },
+        "alternatives": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+          }
         },
         "references": {
           "type": "array",
@@ -1479,6 +1614,9 @@
               },
               "kind": {
                 "type": "string"
+              },
+              "confidence": {
+                "type": "number"
               }
             },
             "required": [
@@ -1534,6 +1672,7 @@
         }
       },
       "required": [
+        "alternatives",
         "references",
         "blame",
         "skills"
