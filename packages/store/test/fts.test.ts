@@ -28,9 +28,17 @@ describe('FtsIndex on the toll-ts fixture', () => {
     for (const f of files) store.replaceChunksForPath(f.path, lineChunks(f));
     expect(store.fts.count()).toBeGreaterThan(0);
 
-    const t0 = performance.now();
-    const hits = store.fts.search('validate plate checksum');
-    const ms = performance.now() - t0;
+    // Gate on warm latency (median of 5 after one warm-up), so a cold statement prepare or a busy
+    // CI worker running other test files in parallel does not make the gate flaky.
+    store.fts.search('warm up');
+    const times: number[] = [];
+    let hits = store.fts.search('validate plate checksum');
+    for (let i = 0; i < 5; i++) {
+      const t0 = performance.now();
+      hits = store.fts.search('validate plate checksum');
+      times.push(performance.now() - t0);
+    }
+    const ms = times.sort((a, b) => a - b)[2]!;
     expect(ms).toBeLessThan(20);
     expect(hits[0]?.path).toBe('src/toll/plate.ts');
 
