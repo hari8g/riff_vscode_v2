@@ -1,0 +1,22 @@
+{
+  "name": "@riaf/kernel",
+  "version": "0.1.0",
+  "description": "RIAF v2 shared vocabulary: ids, hashing, token estimation, events, errors, ports and the zod contracts.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./schemas": { "types": "./dist/schemas/index.d.ts", "default": "./dist/schemas/index.js" },
+    "./ports": { "types": "./dist/ports/index.d.ts", "default": "./dist/ports/index.js" }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/kernel"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}
