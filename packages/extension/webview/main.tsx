@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ask, brand, repoName, save, saved } from './api.js';
 import { Icon, Palette, symName, ToastHost, useTheme, type PaletteItem } from './kit.js';
 import { Adapters } from './pages/adapters.js';
+import { Ask } from './pages/ask.js';
 import { Governance } from './pages/governance.js';
 import { Overview } from './pages/overview.js';
 import { PoliciesPage } from './pages/policies.js';
@@ -14,6 +15,7 @@ import { Studio } from './pages/studio.js';
 
 const PAGES = [
   { id: 'overview', label: 'Overview', key: 'o' },
+  { id: 'ask', label: 'Ask', key: 'q' },
   { id: 'studio', label: 'Studio', key: 's' },
   { id: 'repository', label: 'Repository', key: 'r' },
   { id: 'policies', label: 'Policies', key: 'p' },
@@ -109,6 +111,7 @@ function App() {
         </header>
         <main className="main" key={page}>
           {page === 'overview' && <Overview go={go} />}
+          {page === 'ask' && <Ask go={go} />}
           {page === 'studio' && <Studio go={go} />}
           {page === 'repository' && <Repository {...(focus ? { focus } : {})} />}
           {page === 'policies' && <PoliciesPage />}

@@ -1,3 +1,4 @@
+import { answerQuestion, isLens, resetAskCache, understand } from './askHost.js';
 import { BENCHMARKS, live } from './savings.js';
 import type { Rpc } from './tools.js';
 
@@ -14,6 +15,8 @@ export type ConsoleRequest =
   | { type: 'jump'; query: string }
   | { type: 'impact'; query: string }
   | { type: 'history'; query: string }
+  | { type: 'understand'; text: string; lens?: string }
+  | { type: 'ask'; text: string; lens?: string }
   | { type: 'reindex' }
   | { type: 'handoff'; to: 'copilot' | 'claude'; text: string; packId: string };
 
@@ -93,7 +96,12 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
     }
     case 'history':
       return { type: 'history', ...(await rpc.call('history.rationale', { query: req.query })) };
+    case 'understand':
+      return { type: 'understood', ...(await understand(rpc, req.text, isLens(req.lens) ? req.lens : undefined)) };
+    case 'ask':
+      return { type: 'answered', ...(await answerQuestion(rpc, req.text, isLens(req.lens) ? req.lens : undefined)) };
     case 'reindex': {
+      resetAskCache();
       const r = await rpc.call('index.rebuild', { wait: true });
       return { type: 'reindexed', run: r.run };
     }
