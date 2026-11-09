@@ -1,24 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": [
-    "src"
-  ],
-  "references": [
-    {
-      "path": "../kernel"
-    },
-    {
-      "path": "../daemon"
-    },
-    {
-      "path": "../models"
-    },
-    {
-      "path": "../compiler"
-    }
-  ]
+  "compilerOptions": { "rootDir": "src", "outDir": "out-tsc", "types": ["node", "vscode"] },
+  "include": ["src"],
+  "references": [{ "path": "../kernel" }, { "path": "../daemon" }, { "path": "../models" }, { "path": "../compiler" }]
 }

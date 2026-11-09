@@ -1,34 +1,205 @@
 {
   "name": "riaf-vscode-v2",
-  "version": "0.1.0",
-  "description": "VS Code extension: Copilot LM tools, @riaf participant hand-off, console webview, settings.",
+  "displayName": "RIAF v2",
+  "description": "Repository intelligence for Copilot and Claude Code: budgeted context packs, symbol navigation, impact and history, tool-call governance. Local-first; nothing is downloaded at install time.",
+  "version": "0.4.0",
+  "publisher": "bosch-mps",
   "license": "MIT",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest run --root ../.. packages/extension"
-  },
-  "dependencies": {
-    "@riaf/kernel": "workspace:*",
-    "@riaf/daemon": "workspace:*",
-    "@riaf/models": "workspace:*",
-    "@riaf/compiler": "workspace:*"
-  },
   "private": true,
+  "type": "module",
   "engines": {
     "vscode": "^1.95.0"
   },
-  "publisher": "bosch-mps",
-  "displayName": "RIAF v2"
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hari8g/riff_vscode_v2.git"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "bundle": "node ../../tooling/esbuild/build.mjs extension",
+    "package": "node ../../tooling/esbuild/build.mjs extension && vsce package --no-dependencies --out ../../dist-bundle/",
+    "test": "vitest run --root ../.. packages/extension"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "riaf.pack",
+        "title": "RIAF: Compile context pack"
+      },
+      {
+        "command": "riaf.jump",
+        "title": "RIAF: Jump to symbol"
+      },
+      {
+        "command": "riaf.index",
+        "title": "RIAF: Re-index repository"
+      },
+      {
+        "command": "riaf.openConsole",
+        "title": "RIAF: Open console"
+      },
+      {
+        "command": "riaf.init",
+        "title": "RIAF: Initialise repository (policies, run-book, MCP, hooks)"
+      },
+      {
+        "command": "riaf.handoffCopilot",
+        "title": "RIAF: Continue in Copilot agent mode",
+        "enablement": "false"
+      },
+      {
+        "command": "riaf.handoffClaude",
+        "title": "RIAF: Open in Claude Code",
+        "enablement": "false"
+      }
+    ],
+    "configuration": {
+      "title": "RIAF",
+      "properties": {
+        "riaf.budget": {
+          "type": "number",
+          "default": 16000,
+          "description": "Token budget for compiled packs."
+        },
+        "riaf.models": {
+          "type": "object",
+          "default": {},
+          "description": "Model adapters per job (summarize, classify, embed, chat): {provider: anthropic|openai|ollama, model, baseUrl?, apiKeyEnv?}. API keys are read from the named environment variables, never stored in settings."
+        }
+      }
+    },
+    "languageModelTools": [
+      {
+        "name": "riaf_pack",
+        "displayName": "RIAF context pack",
+        "toolReferenceName": "riafPack",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(database)",
+        "modelDescription": "Compiles the context needed for a coding request in this repository: relevant code bodies, the test to mimic, callers, conventions and history, within a token budget. Call it first, before searching or reading files.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string",
+              "description": "The task in the user’s words"
+            },
+            "budget": {
+              "type": "number",
+              "description": "Token budget"
+            },
+            "activeFile": {
+              "type": "string",
+              "description": "Repo-relative path of the file in focus"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        }
+      },
+      {
+        "name": "riaf_jump",
+        "displayName": "RIAF jump",
+        "toolReferenceName": "riafJump",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Definition, signature and every reference of a symbol (Class.method, bare name, or path:line).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbol": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol"
+          ]
+        }
+      },
+      {
+        "name": "riaf_impact",
+        "displayName": "RIAF impact",
+        "toolReferenceName": "riafImpact",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "What depends on the given symbols and which tests exercise them; call before changing a public symbol.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbols": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "symbols"
+          ]
+        }
+      },
+      {
+        "name": "riaf_history",
+        "displayName": "RIAF history",
+        "toolReferenceName": "riafHistory",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Commits, reverts, incidents and decisions behind a symbol: why the code is the way it is.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbol": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol"
+          ]
+        }
+      },
+      {
+        "name": "riaf_wiki",
+        "displayName": "RIAF wiki",
+        "toolReferenceName": "riafWiki",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Summaries of the repository, a directory or a file. Omit node for the top-level structure.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "riaf.participant",
+        "name": "riaf",
+        "fullName": "RIAF",
+        "description": "Compile the context for a task, then hand it to Copilot agent mode or Claude Code",
+        "isSticky": false
+      }
+    ]
+  },
+  "dependencies": {
+    "@riaf/compiler": "workspace:*",
+    "@riaf/daemon": "workspace:*",
+    "@riaf/kernel": "workspace:*",
+    "@riaf/models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/vscode": "1.95.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
 }

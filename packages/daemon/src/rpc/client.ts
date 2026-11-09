@@ -120,13 +120,13 @@ export interface ConnectOptions {
   /** Start a daemon when none answers. Default true. */
   autoStart?: boolean;
   /** Command used to start the daemon; defaults to `node <@riaf/daemon>/dist/bin.js --root <root>`. */
-  spawn?: { command: string; args: string[] };
+  spawn?: { command: string; args: string[]; env?: NodeJS.ProcessEnv };
   startTimeoutMs?: number;
   requestTimeoutMs?: number;
 }
 
 /** The default daemon launcher: this package's own bin. */
-export function defaultSpawn(root: string): { command: string; args: string[] } {
+export function defaultSpawn(root: string): { command: string; args: string[]; env?: NodeJS.ProcessEnv } {
   return { command: process.execPath, args: [fileURLToPath(new URL('../bin.js', import.meta.url)), '--root', root] };
 }
 
@@ -158,7 +158,7 @@ export class DaemonClient implements RpcCaller {
         // a daemon is alive but not answering yet (still opening the store): wait for it below
       } else {
         const s = opts.spawn ?? defaultSpawn(root);
-        const child = spawn(s.command, s.args, { cwd: root, detached: true, stdio: 'ignore', env: process.env });
+        const child = spawn(s.command, s.args, { cwd: root, detached: true, stdio: 'ignore', env: { ...process.env, ...(s.env ?? {}) } });
         child.unref();
       }
       const deadline = Date.now() + (opts.startTimeoutMs ?? 20_000);

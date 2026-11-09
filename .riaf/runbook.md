@@ -6,21 +6,20 @@
 - lint: `pnpm lint`
 
 ## Layout
-- languages: typescript 194, javascript 7; frameworks: esbuild, eslint, typescript, vitest
+- languages: typescript 205, javascript 14, tsx 1; frameworks: esbuild, eslint, react, typescript, vitest
 - packages: packages/cli (riaf), packages/compiler (@riaf/compiler), packages/daemon (@riaf/daemon), packages/eval (@riaf/eval), packages/extension (riaf-vscode-v2), packages/govern (@riaf/govern), packages/graph (@riaf/graph), packages/history (@riaf/history), packages/intent (@riaf/intent), packages/kernel (@riaf/kernel), packages/models (@riaf/models), packages/parse (@riaf/parse), …
-- entry points: packages/cli/src/main.ts, packages/daemon/src/bin.ts, packages/daemon/src/main.ts, packages/daemon/src/rpc/server.ts, packages/serve-mcp/src/server.ts
-- cluster of 135 files: packages/kernel/, packages/store/, packages/daemon/, packages/graph/
-- cluster of 18 files: packages/eval/
+- entry points: packages/cli/src/main.ts, packages/daemon/src/bin.ts, packages/daemon/src/client-entry.ts, packages/daemon/src/main.ts, packages/daemon/src/rpc/server.ts, packages/extension/out-tsc/extension.js
+- cluster of 148 files: packages/kernel/, packages/store/, packages/daemon/, packages/graph/
+- cluster of 16 files: packages/eval/
 - cluster of 12 files: packages/cli/
 - cluster of 12 files: packages/intent/, packages/kernel/
 - cluster of 10 files: ./
-- cluster of 9 files: packages/models/, packages/kernel/
+- cluster of 9 files: packages/extension/, packages/eval/
 - tests: packages/cli/test, packages/compiler/test, packages/daemon/test, packages/eval/test, packages/extension/test, packages/govern/test
 
 ## Conventions
 - typescript tests are `*.test.ts` files under `test/`
 - javascript file names use kebab-case
-- typescript file names use camelCase
 - javascript tests are test files under `test/`
 
 ## Hard constraints

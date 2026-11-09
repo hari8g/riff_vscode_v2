@@ -1,0 +1,33 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm vitest run packages/cli/test/bundle.test.ts
+      # .vsix: extension + bundled daemon/CLI + wasm runtimes + grammars; nothing fetched at install time
+      - run: pnpm package:vsix
+      # portable CLI: one ESM bundle plus its wasm assets; runs on any Node >= 20 (no native modules)
+      - run: |
+          node tooling/esbuild/build.mjs cli dist-bundle/riaf-cli
+          tar -C dist-bundle -czf "dist-bundle/riaf-cli-${GITHUB_REF_NAME}.tgz" riaf-cli
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-bundle/*.vsix
+            dist-bundle/riaf-cli-*.tgz

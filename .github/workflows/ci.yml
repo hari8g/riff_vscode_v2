@@ -12,7 +12,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,12 +29,15 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm lint
-      - run: pnpm schemas:check
-      - run: pnpm test
+      # build, webview typecheck, lint (dependency boundaries), unit + fixture + golden-pack tests, schema drift
+      - run: pnpm verify
         env:
           CI: 'true'
+      - run: pnpm package:vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: riaf-vsix
+          path: dist-bundle/*.vsix
       - uses: actions/upload-artifact@v4
         if: always()
         with:

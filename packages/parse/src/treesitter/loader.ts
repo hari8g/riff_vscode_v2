@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ParserModule from 'web-tree-sitter';
 import { RiafError } from '@riaf/kernel';
 import { LANGUAGE_INFO, type LanguageId } from '../languages.js';
 
@@ -52,7 +53,8 @@ const parsers = new Map<LanguageId, TsParser>();
 async function parserCtor(): Promise<TsParserCtor> {
   if (!initPromise) {
     initPromise = (async () => {
-      const Parser = require('web-tree-sitter') as TsParserCtor;
+      // a static import so bundlers include the runtime; its wasm is found next to the running script
+      const Parser = ParserModule as unknown as TsParserCtor;
       await Parser.init();
       return Parser;
     })();

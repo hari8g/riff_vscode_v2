@@ -19,11 +19,15 @@
     "schemas": "node tooling/scripts/gen-schemas.mjs",
     "schemas:check": "node tooling/scripts/gen-schemas.mjs --check",
     "bench:index": "node tooling/scripts/bench-index.mjs",
-    "verify": "pnpm build && pnpm lint && pnpm test && pnpm schemas:check"
+    "typecheck:webview": "tsc -p packages/extension/webview",
+    "bundle": "node tooling/esbuild/build.mjs cli",
+    "package:vsix": "pnpm --filter riaf-vscode-v2 run package",
+    "verify": "pnpm build && pnpm typecheck:webview && pnpm lint && pnpm test && pnpm schemas:check"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.10.0",
+    "@vscode/vsce": "3.2.1",
     "esbuild": "^0.25.0",
     "eslint": "^9.17.0",
     "eslint-import-resolver-typescript": "^4.4.5",

@@ -5,6 +5,9 @@ dist/
 reports/
 coverage/
 *.vsix
+dist-bundle/
+tooling/grammars/*.wasm
+packages/extension/dist/
 
 # riaf runtime state (the index is never committed; policies and runbook are)
 .riaf/*.sqlite
@@ -21,3 +24,6 @@ fixtures/repos/*/.riaf/
 .idea/
 .DS_Store
 Thumbs.db
+out-tsc/
+.riaf/hooks-state/
+.riaf/handoff/
