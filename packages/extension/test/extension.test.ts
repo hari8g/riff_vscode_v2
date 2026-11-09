@@ -73,7 +73,7 @@ describe('console host', () => {
   it('serves every page and saves policies only when they validate', async () => {
     const writes: string[] = [];
     const deps = { rpc: core, writeRiafFile: async (n: string) => void writes.push(n), modelSettings: () => ({ summarize: { provider: 'ollama', model: 'qwen' } }) };
-    for (const page of ['overview', 'repository', 'policies', 'sessions', 'adapters'] as const) {
+    for (const page of ['overview', 'repository', 'policies', 'sessions', 'adapters', 'savings'] as const) {
       const r = await handleConsole(deps, { type: 'load', page });
       expect(r.type).toBe(page);
     }

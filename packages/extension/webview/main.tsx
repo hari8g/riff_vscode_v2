@@ -7,6 +7,7 @@ import { Governance } from './pages/governance.js';
 import { Overview } from './pages/overview.js';
 import { PoliciesPage } from './pages/policies.js';
 import { Repository } from './pages/repository.js';
+import { Savings } from './pages/savings.js';
 import { Studio } from './pages/studio.js';
 
 /** The RIAF console: a rail, a top bar with ⌘K, and six pages. */
@@ -17,6 +18,7 @@ const PAGES = [
   { id: 'repository', label: 'Repository', key: 'r' },
   { id: 'policies', label: 'Policies', key: 'p' },
   { id: 'governance', label: 'Governance', key: 'g' },
+  { id: 'savings', label: 'Savings', key: 'v' },
   { id: 'adapters', label: 'Adapters', key: 'a' },
 ] as const;
 type Page = (typeof PAGES)[number]['id'];
@@ -111,6 +113,7 @@ function App() {
           {page === 'repository' && <Repository {...(focus ? { focus } : {})} />}
           {page === 'policies' && <PoliciesPage />}
           {page === 'governance' && <Governance />}
+          {page === 'savings' && <Savings />}
           {page === 'adapters' && <Adapters />}
         </main>
       </div>

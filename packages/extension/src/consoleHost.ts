@@ -1,9 +1,10 @@
+import { BENCHMARKS, live } from './savings.js';
 import type { Rpc } from './tools.js';
 
 /** Messages between the console webview and the extension; the data side is pure and tested. */
 
 export type ConsoleRequest =
-  | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' }
+  | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' | 'savings' }
   | { type: 'validatePolicies'; policies: string; governance: string }
   | { type: 'savePolicies'; policies: string; governance: string }
   | { type: 'wikiPage'; node: string }
@@ -45,6 +46,10 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
         case 'sessions': {
           const t = await rpc.call('telemetry.query', {});
           return { type: 'sessions', telemetry: t };
+        }
+        case 'savings': {
+          const t = await rpc.call('telemetry.query', {});
+          return { type: 'savings', benchmarks: BENCHMARKS, live: live(t) };
         }
         case 'adapters': {
           const info = await rpc.call('daemon.info', {});
