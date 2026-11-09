@@ -25,6 +25,18 @@ export const WikiNodeSchema: z.ZodType<WikiNodeShape> = z.lazy(() => z.object({
   children: z.array(WikiNodeSchema),
 }));
 
+const TimelineEntrySchema = z.object({
+  commit: GitShaSchema,
+  at: z.string(),
+  author: z.string(),
+  summary: z.string(),
+  kind: z.string(),
+  noise: z.boolean(),
+  lines: z.number().int().nonnegative().optional(),
+  refs: z.array(z.string()),
+  revertedBy: GitShaSchema.optional(),
+});
+
 const StageStatusSchema = z.object({
   stage: z.string(),
   pending: z.number().int().nonnegative(),
@@ -34,7 +46,7 @@ const StageStatusSchema = z.object({
 });
 
 /** Protocol version; additive changes (new methods, new optional fields) keep the major (ADR-0004). */
-export const RPC_PROTOCOL_VERSION = '1.2' as const;
+export const RPC_PROTOCOL_VERSION = '1.3' as const;
 
 export const RPC = {
   'daemon.info': {
@@ -144,6 +156,23 @@ export const RPC = {
       closure: z.array(z.object({ symbol: SymbolIdSchema, distance: z.number().int(), via: z.string() })),
       coChange: z.array(z.object({ symbol: SymbolIdSchema, support: z.number().int(), confidence: z.number() })),
       tests: z.array(SymbolIdSchema),
+    }),
+  },
+  'history.timeline': {
+    params: z.object({ query: z.string().min(1).optional(), path: RepoPathSchema.optional(), limit: z.number().int().min(1).max(200).default(20) })
+      .refine((p) => p.query !== undefined || p.path !== undefined, 'query or path is required'),
+    result: z.object({ target: z.string(), kind: z.enum(['symbol', 'path', 'none']), entries: z.array(TimelineEntrySchema), text: z.string() }),
+  },
+  'history.rationale': {
+    params: z.object({ query: z.string().min(1) }),
+    result: z.object({
+      symbol: SymbolIdSchema.optional(),
+      commits: z.array(TimelineEntrySchema),
+      reverts: z.array(z.object({ commit: GitShaSchema, reverted: z.string(), summary: z.string() })),
+      incidents: z.array(z.object({ commit: GitShaSchema, ref: z.string(), summary: z.string() })),
+      adrs: z.array(z.object({ path: z.string(), title: z.string(), status: z.string(), excerpt: z.string() })),
+      coChange: z.array(z.object({ symbol: SymbolIdSchema, support: z.number(), confidence: z.number() })),
+      text: z.string(),
     }),
   },
   'govern.toolCall': {

@@ -2315,6 +2315,295 @@
       "additionalProperties": false
     }
   },
+  "history.timeline": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limit": {
+          "default": 20,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "symbol",
+            "path",
+            "none"
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "at": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "noise": {
+                "type": "boolean"
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "revertedBy": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              }
+            },
+            "required": [
+              "commit",
+              "at",
+              "author",
+              "summary",
+              "kind",
+              "noise",
+              "refs"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "kind",
+        "entries",
+        "text"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "history.rationale": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "at": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "noise": {
+                "type": "boolean"
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "revertedBy": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              }
+            },
+            "required": [
+              "commit",
+              "at",
+              "author",
+              "summary",
+              "kind",
+              "noise",
+              "refs"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "reverts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "reverted": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "commit",
+              "reverted",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "incidents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "ref": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "commit",
+              "ref",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "adrs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "excerpt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "title",
+              "status",
+              "excerpt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "coChange": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "support": {
+                "type": "number"
+              },
+              "confidence": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "symbol",
+              "support",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "commits",
+        "reverts",
+        "incidents",
+        "adrs",
+        "coChange",
+        "text"
+      ],
+      "additionalProperties": false
+    }
+  },
   "govern.toolCall": {
     "params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

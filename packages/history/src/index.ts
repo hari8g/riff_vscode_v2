@@ -1,8 +1,11 @@
 /**
- * @riaf/history — L2 git intelligence: blame per symbol, co-change matrix, reverts, ADRs, commit summaries.
- *
- * Placeholder until milestone M4; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/history — L2 git intelligence: incremental commit mining with kinds and a noise filter,
+ * blame per symbol (whitespace and noise revisions ignored), co-change from shared blame commits,
+ * reverts and incident markers, ADR / post-mortem links, and commit summaries.
  */
-export const PACKAGE = '@riaf/history' as const;
-export const MILESTONE = 'M4' as const;
+export * from './gitio.js';
+export * from './commits.js';
+export * from './cochange.js';
+export * from './adr.js';
+export * from './stage.js';
+export * from './history.js';

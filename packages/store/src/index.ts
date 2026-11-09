@@ -8,3 +8,4 @@ export * from './trigram.js';
 export * from './repo.js';
 export * from './store.js';
 export * from './compile.js';
+export * from './history.js';

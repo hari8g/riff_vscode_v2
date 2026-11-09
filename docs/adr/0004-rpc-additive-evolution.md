@@ -15,3 +15,5 @@ Protocol 1.1 (this ADR) adds `daemon.info`, `daemon.shutdown`, a free-text `quer
 - Each milestone that adds RPC methods bumps the minor in the same commit as the schema change.
 
 Protocol 1.2 (M3) adds `pack.get`, `wiki.structure`, `wiki.page`, `runbook.get`, and optional `sessionId` / `includeRunbook` on `pack.compile`; `route` and `pack.compile` become served.
+
+Protocol 1.3 (M4) adds `history.timeline` and `history.rationale`; `graph.jump` now fills `blame`.

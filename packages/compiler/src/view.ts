@@ -11,6 +11,8 @@ export interface HistoryFacts {
   incidents(symbol: SymbolId, limit?: number): { commit: string; at: string; summary: string; kind: 'revert' | 'incident' | 'fix' }[];
   /** Commits that introduced the symbol (its origin), for sibling templates. */
   origin(symbol: SymbolId): { commit: string; at: string; summary: string; files: string[] } | undefined;
+  /** Newest non-noise commits touching a path — sees deletions, which blame cannot. */
+  recent?(path: string, limit?: number): { commit: string; at: string; summary: string }[];
   /** ADRs and post-mortems that mention the symbol or its file. */
   adrs(symbol: SymbolId, limit?: number): { path: string; title: string; excerpt: string }[];
 }

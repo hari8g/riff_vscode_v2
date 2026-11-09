@@ -22,7 +22,7 @@ describe('DaemonCore in-process', () => {
     cpSync(join(REPO, '.riaf/governance.yaml'), join(root, '.riaf/governance.yaml'));
     const core = await DaemonCore.open({ root, storePath: ':memory:', logger: silentLogger, validateResults: true });
     const run = await core.index('test');
-    expect(run.stages.map((s) => s.stage)).toEqual(['scan', 'parse', 'graph', 'summaries']);
+    expect(run.stages.map((s) => s.stage)).toEqual(['scan', 'parse', 'graph', 'history', 'summaries']);
 
     const status = await core.call('index.status', {});
     expect(status.symbols).toBeGreaterThan(10);
@@ -44,7 +44,7 @@ describe('DaemonCore in-process', () => {
     expect(bad.diagnostics[0]?.file).toBe('policies.yaml');
 
     await expect(core.call('graph.jump', {} as never)).rejects.toThrow(/invalid params/);
-    await expect(core.call('history.timeline' as never, {} as never)).rejects.toThrow(/unknown method|not available/);
+    await expect(core.call('govern.toolCall', { sessionId: 's', phase: 'explore', tool: 'Read', args: {}, at: '2026-01-01T00:00:00Z' })).rejects.toThrow(/not available/);
 
     const info = await core.call('daemon.info', {});
     expect(info.methods).toContain('graph.jump');
@@ -88,4 +88,29 @@ describe('DaemonCore M3 surface', () => {
     expect(rb.lines).toBeLessThanOrEqual(60);
     await core.close();
   });
+});
+
+describe('DaemonCore M4: history', () => {
+  it('mines a git repo, fills jump blame, serves timeline and rationale, and feeds blame into bugfix packs', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const root = mkdtempSync(join(tmpdir(), 'riaf-core-hist-'));
+    dirs.push(root);
+    execFileSync(process.execPath, [join(REPO, 'tooling/scripts/make-fixture-history.mjs'), 'telemetry-py', root], { encoding: 'utf8' });
+    const core = await DaemonCore.open({ root, storePath: ':memory:', logger: silentLogger, validateResults: true });
+    const run = await core.index('test');
+    expect(run.stages.find((s) => s.stage === 'history')?.changed).toBeGreaterThan(200);
+    const jump = await core.call('graph.jump', { query: 'RingBuffer.push' });
+    expect(jump.blame.length).toBeGreaterThan(0);
+    const tl = await core.call('history.timeline', { query: 'RingBuffer.push' });
+    expect(tl.kind).toBe('symbol');
+    expect(tl.text).toMatch(/^History of `RingBuffer\.push`/);
+    const file = await core.call('history.timeline', { path: 'src/telemetry/buffer.py', limit: 5 });
+    expect(file.entries).toHaveLength(5);
+    const why = await core.call('history.rationale', { query: 'RingBuffer.push' });
+    expect(why.commits.length).toBeGreaterThan(0);
+    const { pack } = await core.call('pack.compile', { request: { text: 'RingBuffer returns stale frames after overflow; fix RingBuffer.push' }, target: 'json' });
+    expect(pack.items.some((i) => i.kind === 'commit')).toBe(true);
+    expect(pack.openLookups.some((l) => l.tool === 'riaf_history')).toBe(false);
+    await core.close();
+  }, 120_000);
 });

@@ -31,9 +31,10 @@ export async function cmdEval(p: ParsedArgs, io: Io): Promise<number> {
   for (const n of names) {
     if (n === 'scripted') runners.push(new ScriptedBaselineRunner());
     else if (n === 'compiler') runners.push(new CompilerRunner({ ...(int(p, 'budget') ? { budget: int(p, 'budget')! } : {}) }));
+    else if (n === 'compiler+history') runners.push(new CompilerRunner({ history: true, ...(int(p, 'budget') ? { budget: int(p, 'budget')! } : {}) }));
     else if (n === 'claude') runners.push(new ClaudeHeadlessRunner({ label: 'claude-baseline', maxTurns: int(p, 'max-turns', 30)!, ...(str(p, 'model') ? { model: str(p, 'model')! } : {}) }));
     else {
-      io.err(`unknown runner ${n} (available: scripted, compiler, claude)`);
+      io.err(`unknown runner ${n} (available: scripted, compiler, compiler+history, claude)`);
       return 2;
     }
   }

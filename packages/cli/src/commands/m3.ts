@@ -174,3 +174,27 @@ export async function cmdInit(p: ParsedArgs, io: Io): Promise<number> {
   io.out(`RIAF initialised for ${host} in ${root}`);
   return 0;
 }
+
+/** `riaf history <symbol|path> [--why] [--limit N]` — timeline (blame per symbol) or rationale. */
+export async function cmdHistory(p: ParsedArgs, io: Io): Promise<number> {
+  const target = p.positionals.join(' ').trim();
+  if (!target) {
+    io.err('usage: riaf history <symbol | path> [--why] [--limit N]');
+    return 2;
+  }
+  const s = await openSession(p, io.cwd);
+  try {
+    await s.ensureIndexed();
+    if (bool(p, 'why')) {
+      const r = await s.rpc.call('history.rationale', { query: target });
+      io.out(bool(p, 'json') ? JSON.stringify(r, null, 2) : r.text);
+      return r.symbol ? 0 : 1;
+    }
+    const isPath = /\.[a-z]{1,5}$/i.test(target) && !target.includes('#');
+    const r = await s.rpc.call('history.timeline', { ...(isPath ? { path: target } : { query: target }), limit: int(p, 'limit', 20)! });
+    io.out(bool(p, 'json') ? JSON.stringify(r, null, 2) : r.text);
+    return r.kind === 'none' ? 1 : 0;
+  } finally {
+    await s.rpc.close();
+  }
+}

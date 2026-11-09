@@ -16,9 +16,9 @@ export function packFiles(pack: Pack): string[] {
 }
 
 /** Compiles the pack a task would get (shared by the runner and the golden-pack check). */
-export async function compileTaskPack(task: Task, ctx: RunnerContext, opts: { budget?: number } = {}): Promise<Pack> {
-  const ws = prepareWorkspace(task, ctx.paths, { git: false });
-  const core = await DaemonCore.open({ root: ws.root, storePath: ':memory:', logger: silentLogger, repoName: task.repo });
+export async function compileTaskPack(task: Task, ctx: RunnerContext, opts: { budget?: number; history?: boolean } = {}): Promise<Pack> {
+  const ws = prepareWorkspace(task, ctx.paths, { git: false, history: opts.history ?? false });
+  const core = await DaemonCore.open({ root: ws.root, storePath: ':memory:', logger: silentLogger, repoName: task.repo, history: opts.history ?? false });
   try {
     await core.index('eval');
     const r = await core.call('pack.compile', { request: { text: task.request, ide: { ...task.ide, interactive: false } }, target: 'json', ...(opts.budget ? { budget: opts.budget } : {}) });
@@ -30,8 +30,10 @@ export async function compileTaskPack(task: Task, ctx: RunnerContext, opts: { bu
 }
 
 export class CompilerRunner implements Runner {
-  readonly name = 'riaf-compiler';
-  constructor(private readonly opts: { budget?: number } = {}) {}
+  readonly name: string;
+  constructor(private readonly opts: { budget?: number; history?: boolean } = {}) {
+    this.name = opts.history ? 'riaf-compiler+history' : 'riaf-compiler';
+  }
 
   async run(task: Task, ctx: RunnerContext): Promise<TaskResult> {
     const t0 = performance.now();

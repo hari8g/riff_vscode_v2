@@ -3,6 +3,7 @@ import { basename, join, resolve } from 'node:path';
 import { compile, render, type RepoView } from '@riaf/compiler';
 import { createLogger, hashWith, PackSchema, RiafError, shortHash, type Logger, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
 import { Graph, GRAPH_STAGE } from '@riaf/graph';
+import { History, HISTORY_STAGE, type Rationale, type TimelineEntry } from '@riaf/history';
 import { DEFAULT_POLICIES, route } from '@riaf/intent';
 import { Semantic, SUMMARY_STAGE } from '@riaf/semantic';
 import { clientFor, enrichWithLsp, familyOf, languageOf, PARSE_STAGE, readRepoText, runParseStage, scanIntoStore, type DiscoverOptions } from '@riaf/parse';
@@ -29,6 +30,8 @@ export interface DaemonCoreOptions {
   validateResults?: boolean;
   /** Name stamped into packs and the run-book; defaults to the root directory's name. */
   repoName?: string;
+  /** Mine git history (default true). */
+  history?: boolean;
   /** Called after each pipeline run (the daemon persists the store here). */
   afterRun?: (s: RunSummary) => Promise<void> | void;
 }
@@ -43,6 +46,7 @@ export class DaemonCore implements RpcCaller {
   readonly scheduler: Scheduler;
   readonly graph: Graph;
   readonly semantic: Semantic;
+  readonly history: History;
   /** Paths parsed by the most recent run (LSP enrichment works on these). */
   private lastParsed: string[] = [];
   onShutdown: (() => void) | undefined;
@@ -50,6 +54,8 @@ export class DaemonCore implements RpcCaller {
   private constructor(readonly root: string, readonly store: Store, private readonly opts: DaemonCoreOptions, readonly logger: Logger) {
     this.graph = new Graph(store);
     this.semantic = new Semantic(store, this.graph, opts.repoName ?? basename(resolve(root)));
+    this.history = new History(store);
+    this.semantic.setConventionSource(() => this.history.conventions());
     this.scheduler = new Scheduler(this.buildStages(), store, root, logger, opts.afterRun);
     this.registerHandlers();
   }
@@ -87,7 +93,14 @@ export class DaemonCore implements RpcCaller {
         },
       },
       {
-        name: SUMMARY_STAGE, after: [GRAPH_STAGE], merkleGated: true,
+        name: HISTORY_STAGE, after: [GRAPH_STAGE], merkleGated: true, enabled: () => this.opts.history !== false,
+        run: async ({ events, logger }) => {
+          const r = await this.history.update({ root, events, logger });
+          return { changed: r.mined + r.blamed, detail: { mined: r.mined, blamed: r.blamed, adrs: r.adrs, coChange: r.coChangeEdges, ...(r.skipped ? { skipped: r.skipped } : {}) } };
+        },
+      },
+      {
+        name: SUMMARY_STAGE, after: [GRAPH_STAGE, HISTORY_STAGE], merkleGated: true,
         run: async ({ events }) => {
           const r = this.semantic.update({ events });
           return { changed: r.files + r.directories };
@@ -139,7 +152,7 @@ export class DaemonCore implements RpcCaller {
       constraints = undefined;
     }
     const head = gitHead(this.root);
-    return { repoName: this.opts.repoName ?? basename(resolve(this.root)), store: this.store, graph: this.graph, semantic: this.semantic, ...(head ? { commit: head } : {}), ...(constraints ? { constraints } : {}) };
+    return { repoName: this.opts.repoName ?? basename(resolve(this.root)), store: this.store, graph: this.graph, semantic: this.semantic, ...(this.opts.history !== false && this.store.history.count() > 0 ? { history: this.history.facts() } : {}), ...(head ? { commit: head } : {}), ...(constraints ? { constraints } : {}) };
   }
 
   /** Runs the pipeline now (or joins the run in progress). */
@@ -184,9 +197,20 @@ export class DaemonCore implements RpcCaller {
         ...(d ? { definition: { symbol: d.id, path: d.path, startLine: d.startLine ?? 1, endLine: d.endLine ?? d.startLine ?? 1, signature: d.signature ?? d.name, kind: d.kind, ...(d.doc ? { doc: d.doc } : {}) } } : {}),
         alternatives: j.alternatives.map((a) => a.id),
         references: j.references.map((r) => ({ symbol: r.symbol, path: r.path, line: r.line, kind: r.kind, confidence: r.confidence })),
-        blame: [],
+        blame: d && d.kind !== 'file' ? this.history.blame(d.id, 5).map((b) => ({ commit: b.commit, summary: b.summary, at: b.at })) : [],
         skills: [],
       };
+    };
+    h['history.timeline'] = (p) => {
+      const target = this.historyTarget(p.query, p.path);
+      const entries = target.kind === 'symbol' ? this.history.timeline({ symbol: target.id as never }, p.limit) : target.kind === 'path' ? this.history.timeline({ path: target.id }, p.limit) : [];
+      return { target: target.id, kind: target.kind, entries, text: renderTimeline(target.id, entries, this.store.history.count() > 0) };
+    };
+    h['history.rationale'] = (p) => {
+      const target = this.historyTarget(p.query);
+      if (target.kind !== 'symbol') return { commits: [], reverts: [], incidents: [], adrs: [], coChange: [], text: `No symbol matched ${p.query}.` };
+      const r = this.history.rationale(target.id as never);
+      return { symbol: target.id, ...r, text: renderRationale(target.id, r) };
     };
     h['graph.impact'] = (p) => {
       const r = this.graph.impact(p.symbols as never, p.hops);
@@ -233,6 +257,17 @@ export class DaemonCore implements RpcCaller {
     };
   }
 
+  /** Resolves a history query to a symbol (preferred) or a path. */
+  private historyTarget(query?: string, path?: string): { kind: 'symbol' | 'path' | 'none'; id: string } {
+    if (path) return { kind: 'path', id: path };
+    const q = query ?? '';
+    const j = this.graph.jump(q);
+    if (j.definition && j.definition.kind !== 'file') return { kind: 'symbol', id: j.definition.id };
+    if (j.definition) return { kind: 'path', id: j.definition.path };
+    if (this.store.merkle.getBlob(q)) return { kind: 'path', id: q };
+    return { kind: 'none', id: q };
+  }
+
   private logRoute(text: string, policy: { branch: string; H: number; w: Record<string, number | undefined> }, sessionId?: string): string {
     const createdAt = new Date().toISOString();
     const routeId = `rt-${shortHash(hashWith('route', text, createdAt), 12)}`;
@@ -259,3 +294,26 @@ export class DaemonCore implements RpcCaller {
 }
 
 export { RiafError };
+
+const nameOf = (id: string) => id.slice(id.indexOf('#') + 1, id.lastIndexOf('@')) || id;
+
+/** Markdown timeline for riaf_history and `riaf history`. */
+export function renderTimeline(target: string, entries: readonly TimelineEntry[], indexed: boolean): string {
+  if (!indexed) return 'History is not indexed (not a git repository, or the history stage is disabled).';
+  if (entries.length === 0) return `No commits found for ${target}.`;
+  const out = [`History of \`${nameOf(target)}\` (${entries.length} commits, newest first):`];
+  for (const e of entries) out.push(`- ${e.commit.slice(0, 10)} ${e.at.slice(0, 10)} ${e.kind}${e.noise ? ' (noise)' : ''}: ${e.summary}${e.refs.length ? ` [${e.refs.join(', ')}]` : ''}${e.lines !== undefined ? ` — owns ${e.lines} line${e.lines === 1 ? '' : 's'}` : ''}${e.revertedBy ? ` — reverted by ${e.revertedBy.slice(0, 10)}` : ''} (${e.author})`);
+  return out.join('\n');
+}
+
+/** Markdown rationale: commits, reverts, incidents, ADRs and co-change partners. */
+export function renderRationale(symbol: string, r: Rationale): string {
+  const out = [`Why \`${nameOf(symbol)}\` is the way it is:`];
+  if (r.commits.length) out.push('', 'Commits owning its current lines:', ...r.commits.slice(0, 8).map((c) => `- ${c.commit.slice(0, 10)} ${c.at.slice(0, 10)} ${c.kind}: ${c.summary}${c.refs.length ? ` [${c.refs.join(', ')}]` : ''}`));
+  if (r.reverts.length) out.push('', 'Reverted changes in this file:', ...r.reverts.map((v) => `- ${v.commit.slice(0, 10)} reverted ${v.reverted.slice(0, 10)}: ${v.summary}`));
+  if (r.incidents.length) out.push('', 'Incidents and tickets:', ...r.incidents.map((i) => `- ${i.ref} (${i.commit.slice(0, 10)}): ${i.summary}`));
+  if (r.adrs.length) out.push('', 'Decisions:', ...r.adrs.map((a) => `- ${a.title} (${a.status}, \`${a.path}\`)`));
+  if (r.coChange.length) out.push('', 'Usually changes together with:', ...r.coChange.map((c) => `- \`${nameOf(c.symbol)}\` (${c.support} commits, confidence ${c.confidence.toFixed(2)})`));
+  if (out.length === 1) out.push('', 'No history recorded for it yet.');
+  return out.join('\n');
+}

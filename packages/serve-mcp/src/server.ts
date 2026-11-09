@@ -86,8 +86,8 @@ export function createMcpServer(rpc: RpcCaller, opts: McpServerOptions = {}): Mc
       const j = await rpc.call('graph.jump', { query: a.symbol });
       return text(`History is not indexed in this daemon (protocol ${info.protocol}). ${j.definition ? `\`${j.definition.symbol}\` is defined at \`${j.definition.path}:${j.definition.startLine}\`; use \`git log -L ${j.definition.startLine},${j.definition.endLine}:${j.definition.path}\` meanwhile.` : ''}`);
     }
-    const r = await (rpc as unknown as { call(m: string, p: unknown): Promise<{ text: string }> }).call('history.timeline', { query: a.symbol, render: true });
-    return text(r.text);
+    const [timeline, why] = await Promise.all([rpc.call('history.timeline', { query: a.symbol, limit: 12 }), rpc.call('history.rationale', { query: a.symbol })]);
+    return text(why.symbol ? `${why.text}\n\n${timeline.text}` : timeline.text);
   }));
 
   server.registerTool('riaf_wiki', {

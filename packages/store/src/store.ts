@@ -6,6 +6,7 @@ import { MerkleIndex } from './merkle.js';
 import { FtsIndex } from './fts.js';
 import { TrigramIndex } from './trigram.js';
 import { CompileLog, SummaryRepo } from './compile.js';
+import { HistoryRepo } from './history.js';
 import { ChunkRepo, EdgeRepo, ImportRepo, KvRepo, RefRepo, SymbolRepo, type ChunkRecord } from './repo.js';
 
 export interface StoreOptions {
@@ -27,6 +28,7 @@ export class Store {
   readonly imports: ImportRepo;
   readonly summaries: SummaryRepo;
   readonly compileLog: CompileLog;
+  readonly history: HistoryRepo;
   readonly fts: FtsIndex;
   readonly trigram: TrigramIndex;
 
@@ -40,6 +42,7 @@ export class Store {
     this.imports = new ImportRepo(driver);
     this.summaries = new SummaryRepo(driver);
     this.compileLog = new CompileLog(driver);
+    this.history = new HistoryRepo(driver);
     this.fts = new FtsIndex(driver);
     this.trigram = new TrigramIndex(driver);
   }
@@ -81,6 +84,7 @@ export class Store {
         this.trigram.removeChunk(id);
       }
       this.chunks.deleteByPath(path);
+      this.history.deleteBlameForPath(path);
       this.refs.deleteByPath(path);
       this.imports.deleteByPath(path);
       this.edges.deleteBySourcePath(path, 'treesitter');

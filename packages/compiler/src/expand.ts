@@ -287,17 +287,27 @@ function history(ctx: ExpandContext, anchors: SymbolRecord[]): void {
   const owner = ownerOf(policy, 'callers');
   const bucket = bucketOf(policy, 'history');
   const prior = RULE_PRIOR['history']!;
-  const fns = anchors.filter((a) => a.kind !== 'file').slice(0, 4);
+  // anchors in confidence order; a file anchor (active file, stack-trace file) gets file-wide history
+  const fns = anchors.slice(0, 4);
   if (!h) {
-    if (fns[0]) ctx.lookups.push({ tool: 'riaf_history', args: { symbol: fns[0].id }, reason: `history scope ${policy.historyScope.join(', ')} requested but the history layer is not indexed` });
+    const target = fns.find((a) => a.kind !== 'file') ?? fns[0];
+    if (target) ctx.lookups.push({ tool: 'riaf_history', args: { symbol: target.id }, reason: `history scope ${policy.historyScope.join(', ')} requested but the history layer is not indexed` });
     return;
   }
   const add = (key: string, commit: string, content: string, score: number) => {
     ctx.candidates.push({ key, tier: 3, kind: 'commit', commit, content, intent: owner.intent, rule: 'history', weight: owner.weight, score: score * owner.weight, stage: 0, bucket });
   };
+  // bugs sit near the failure in recently changed code: the newest commits on the top anchors' files
+  if (policy.historyScope.includes('blame_on_anchors')) {
+    const files = [...new Set(fns.map((a) => a.path))].slice(0, 3);
+    for (const f of files) {
+      const recent = h.recent ? h.recent(f, 2) : h.blame(`${f}#@file` as SymbolId, 2);
+      recent.forEach((b, k) => add(`blame:${b.commit}`, b.commit, `${b.commit.slice(0, 10)} ${b.at.slice(0, 10)} ${b.summary} (recent change in ${f})`, prior * (k === 0 ? 1.05 : 0.9)));
+    }
+  }
   for (const scope of policy.historyScope) {
     for (const a of fns) {
-      if (scope === 'blame_on_anchors') for (const b of h.blame(a.id, 3)) add(`blame:${b.commit}`, b.commit, `${b.commit.slice(0, 10)} ${b.at.slice(0, 10)} ${b.summary} (last touched ${a.qualifiedName})`, prior);
+      if (scope === 'blame_on_anchors') h.blame(a.id, 3).forEach((b, k) => add(`blame:${b.commit}`, b.commit, `${b.commit.slice(0, 10)} ${b.at.slice(0, 10)} ${b.summary} (last touched ${a.kind === 'file' ? a.path : a.qualifiedName})`, prior * (k === 0 ? 1.1 : 1)));
       if (scope === 'reverts_touching_anchors' || scope === 'recent_incidents_on') for (const i of h.incidents(a.id, 3)) add(`inc:${i.commit}`, i.commit, `${i.kind}: ${i.commit.slice(0, 10)} ${i.at.slice(0, 10)} ${i.summary} (touches ${a.qualifiedName})`, prior * 1.1);
       if (scope === 'origin_commits_of_sibling') {
         const o = h.origin(a.id);

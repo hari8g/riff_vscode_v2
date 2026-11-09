@@ -195,6 +195,80 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX IF NOT EXISTS pack_item_path ON pack_item(path);
     `,
   },
+  {
+    version: 6,
+    name: 'history',
+    sql: `
+      CREATE TABLE IF NOT EXISTS commit_log (
+        sha     TEXT PRIMARY KEY,
+        parents TEXT NOT NULL,
+        author  TEXT NOT NULL,
+        email   TEXT NOT NULL,
+        at      TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        body    TEXT NOT NULL,
+        files   INTEGER NOT NULL,
+        added   INTEGER NOT NULL,
+        deleted INTEGER NOT NULL,
+        kind    TEXT NOT NULL,
+        noise   INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS commit_log_at ON commit_log(at);
+      CREATE TABLE IF NOT EXISTS commit_file (
+        sha     TEXT NOT NULL,
+        path    TEXT NOT NULL,
+        added   INTEGER NOT NULL,
+        deleted INTEGER NOT NULL,
+        PRIMARY KEY (sha, path)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS commit_file_path ON commit_file(path);
+      CREATE TABLE IF NOT EXISTS blame (
+        symbol_id  TEXT NOT NULL,
+        blob_hash  TEXT NOT NULL,
+        commit_sha TEXT NOT NULL,
+        lines      INTEGER NOT NULL,
+        PRIMARY KEY (symbol_id, commit_sha)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS blame_commit ON blame(commit_sha);
+      CREATE TABLE IF NOT EXISTS revert (
+        commit_sha   TEXT PRIMARY KEY,
+        reverted_sha TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS revert_reverted ON revert(reverted_sha);
+      CREATE TABLE IF NOT EXISTS incident (
+        commit_sha TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        ref        TEXT NOT NULL,
+        PRIMARY KEY (commit_sha, kind, ref)
+      ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS adr (
+        path   TEXT PRIMARY KEY,
+        title  TEXT NOT NULL,
+        status TEXT NOT NULL,
+        hash   TEXT NOT NULL,
+        text   TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS adr_link (
+        path      TEXT NOT NULL,
+        symbol_id TEXT NOT NULL,
+        PRIMARY KEY (path, symbol_id)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS adr_link_symbol ON adr_link(symbol_id);
+      CREATE TABLE IF NOT EXISTS commit_summary (
+        sha   TEXT PRIMARY KEY,
+        goal  TEXT NOT NULL,
+        terms TEXT NOT NULL,
+        model TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS co_change_file (
+        a          TEXT NOT NULL,
+        b          TEXT NOT NULL,
+        support    INTEGER NOT NULL,
+        confidence REAL NOT NULL,
+        PRIMARY KEY (a, b)
+      ) WITHOUT ROWID;
+    `,
+  },
 ];
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
