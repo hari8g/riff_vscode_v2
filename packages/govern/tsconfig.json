@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../kernel"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../graph"
+    },
+    {
+      "path": "../semantic"
+    },
+    {
+      "path": "../compiler"
+    }
+  ]
+}

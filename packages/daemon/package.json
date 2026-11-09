@@ -1,0 +1,34 @@
+{
+  "name": "@riaf/daemon",
+  "version": "0.1.0",
+  "description": "The process that owns the index: pipeline scheduler, watcher, JSON-RPC server and client SDK (ADR-0001).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/daemon"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@riaf/store": "workspace:*",
+    "@riaf/parse": "workspace:*",
+    "@riaf/graph": "workspace:*",
+    "@riaf/history": "workspace:*",
+    "@riaf/semantic": "workspace:*",
+    "@riaf/intent": "workspace:*",
+    "@riaf/compiler": "workspace:*",
+    "@riaf/govern": "workspace:*",
+    "@riaf/models": "workspace:*"
+  }
+}

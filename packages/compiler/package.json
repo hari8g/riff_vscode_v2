@@ -1,0 +1,30 @@
+{
+  "name": "@riaf/compiler",
+  "version": "0.1.0",
+  "description": "L5 context pack compiler: primitive policies, sufficiency expansion, knapsack, tiers, stages, renders.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/compiler"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@riaf/store": "workspace:*",
+    "@riaf/graph": "workspace:*",
+    "@riaf/history": "workspace:*",
+    "@riaf/semantic": "workspace:*",
+    "@riaf/intent": "workspace:*"
+  }
+}

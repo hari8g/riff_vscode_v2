@@ -1,0 +1,27 @@
+{
+  "name": "@riaf/serve-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Claude Code and any MCP client, Claude Code hooks, installable plugin bundle.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/serve-mcp"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@riaf/daemon": "workspace:*",
+    "@riaf/compiler": "workspace:*"
+  }
+}

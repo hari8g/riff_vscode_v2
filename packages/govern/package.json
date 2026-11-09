@@ -1,0 +1,29 @@
+{
+  "name": "@riaf/govern",
+  "version": "0.1.0",
+  "description": "L6 governance: tool-call budgets, tool cache, loop guard, compaction advice, telemetry, skill distillation.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/govern"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@riaf/store": "workspace:*",
+    "@riaf/graph": "workspace:*",
+    "@riaf/semantic": "workspace:*",
+    "@riaf/compiler": "workspace:*"
+  }
+}

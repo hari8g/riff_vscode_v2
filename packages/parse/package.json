@@ -1,0 +1,26 @@
+{
+  "name": "@riaf/parse",
+  "version": "0.1.0",
+  "description": "L1 syntax and symbols: tree-sitter tags, AST chunker, import resolver, optional LSP enrichment.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/parse"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@riaf/store": "workspace:*"
+  }
+}
