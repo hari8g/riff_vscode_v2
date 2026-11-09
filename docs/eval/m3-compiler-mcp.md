@@ -13,7 +13,7 @@ Against the scripted baseline: +10.3 points recall, **49.4% fewer tokens**, 91.3
 | --- | --- |
 | file recall ≥ 85% on the harness | **met**: 97.1% |
 | ≥ 30% fewer tokens per task vs baseline | **met against the scripted baseline**: 49.4%. Not yet measured against Claude Code headless, see below |
-| no pass-rate loss | **not measured**: needs the paid Claude Code headless runs (baseline vs RIAF), which have not been run |
+| no pass-rate loss | **half measured**: the Claude Code headless baseline passes 27/27 (100%; see `baseline.md`). The RIAF condition has not been run yet, so the comparison is still open |
 | golden packs stable | **met**: 12 packs pinned in `fixtures/golden-packs/`, byte-stable across runs, checked in CI (`packages/eval/test/golden.test.ts`) |
 | `riaf_pack` live in Claude Code | **partly verified**: `riaf init --host claude` writes `.mcp.json`; `claude mcp list` (Claude Code 2.1.318) discovers the `riaf` server and shows it as pending the one-time project approval. The stdio server is exercised end to end with the MCP SDK client in `packages/cli/test/m3.test.ts`, the same command Claude Code launches. A model-driven session has not been run |
 

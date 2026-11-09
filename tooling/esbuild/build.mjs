@@ -43,6 +43,17 @@ async function buildCli(outDir = join(root, 'dist-bundle')) {
   return outDir;
 }
 
+/** The console webview alone (dev server and extension). */
+async function buildWebview(out = join(root, 'packages/extension/dist/webview')) {
+  const ext = join(root, 'packages/extension');
+  await build({
+    entryPoints: [join(ext, 'webview/main.tsx')], outfile: join(out, 'console.js'), bundle: true, platform: 'browser', target: 'es2022',
+    format: 'iife', jsx: 'automatic', minify: true, logLevel: 'warning', define: { 'process.env.NODE_ENV': '"production"' },
+  });
+  copyFileSync(join(ext, 'webview/console.css'), join(out, 'console.css'));
+  return out;
+}
+
 async function buildExtension() {
   const ext = join(root, 'packages/extension');
   const out = join(ext, 'dist');
@@ -53,11 +64,7 @@ async function buildExtension() {
     // CommonJS has no import.meta; give modules that read import.meta.url a file URL of the bundle
     define: { 'import.meta.url': '__riafImportMetaUrl' }, banner: { js: "const __riafImportMetaUrl = require('url').pathToFileURL(__filename).href;" },
   });
-  await build({
-    entryPoints: [join(ext, 'webview/main.tsx')], outfile: join(out, 'webview/console.js'), bundle: true, platform: 'browser', target: 'es2022',
-    format: 'iife', jsx: 'automatic', minify: true, logLevel: 'warning', define: { 'process.env.NODE_ENV': '"production"' },
-  });
-  copyFileSync(join(ext, 'webview/console.css'), join(out, 'webview/console.css'));
+  await buildWebview(join(out, 'webview'));
   // the daemon/CLI ship inside the extension so nothing is downloaded at install time
   await buildCli(join(out, 'riaf'));
   return out;
@@ -66,7 +73,8 @@ async function buildExtension() {
 const what = process.argv[2] ?? 'cli';
 if (what === 'cli') console.log(`built ${await buildCli(process.argv[3] ? resolve(process.argv[3]) : undefined)}`);
 else if (what === 'extension') console.log(`built ${await buildExtension()}`);
+else if (what === 'webview') console.log(`built ${await buildWebview(process.argv[3] ? resolve(process.argv[3]) : undefined)}`);
 else {
-  console.error('usage: build.mjs cli|extension');
+  console.error('usage: build.mjs cli|extension|webview');
   process.exit(2);
 }

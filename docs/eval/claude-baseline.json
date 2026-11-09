@@ -1,0 +1,498 @@
+{
+  "generatedAt": "2026-11-09T17:37:48.012Z",
+  "summaries": [
+    {
+      "runner": "claude-baseline",
+      "tasks": 30,
+      "recall": 0.9666666666666667,
+      "precision": 0.5464285714285715,
+      "fullRecall": 29,
+      "meanTokens": 245955.96666666667,
+      "totalTokens": 7378679,
+      "meanToolCalls": 8.233333333333333,
+      "passRate": 1,
+      "passCounted": 27,
+      "branches": {},
+      "costUsd": 6.992223600000001,
+      "errors": 0
+    }
+  ],
+  "results": [
+    {
+      "taskId": "emb-003",
+      "repo": "embedded-c",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/uart.c"
+      ],
+      "tokens": 195892,
+      "toolCalls": 5,
+      "passed": true,
+      "costUsd": 0.20010039999999998,
+      "ms": 23564.632
+    },
+    {
+      "taskId": "emb-002",
+      "repo": "embedded-c",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/crc.c"
+      ],
+      "tokens": 154629,
+      "toolCalls": 5,
+      "passed": true,
+      "costUsd": 0.1883554,
+      "ms": 24369.574500000002
+    },
+    {
+      "taskId": "emb-001",
+      "repo": "embedded-c",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/ring.c",
+        "src/uart.c"
+      ],
+      "tokens": 235608,
+      "toolCalls": 6,
+      "passed": true,
+      "costUsd": 0.21221040000000002,
+      "ms": 26124.792875000003
+    },
+    {
+      "taskId": "emb-004",
+      "repo": "embedded-c",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "README.md",
+        "include/ring.h",
+        "src/ring.c",
+        "test/test_ring.c"
+      ],
+      "tokens": 235539,
+      "toolCalls": 10,
+      "passed": true,
+      "costUsd": 0.22908119999999998,
+      "ms": 28777.6415
+    },
+    {
+      "taskId": "emb-006",
+      "repo": "embedded-c",
+      "intent": "refactor",
+      "runner": "claude-baseline",
+      "files": [
+        "include/crc.h",
+        "src/crc.c"
+      ],
+      "tokens": 272825,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.22446860000000002,
+      "ms": 29947.900417
+    },
+    {
+      "taskId": "emb-005",
+      "repo": "embedded-c",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "include/uart.h",
+        "src/uart.c"
+      ],
+      "tokens": 331885,
+      "toolCalls": 10,
+      "passed": true,
+      "costUsd": 0.29536959999999995,
+      "ms": 41941.01545800001
+    },
+    {
+      "taskId": "fleet-002",
+      "repo": "fleet-java",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "dispatch/src/main/java/com/fleet/dispatch/DispatchService.java",
+        "dispatch/src/test/java/com/fleet/dispatch/DispatchServiceTest.java"
+      ],
+      "tokens": 162368,
+      "toolCalls": 6,
+      "passed": true,
+      "costUsd": 0.23808559999999998,
+      "ms": 29341.098959000003
+    },
+    {
+      "taskId": "fleet-001",
+      "repo": "fleet-java",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java",
+        "dispatch/src/test/java/com/fleet/dispatch/NearestVehiclePolicyTest.java"
+      ],
+      "tokens": 287374,
+      "toolCalls": 9,
+      "passed": true,
+      "costUsd": 0.26004360000000004,
+      "ms": 34232.601582999996
+    },
+    {
+      "taskId": "fleet-003",
+      "repo": "fleet-java",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java",
+        "dispatch/src/main/java/com/fleet/dispatch/VehicleRepository.java",
+        "dispatch/src/test/java/com/fleet/dispatch/DispatchServiceTest.java",
+        "dispatch/src/test/java/com/fleet/dispatch/InMemoryVehicleRepositoryTest.java",
+        "model/src/main/java/com/fleet/model/Vehicle.java",
+        "model/src/main/java/com/fleet/model/VehicleStatus.java"
+      ],
+      "tokens": 326420,
+      "toolCalls": 12,
+      "passed": true,
+      "costUsd": 0.2867334,
+      "ms": 43089.399542
+    },
+    {
+      "taskId": "fleet-004",
+      "repo": "fleet-java",
+      "intent": "refactor",
+      "runner": "claude-baseline",
+      "files": [
+        "dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java",
+        "model/src/main/java/com/fleet/model/GeoPoint.java"
+      ],
+      "tokens": 235604,
+      "toolCalls": 7,
+      "passed": true,
+      "costUsd": 0.21390820000000002,
+      "ms": 24773.326124999992
+    },
+    {
+      "taskId": "fleet-005",
+      "repo": "fleet-java",
+      "intent": "onboarding",
+      "runner": "claude-baseline",
+      "files": [
+        "dispatch/src/main/java/com/fleet/dispatch/AssignmentPolicy.java",
+        "dispatch/src/main/java/com/fleet/dispatch/DispatchController.java",
+        "dispatch/src/main/java/com/fleet/dispatch/DispatchService.java",
+        "dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java",
+        "dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java",
+        "dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java",
+        "dispatch/src/main/java/com/fleet/dispatch/VehicleRepository.java",
+        "model/src/main/java/com/fleet/model/Trip.java",
+        "model/src/main/java/com/fleet/model/Vehicle.java",
+        "model/src/main/java/com/fleet/model/VehicleStatus.java"
+      ],
+      "tokens": 200170,
+      "toolCalls": 12,
+      "costUsd": 0.2536894,
+      "ms": 34588.293583000006
+    },
+    {
+      "taskId": "tel-001",
+      "repo": "telemetry-py",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/buffer.py",
+        "tests/test_buffer.py"
+      ],
+      "tokens": 193450,
+      "toolCalls": 7,
+      "passed": true,
+      "costUsd": 0.1963744,
+      "ms": 24767.126959
+    },
+    {
+      "taskId": "tel-002",
+      "repo": "telemetry-py",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/codec.py",
+        "src/telemetry/sampler.py",
+        "tests/test_pipeline.py",
+        "tests/test_sampler.py"
+      ],
+      "tokens": 312496,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.22890280000000005,
+      "ms": 28983.468084000007
+    },
+    {
+      "taskId": "tel-003",
+      "repo": "telemetry-py",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/buffer.py",
+        "src/telemetry/pipeline.py",
+        "tests/test_pipeline.py"
+      ],
+      "tokens": 232947,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.20474399999999998,
+      "ms": 26857.936166
+    },
+    {
+      "taskId": "tel-005",
+      "repo": "telemetry-py",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/buffer.py",
+        "src/telemetry/config.py",
+        "tests/test_config.py"
+      ],
+      "tokens": 234675,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.2108736,
+      "ms": 25588.028292000003
+    },
+    {
+      "taskId": "tel-006",
+      "repo": "telemetry-py",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/codec.py",
+        "tests/test_codec.py"
+      ],
+      "tokens": 196446,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.2102714,
+      "ms": 26998.777417000005
+    },
+    {
+      "taskId": "tel-004",
+      "repo": "telemetry-py",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "README.md",
+        "src/telemetry/codec.py",
+        "src/telemetry/config.py",
+        "src/telemetry/pipeline.py",
+        "src/telemetry/sinks.py",
+        "tests/test_pipeline.py",
+        "tests/test_sinks.py"
+      ],
+      "tokens": 324906,
+      "toolCalls": 13,
+      "passed": true,
+      "costUsd": 0.291596,
+      "ms": 44462.52216700002
+    },
+    {
+      "taskId": "tel-007",
+      "repo": "telemetry-py",
+      "intent": "onboarding",
+      "runner": "claude-baseline",
+      "files": [
+        "src/telemetry/buffer.py",
+        "src/telemetry/codec.py",
+        "src/telemetry/config.py",
+        "src/telemetry/pipeline.py",
+        "src/telemetry/sampler.py",
+        "src/telemetry/sinks.py"
+      ],
+      "tokens": 154916,
+      "toolCalls": 8,
+      "costUsd": 0.2163164,
+      "ms": 28384.321292000008
+    },
+    {
+      "taskId": "toll-002",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/pricing/peak.ts"
+      ],
+      "tokens": 153219,
+      "toolCalls": 5,
+      "passed": true,
+      "costUsd": 0.17129260000000002,
+      "ms": 19260.406458000012
+    },
+    {
+      "taskId": "toll-001",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/toll/plate.ts",
+        "test/plate.test.ts",
+        "test/processor.test.ts"
+      ],
+      "tokens": 241890,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.22943699999999997,
+      "ms": 27708.413709000015
+    },
+    {
+      "taskId": "toll-004",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/gantry/dedupe.ts",
+        "test/dedupe.test.ts"
+      ],
+      "tokens": 154469,
+      "toolCalls": 6,
+      "passed": true,
+      "costUsd": 0.18732320000000002,
+      "ms": 23366.46566700001
+    },
+    {
+      "taskId": "toll-003",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/pricing/engine.ts",
+        "test/pricing.test.ts"
+      ],
+      "tokens": 322755,
+      "toolCalls": 10,
+      "passed": true,
+      "costUsd": 0.2581106,
+      "ms": 33160.64074999999
+    },
+    {
+      "taskId": "toll-005",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/settlement/batch.ts",
+        "src/settlement/settler.ts",
+        "test/settlement.test.ts"
+      ],
+      "tokens": 236433,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.2096832,
+      "ms": 24013.345834000007
+    },
+    {
+      "taskId": "toll-006",
+      "repo": "toll-ts",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "src/toll/session.ts",
+        "test/session.test.ts"
+      ],
+      "tokens": 243787,
+      "toolCalls": 8,
+      "passed": true,
+      "costUsd": 0.24455719999999997,
+      "ms": 30999.520457999985
+    },
+    {
+      "taskId": "toll-008",
+      "repo": "toll-ts",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "src/api/handlers.ts",
+        "src/toll/store.ts",
+        "test/api.test.ts",
+        "test/session.test.ts"
+      ],
+      "tokens": 368991,
+      "toolCalls": 9,
+      "passed": true,
+      "costUsd": 0.27299760000000006,
+      "ms": 36355.53729200002
+    },
+    {
+      "taskId": "toll-007",
+      "repo": "toll-ts",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "src/notify/templates.ts",
+        "src/toll/plate.ts",
+        "test/disputes.test.ts",
+        "test/templates.test.ts"
+      ],
+      "tokens": 319308,
+      "toolCalls": 9,
+      "passed": true,
+      "costUsd": 0.25750760000000006,
+      "ms": 37529.88491600001
+    },
+    {
+      "taskId": "toll-009",
+      "repo": "toll-ts",
+      "intent": "feature",
+      "runner": "claude-baseline",
+      "files": [
+        "src/gantry/gantry.ts",
+        "src/gantry/lane.ts",
+        "test/gantry.test.ts"
+      ],
+      "tokens": 316378,
+      "toolCalls": 10,
+      "passed": true,
+      "costUsd": 0.24424359999999998,
+      "ms": 30424.816166000033
+    },
+    {
+      "taskId": "toll-011",
+      "repo": "toll-ts",
+      "intent": "bugfix",
+      "runner": "claude-baseline",
+      "files": [
+        "src/gantry/gantry.ts",
+        "test/gantry.test.ts"
+      ],
+      "tokens": 199882,
+      "toolCalls": 6,
+      "passed": true,
+      "costUsd": 0.2105686,
+      "ms": 25129.287666999968
+    },
+    {
+      "taskId": "toll-010",
+      "repo": "toll-ts",
+      "intent": "refactor",
+      "runner": "claude-baseline",
+      "files": [
+        "src/toll/ledger.ts",
+        "src/toll/session.ts",
+        "test/settlement.test.ts"
+      ],
+      "tokens": 327516,
+      "toolCalls": 14,
+      "passed": true,
+      "costUsd": 0.2713184,
+      "ms": 33725.77862499998
+    },
+    {
+      "taskId": "toll-012",
+      "repo": "toll-ts",
+      "intent": "onboarding",
+      "runner": "claude-baseline",
+      "files": [],
+      "tokens": 205901,
+      "toolCalls": 4,
+      "costUsd": 0.2740596,
+      "ms": 38173.24987499998
+    }
+  ]
+}

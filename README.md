@@ -51,6 +51,7 @@ pnpm verify          # build + webview typecheck + lint + test (unit, fixture, g
 pnpm bundle          # self-contained CLI in dist-bundle/ (wasm runtimes and grammars beside it)
 pnpm package:vsix    # dist-bundle/riaf-vscode-v2-<version>.vsix
 pnpm bench:index     # 100k-LOC indexing benchmark
+pnpm console:dev     # the RIAF console in a browser against a real daemon (seeded toll-ts history)
 ```
 
 Node 20+, pnpm 9+. The repository dogfoods RIAF: `.riaf/policies.yaml` and `.riaf/governance.yaml` are the live policy files, `CLAUDE.md` imports the generated run-book.
@@ -69,7 +70,7 @@ All seven milestones (M0–M6) are implemented. Gate results are in `docs/eval/`
 | M5 governance | hooks verified against a live daemon; skills reused in 15/30 tasks (offline simulation) |
 | M6 extension | 2.7 MB `.vsix` with 0 native files; its bundled CLI runs from an empty directory |
 
-Not yet measured: pass rate and tool calls with Claude Code driving real sessions (paid runs; `riaf eval --runner claude`), a Bosch repository, and the two-week pilot.
+Claude Code headless baseline (no RIAF): 27/27 tasks pass, 8.2 tool calls and $0.23 per task. Not yet measured: the same run with RIAF attached, a Bosch repository, and the two-week pilot.
 
 ## License
 

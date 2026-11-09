@@ -83,6 +83,26 @@ describe('console host', () => {
     expect(await handleConsole(deps, { type: 'savePolicies', policies: pol.policies, governance: pol.governance })).toEqual({ type: 'saved', ok: true });
     expect(writes).toEqual(['policies.yaml', 'governance.yaml']);
   });
+
+  it('routes live, compiles and re-renders packs, explores symbols and hands off', async () => {
+    const ran: unknown[][] = [];
+    const deps = { rpc: core, writeRiafFile: async () => undefined, modelSettings: () => ({}), runCommand: async (...a: unknown[]) => void ran.push(a) };
+    const route = await handleConsole(deps, { type: 'route', text: 'Fix the null check in TollSession.close() and then add a config flag in FeatureFlags' });
+    expect((route['policy'] as { stages: string[][] }).stages).toHaveLength(2);
+    const compiled = await handleConsole(deps, { type: 'compile', text: 'Fix ReadingDeduper.accept keeping the blurrier read', budget: 8000 });
+    const pack = compiled['pack'] as { packId: string; budget: number };
+    expect(pack.budget).toBe(8000);
+    expect(String(compiled['rendered'])).toMatch(/^# RIAF context pack/);
+    expect(String((await handleConsole(deps, { type: 'render', packId: pack.packId, target: 'fragment' }))['text'])).toMatch(/^<riaf-context/);
+    const impact = await handleConsole(deps, { type: 'impact', query: 'validatePlate' });
+    expect((impact['definition'] as { path: string }).path).toBe('src/toll/plate.ts');
+    expect((await handleConsole(deps, { type: 'impact', query: 'NoSuchThing' }))['definition']).toBeNull();
+    expect((await handleConsole(deps, { type: 'jump', query: 'Ledger.post' }))['result']).toBeDefined();
+    expect((await handleConsole(deps, { type: 'history', query: 'validatePlate' })).type).toBe('history');
+    expect((await handleConsole(deps, { type: 'handoff', to: 'claude', text: 't', packId: pack.packId })).type).toBe('handedOff');
+    expect(ran).toEqual([['riaf.handoffClaude', 't', pack.packId]]);
+    expect((await handleConsole({ ...deps, runCommand: undefined } as never, { type: 'handoff', to: 'copilot', text: 't', packId: 'x' })).type).toBe('error');
+  });
 });
 
 describe('activate (with a mocked vscode API)', () => {

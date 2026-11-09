@@ -74,14 +74,14 @@ export class GovernRepo {
     return this.db.all<{ item_id: string }>('SELECT item_id FROM pack_read WHERE session_id = ? AND pack_id = ?', [sessionId, packId]).map((r) => r.item_id);
   }
 
-  /** Per-rule utilisation across all packs: items read / items delivered. */
+  /** Per-rule utilisation across all packs: items read / items delivered (items with a file path only — commits and virtual items cannot be "read" by path). */
   utilisationByRule(): { rule: string; intent: string; delivered: number; read: number }[] {
     return this.db.all<{ rule: string; intent: string; delivered: number; read: number }>(
       `SELECT pi.rule AS rule, pi.intent AS intent, COUNT(*) AS delivered,
               SUM(CASE WHEN pr.item_id IS NOT NULL THEN 1 ELSE 0 END) AS read
        FROM pack_item pi JOIN pack p ON p.pack_id = pi.pack_id
        LEFT JOIN pack_read pr ON pr.pack_id = pi.pack_id AND pr.item_id = pi.item_id AND pr.session_id = p.session_id
-       WHERE p.session_id IS NOT NULL
+       WHERE p.session_id IS NOT NULL AND pi.path IS NOT NULL
        GROUP BY pi.rule, pi.intent ORDER BY delivered DESC`,
     ).map((r) => ({ rule: r.rule, intent: r.intent, delivered: Number(r.delivered), read: Number(r.read) }));
   }

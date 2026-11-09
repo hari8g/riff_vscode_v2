@@ -33,9 +33,22 @@ Raw results: `docs/eval/baseline.json`.
 ### Reading the numbers
 The fixtures are small (13–34 files), so grepping and reading whole files already finds most gold files cheaply. This is a deliberately hard bar for RIAF's token gate. A pack only wins on tokens if it is smaller than six whole files, so the compiler treats its budget as a ceiling and stops at sufficiency. It is not a target to fill. Precision (25%) is where the baseline is weak: three of every four files it reads are noise.
 
-## Claude Code headless baseline: not yet run
-`riaf eval --runner claude` runs each task through `claude -p` in a fresh workspace and scores it with the hidden tests. The runner is implemented and tested against a scripted stand-in (`packages/eval/test/fixtures/fake-claude.mjs`). It has not been run against the real model, because a 30-task pass spends API credit and needs an explicit go-ahead. Pass rate is therefore not part of this baseline yet. Run it with:
+## Claude Code headless baseline (no RIAF)
 
-```bash
-pnpm build && node packages/cli/dist/main.js eval --runner claude --out reports/eval-claude
-```
+Run 9 Nov 2026 with Claude Code 2.1.318 (`riaf eval --runner claude`, three tasks in parallel). Each task ran with `claude -p` in a fresh workspace, with edits accepted and shell commands not pre-approved, and was then scored by its hidden tests. Raw results are in `docs/eval/claude-baseline.json`.
+
+| Runner | Tasks | File recall | Full recall | Precision | Mean tokens | Mean tool calls | Pass rate | Cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| claude-baseline | 30 | 96.7% | 29/30 | 54.6% | 246k | 8.2 | 100% (27) | $6.99 |
+
+| Intent | Tasks | Passed | Mean tokens | Mean tool calls | Cost |
+| --- | --- | --- | --- | --- | --- |
+| bugfix | 15 | 15/15 | 219k | 7.0 | $3.21 |
+| feature | 9 | 9/9 | 300k | 9.9 | $2.33 |
+| refactor | 3 | 3/3 | 279k | 9.7 | $0.71 |
+| onboarding | 3 | 0/0 | 187k | 8.0 | $0.74 |
+
+### Reading the numbers
+- **Pass rate is saturated.** Claude Code solves every task on these small fixtures without help. RIAF's M3 condition, "no pass-rate loss", therefore means staying at 100%. Any gain has to show in tokens, tool calls and cost.
+- **Tokens are dominated by Claude Code's own context.** The mean of 246k counts input (mostly cached system prompt and tool definitions), output and cache reads per task. The scripted baseline's 2.9k counts only what exploration pulls in. The two are not comparable, which is why RIAF has to be measured in the same harness.
+- **Not yet run: the RIAF condition.** That means Claude Code with the RIAF MCP server and hooks attached, so there is no RIAF-vs-baseline comparison under Claude Code yet. It costs about the same as this run (≈ $7).

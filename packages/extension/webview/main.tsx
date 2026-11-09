@@ -1,113 +1,116 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ask, repoName, save, saved } from './api.js';
+import { Icon, Palette, symName, ToastHost, useTheme, type PaletteItem } from './kit.js';
+import { Adapters } from './pages/adapters.js';
+import { Governance } from './pages/governance.js';
+import { Overview } from './pages/overview.js';
+import { PoliciesPage } from './pages/policies.js';
+import { Repository } from './pages/repository.js';
+import { Studio } from './pages/studio.js';
 
-/** The RIAF console: Overview, Repository, Policies, Sessions, Adapters. Data comes from the extension host. */
+/** The RIAF console: a rail, a top bar with ⌘K, and six pages. */
 
-declare function acquireVsCodeApi(): { postMessage(m: unknown): void };
-const vscode = acquireVsCodeApi();
-let nextId = 1;
-const pending = new Map<number, (v: Msg) => void>();
-type Msg = { id?: number; type: string; [k: string]: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
-window.addEventListener('message', (e: MessageEvent<Msg>) => {
-  const r = e.data.id !== undefined ? pending.get(e.data.id) : undefined;
-  if (r && e.data.id !== undefined) {
-    pending.delete(e.data.id);
-    r(e.data);
-  }
-});
-function ask(req: Record<string, unknown>): Promise<Msg> {
-  const id = nextId++;
-  return new Promise((resolve) => {
-    pending.set(id, resolve);
-    vscode.postMessage({ ...req, id });
-  });
-}
-
-const PAGES = ['overview', 'repository', 'policies', 'sessions', 'adapters'] as const;
-type Page = (typeof PAGES)[number];
-
-function Bar({ label, value, total }: { label: string; value: number; total: number }) {
-  const pct = total ? Math.round((100 * value) / total) : 0;
-  return <div className="bar"><span className="bar-label">{label}</span><span className="bar-track"><span className="bar-fill" style={{ width: `${pct}%` }} /></span><span className="bar-value">{value}</span></div>;
-}
-
-function Overview({ d }: { d: Msg }) {
-  const s = d['status'];
-  const t = d['telemetry'];
-  const branches = Object.entries(t.branches as Record<string, number>);
-  const total = branches.reduce((a, [, n]) => a + n, 0);
-  return <>
-    <section className="cards">
-      <div className="card"><b>{s.blobs}</b><span>files</span></div>
-      <div className="card"><b>{s.symbols}</b><span>symbols</span></div>
-      <div className="card"><b>{s.edges}</b><span>edges</span></div>
-      <div className="card"><b>{t.packs}</b><span>packs</span></div>
-      <div className="card"><b>{t.skills}</b><span>skills</span></div>
-    </section>
-    <h3>Index stages</h3>
-    <table><thead><tr><th>stage</th><th>pending</th><th>done</th><th>last run</th></tr></thead><tbody>
-      {s.stages.map((x: Msg) => <tr key={x['stage']}><td>{x['stage']}</td><td>{x['pending']}</td><td>{x['done']}</td><td>{x['lastMs'] !== undefined ? `${Math.round(x['lastMs'])} ms` : '–'}{x['lastError'] ? ` ⚠ ${x['lastError']}` : ''}</td></tr>)}
-    </tbody></table>
-    <h3>Branch distribution</h3>
-    {branches.length ? branches.map(([b, n]) => <Bar key={b} label={b} value={n} total={total} />) : <p className="muted">No routes yet.</p>}
-  </>;
-}
-
-function Tree({ n }: { n: Msg }) {
-  return <li><code>{n['id'] || '/'}</code> <span className="muted">{n['summary']}</span>{n['children'].length > 0 && <ul>{n['children'].map((c: Msg) => <Tree key={c['id']} n={c} />)}</ul>}</li>;
-}
-
-function Policies({ d }: { d: Msg }) {
-  const [policies, setPolicies] = useState<string>(d['policies']);
-  const [governance, setGovernance] = useState<string>(d['governance']);
-  const [diag, setDiag] = useState<Msg[] | undefined>();
-  const [saved, setSaved] = useState(false);
-  const check = async () => setDiag((await ask({ type: 'validatePolicies', policies, governance }))['diagnostics']);
-  const save = async () => {
-    const r = await ask({ type: 'savePolicies', policies, governance });
-    if (r.type === 'saved') { setSaved(true); setDiag([]); } else setDiag(r['diagnostics']);
-  };
-  return <>
-    <p className="muted">Version {d['version']}. Policies are data: changes apply to the next route without a release.</p>
-    <div className="editors"><label>policies.yaml<textarea value={policies} onChange={(e) => { setPolicies(e.target.value); setSaved(false); }} /></label>
-      <label>governance.yaml<textarea value={governance} onChange={(e) => { setGovernance(e.target.value); setSaved(false); }} /></label></div>
-    <button onClick={() => void check()}>Validate</button> <button onClick={() => void save()}>Save</button> {saved && <span className="ok">saved</span>}
-    {diag && (diag.length ? <ul className="diag">{diag.map((x, i) => <li key={i}>{x['file']}:{x['path']} — {x['message']}</li>)}</ul> : <p className="ok">Valid.</p>)}
-  </>;
-}
-
-function Sessions({ d }: { d: Msg }) {
-  const t = d['telemetry'];
-  const decisions = Object.entries(t.toolCalls.byDecision as Record<string, number>);
-  return <>
-    <section className="cards"><div className="card"><b>{t.sessions}</b><span>sessions</span></div><div className="card"><b>{t.toolCalls.total}</b><span>tool calls</span></div><div className="card"><b>{t.skills}</b><span>skills</span></div></section>
-    <h3>Tool-call decisions</h3>
-    {decisions.length ? decisions.map(([k, n]) => <Bar key={k} label={k} value={n} total={t.toolCalls.total} />) : <p className="muted">No governed sessions yet.</p>}
-    <h3>Pack utilisation by rule</h3>
-    <table><thead><tr><th>rule</th><th>intent</th><th>read / delivered</th></tr></thead><tbody>
-      {t.utilisation.map((u: Msg) => <tr key={`${u['rule']}:${u['intent']}`}><td>{u['rule']}</td><td>{u['intent']}</td><td>{u['read']} / {u['delivered']}</td></tr>)}
-    </tbody></table>
-    <h3>Intent priors</h3>
-    {Object.entries(t.priors as Record<string, number>).map(([k, v]) => <Bar key={k} label={k} value={Math.round(v * 100)} total={100} />)}
-  </>;
-}
+const PAGES = [
+  { id: 'overview', label: 'Overview', key: 'o' },
+  { id: 'studio', label: 'Studio', key: 's' },
+  { id: 'repository', label: 'Repository', key: 'r' },
+  { id: 'policies', label: 'Policies', key: 'p' },
+  { id: 'governance', label: 'Governance', key: 'g' },
+  { id: 'adapters', label: 'Adapters', key: 'a' },
+] as const;
+type Page = (typeof PAGES)[number]['id'];
 
 function App() {
-  const [page, setPage] = useState<Page>('overview');
-  const [data, setData] = useState<Msg | undefined>();
+  const [page, setPage] = useState<Page>(() => saved('page', 'overview'));
+  const [focus, setFocus] = useState<string | undefined>();
+  const [pal, setPal] = useState(false);
+  const [theme, setTheme] = useTheme();
+  const [live, setLive] = useState<{ ok: boolean; files?: number; pending?: number }>({ ok: false });
+  const go = (p: string, arg?: string) => {
+    setPage(p as Page);
+    save('page', p);
+    if (p === 'repository') setFocus(arg);
+  };
   useEffect(() => {
-    setData(undefined);
-    void ask({ type: 'load', page }).then(setData);
-  }, [page]);
-  return <main>
-    <nav>{PAGES.map((p) => <button key={p} className={p === page ? 'active' : ''} onClick={() => setPage(p)}>{p[0]!.toUpperCase() + p.slice(1)}</button>)}</nav>
-    {!data ? <p className="muted">Loading…</p> : data.type === 'error' ? <p className="error">{data['message']}</p>
-      : page === 'overview' ? <Overview d={data} />
-      : page === 'repository' ? <><h3>Structure</h3><ul className="tree"><Tree n={data['tree']} /></ul><h3>Run-book</h3><pre>{data['runbook']}</pre></>
-      : page === 'policies' ? <Policies d={data} />
-      : page === 'sessions' ? <Sessions d={data} />
-      : <><h3>Daemon</h3><pre>{JSON.stringify(data['daemon'], null, 2)}</pre><h3>Model adapters (riaf.models)</h3><pre>{JSON.stringify(data['models'], null, 2) || '{}'}</pre></>}
-  </main>;
+    const poll = () => void ask({ type: 'load', page: 'overview' }).then((r) => setLive({ ok: true, files: r['status'].blobs, pending: (r['status'].stages as { pending: number }[]).reduce((a, s) => a + s.pending, 0) })).catch(() => setLive({ ok: false }));
+    poll();
+    const t = setInterval(poll, 10000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    let chord = 0;
+    const k = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPal((v) => !v); return; }
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === '/') { e.preventDefault(); go('studio'); setTimeout(() => (document.querySelector('.taskline textarea') as HTMLTextAreaElement | null)?.focus(), 40); return; }
+      if (chord && Date.now() - chord < 1200) {
+        const hit = PAGES.find((p) => p.key === e.key.toLowerCase());
+        chord = 0;
+        if (hit) { e.preventDefault(); go(hit.id); }
+        return;
+      }
+      if (e.key === 'g') chord = Date.now();
+    };
+    addEventListener('keydown', k);
+    return () => removeEventListener('keydown', k);
+  }, []);
+  const items: PaletteItem[] = useMemo(() => [
+    ...PAGES.map((p) => ({ id: `page:${p.id}`, label: `Go to ${p.label}`, hint: `g ${p.key}`, icon: p.id, run: () => go(p.id) })),
+    { id: 'theme', label: `Theme: ${theme} (switch)`, hint: 'setting', icon: theme === 'dark' ? 'moon' : 'sun', run: () => setTheme(theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto') },
+    { id: 'reindex', label: 'Re-index the repository', hint: 'action', icon: 'refresh', run: () => void ask({ type: 'reindex' }) },
+  ], [theme]);
+  const search = async (q: string): Promise<PaletteItem[]> => {
+    const r = await ask({ type: 'jump', query: q });
+    const d = r['result']?.definition;
+    if (!d) return [];
+    return [{ id: `sym:${d.symbol}`, label: symName(d.symbol), hint: `${d.kind} · ${d.path}:${d.startLine}`, icon: 'target', run: () => go('repository', d.symbol) }];
+  };
+  const label = PAGES.find((p) => p.id === page)!.label;
+  const nextTheme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+  return (
+    <div className="shell">
+      <nav className="rail" aria-label="Pages">
+        <div className="brand">
+          <span className="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--teal)" /><stop offset="1" stopColor="var(--i-feature)" /></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="8" fill="url(#lg)" /><path d="M9 21V11h6.5a3.5 3.5 0 0 1 0 7H12m4 0l4 3" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+          <div><b>RIAF</b><small>Repository intelligence</small></div>
+        </div>
+        <div className="repo-pill" title={repoName}><Icon name="folder" size={14} /><span>{repoName}</span></div>
+        <div className="navs">
+          {PAGES.map((p) => (
+            <button key={p.id} className={`nav ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>
+              <Icon name={p.id} /><span>{p.label}</span><kbd>{p.key}</kbd>
+            </button>
+          ))}
+        </div>
+        <div className="grow" />
+        <div className="rail-foot">
+          <div className={`daemon ${live.ok ? 'ok' : 'down'}`}><span className="live-dot" />{live.ok ? `daemon · ${live.files?.toLocaleString()} files` : 'connecting…'}</div>
+          {live.ok && live.pending ? <div className="muted small">{live.pending} pending</div> : null}
+          <div className="hint"><kbd>/</kbd> new task · <kbd>g</kbd> + letter</div>
+        </div>
+      </nav>
+      <div className="content">
+        <header className="topbar">
+          <div className="crumbs"><span className="muted">{repoName}</span><span className="sep">/</span><b>{label}</b></div>
+          <span className="grow" />
+          <button className="searchbtn" onClick={() => setPal(true)}><Icon name="search" /><span>Search or jump</span><kbd>⌘K</kbd></button>
+          <button className="iconbtn" onClick={() => setTheme(nextTheme)} title={`Theme: ${theme} — click for ${nextTheme}`} aria-label="Switch theme"><Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'auto'} /></button>
+        </header>
+        <main className="main" key={page}>
+          {page === 'overview' && <Overview go={go} />}
+          {page === 'studio' && <Studio go={go} />}
+          {page === 'repository' && <Repository {...(focus ? { focus } : {})} />}
+          {page === 'policies' && <PoliciesPage />}
+          {page === 'governance' && <Governance />}
+          {page === 'adapters' && <Adapters />}
+        </main>
+      </div>
+      <Palette open={pal} onClose={() => setPal(false)} items={items} search={search} />
+    </div>
+  );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(<ToastHost><App /></ToastHost>);

@@ -6,7 +6,15 @@ export type ConsoleRequest =
   | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' }
   | { type: 'validatePolicies'; policies: string; governance: string }
   | { type: 'savePolicies'; policies: string; governance: string }
-  | { type: 'wikiPage'; node: string };
+  | { type: 'wikiPage'; node: string }
+  | { type: 'route'; text: string; activeFile?: string }
+  | { type: 'compile'; text: string; budget?: number; activeFile?: string; intent?: string }
+  | { type: 'render'; packId: string; target: 'claude' | 'copilot' | 'fragment' | 'json' | 'agentsmd' }
+  | { type: 'jump'; query: string }
+  | { type: 'impact'; query: string }
+  | { type: 'history'; query: string }
+  | { type: 'reindex' }
+  | { type: 'handoff'; to: 'copilot' | 'claude'; text: string; packId: string };
 
 export interface ConsoleDeps {
   rpc: Rpc;
@@ -14,6 +22,8 @@ export interface ConsoleDeps {
   writeRiafFile(name: string, text: string): Promise<void>;
   /** Adapter settings as configured in VS Code (`riaf.models`). */
   modelSettings(): Record<string, unknown>;
+  /** Runs a VS Code command (hand-off to Copilot or Claude Code); absent outside VS Code. */
+  runCommand?(command: string, ...args: unknown[]): Promise<void>;
 }
 
 /** Answers one console request with the payload the page renders. */
@@ -53,6 +63,39 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
     }
     case 'wikiPage':
       return { type: 'wikiPage', page: await rpc.call('wiki.page', { node: req.node }) };
+    case 'route': {
+      const policy = await rpc.call('route', { text: req.text, ide: { ...(req.activeFile ? { activeFile: req.activeFile } : {}), interactive: true } });
+      return { type: 'route', policy };
+    }
+    case 'compile': {
+      const r = await rpc.call('pack.compile', {
+        request: { text: req.text, ide: { ...(req.activeFile ? { activeFile: req.activeFile } : {}), interactive: true }, ...(req.intent ? { intentHint: req.intent as never } : {}) },
+        target: 'claude', sessionId: 'console', ...(req.budget ? { budget: req.budget } : {}),
+      });
+      return { type: 'compiled', pack: r.pack, rendered: r.rendered };
+    }
+    case 'render': {
+      const r = await rpc.call('pack.get', { packId: req.packId, target: req.target });
+      return { type: 'rendered', target: req.target, text: r.rendered ?? '' };
+    }
+    case 'jump':
+      return { type: 'jump', result: await rpc.call('graph.jump', { query: req.query }) };
+    case 'impact': {
+      const j = await rpc.call('graph.jump', { query: req.query });
+      if (!j.definition) return { type: 'impact', definition: null };
+      const impact = await rpc.call('graph.impact', { symbols: [j.definition.symbol], hops: 2 });
+      return { type: 'impact', definition: j.definition, references: j.references, impact };
+    }
+    case 'history':
+      return { type: 'history', ...(await rpc.call('history.rationale', { query: req.query })) };
+    case 'reindex': {
+      const r = await rpc.call('index.rebuild', { wait: true });
+      return { type: 'reindexed', run: r.run };
+    }
+    case 'handoff':
+      if (!deps.runCommand) return { type: 'error', message: 'hand-off runs inside VS Code' };
+      await deps.runCommand(req.to === 'copilot' ? 'riaf.handoffCopilot' : 'riaf.handoffClaude', req.text, req.packId);
+      return { type: 'handedOff', to: req.to };
   }
   return { type: 'error', message: 'unknown request' };
 }

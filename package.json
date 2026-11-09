@@ -22,6 +22,7 @@
     "typecheck:webview": "tsc -p packages/extension/webview",
     "bundle": "node tooling/esbuild/build.mjs cli",
     "package:vsix": "pnpm --filter riaf-vscode-v2 run package",
+    "console:dev": "node tooling/esbuild/build.mjs webview && node tooling/scripts/console-dev.mjs",
     "verify": "pnpm build && pnpm typecheck:webview && pnpm lint && pnpm test && pnpm schemas:check"
   },
   "devDependencies": {
