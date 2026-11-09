@@ -48,6 +48,8 @@ describe('FtsIndex on the toll-ts fixture', () => {
     // OR fallback: a query with one absent word still returns results.
     expect(store.fts.search('zzzzunknown featureflags').some((h) => h.path === 'src/config/flags.ts')).toBe(true);
     expect(store.fts.search('qqq zzz')).toEqual([]);
+    // prefix matching stands in for stemming: British spelling still finds normalizePlate
+    expect(store.fts.search('plate normalisation', 5, { prefix: 6, mode: 'or' }).some((h) => h.path === 'src/toll/plate.ts')).toBe(true);
     await store.close();
   });
 

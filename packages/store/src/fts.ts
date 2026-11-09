@@ -35,7 +35,7 @@ export class FtsIndex {
    * Ranked search. Tries an AND query first (all terms), and falls back to OR when nothing matches,
    * so "where do we validate plates" still finds `validatePlate` even if "where" is absent.
    */
-  search(query: string, limit = 20): FtsHit[] {
+  search(query: string, limit = 20, opts: { prefix?: number; mode?: 'and' | 'or' } = {}): FtsHit[] {
     const run = (match: string) =>
       this.db
         .all<{ chunk_id: string; path: string; score: number }>(
@@ -43,11 +43,15 @@ export class FtsIndex {
           [match, limit],
         )
         .map((r) => ({ chunkId: r.chunk_id, path: r.path, score: Number(r.score) }));
-    const and = buildFtsQuery(query, 'and');
+    if (opts.mode === 'or') {
+      const or = buildFtsQuery(query, 'or', opts.prefix);
+      return or ? run(or) : [];
+    }
+    const and = buildFtsQuery(query, 'and', opts.prefix);
     if (!and) return [];
     const hits = run(and);
     if (hits.length > 0) return hits;
-    const or = buildFtsQuery(query, 'or');
+    const or = buildFtsQuery(query, 'or', opts.prefix);
     return or ? run(or) : [];
   }
 

@@ -114,14 +114,25 @@ export class WasmDriver implements SqliteDriver {
     }
   }
 
-  /** Exports the image and writes it atomically (tmp + rename). */
-  async persist(): Promise<void> {
-    if (!this.path) return;
-    const bytes = this.sqlite3.capi.sqlite3_js_db_export(this.db.pointer);
-    await mkdir(dirname(this.path), { recursive: true });
-    const tmp = `${this.path}.tmp-${process.pid}`;
-    await writeFile(tmp, bytes);
-    await rename(tmp, this.path);
+  private persisting: Promise<void> = Promise.resolve();
+  private persistSeq = 0;
+
+  /**
+   * Exports the image and writes it atomically (tmp + rename). Calls are serialised: a debounced
+   * persist and the persist on close must not interleave their tmp files.
+   */
+  persist(): Promise<void> {
+    const path = this.path;
+    if (!path) return Promise.resolve();
+    const run = async () => {
+      const bytes = this.sqlite3.capi.sqlite3_js_db_export(this.db.pointer);
+      await mkdir(dirname(path), { recursive: true });
+      const tmp = `${path}.tmp-${process.pid}-${++this.persistSeq}`;
+      await writeFile(tmp, bytes);
+      await rename(tmp, path);
+    };
+    this.persisting = this.persisting.then(run, run);
+    return this.persisting;
   }
 
   async close(): Promise<void> {

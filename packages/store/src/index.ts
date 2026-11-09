@@ -7,3 +7,4 @@ export * from './fts.js';
 export * from './trigram.js';
 export * from './repo.js';
 export * from './store.js';
+export * from './compile.js';

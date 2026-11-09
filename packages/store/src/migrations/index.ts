@@ -140,6 +140,61 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX IF NOT EXISTS import_ref_resolved ON import_ref(resolved);
     `,
   },
+  {
+    version: 5,
+    name: 'semantic_compile',
+    sql: `
+      CREATE TABLE IF NOT EXISTS summary (
+        node_id    TEXT PRIMARY KEY,
+        level      TEXT NOT NULL,
+        hash       TEXT NOT NULL,
+        text       TEXT NOT NULL,
+        model      TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS summary_level ON summary(level);
+
+      CREATE TABLE IF NOT EXISTS route (
+        route_id   TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        session_id TEXT,
+        text       TEXT NOT NULL,
+        branch     TEXT NOT NULL,
+        h          REAL NOT NULL,
+        w_json     TEXT NOT NULL,
+        json       TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS route_session ON route(session_id);
+
+      CREATE TABLE IF NOT EXISTS pack (
+        pack_id        TEXT PRIMARY KEY,
+        route_id       TEXT,
+        session_id     TEXT,
+        created_at     TEXT NOT NULL,
+        budget         INTEGER NOT NULL,
+        tokens_used    INTEGER NOT NULL,
+        policy_version TEXT NOT NULL,
+        json           TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS pack_session ON pack(session_id);
+      CREATE INDEX IF NOT EXISTS pack_created ON pack(created_at);
+
+      CREATE TABLE IF NOT EXISTS pack_item (
+        pack_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        tier    INTEGER NOT NULL,
+        kind    TEXT NOT NULL,
+        path    TEXT,
+        symbol  TEXT,
+        intent  TEXT NOT NULL,
+        rule    TEXT NOT NULL,
+        score   REAL NOT NULL,
+        tokens  INTEGER NOT NULL,
+        PRIMARY KEY (pack_id, item_id)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS pack_item_path ON pack_item(path);
+    `,
+  },
 ];
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

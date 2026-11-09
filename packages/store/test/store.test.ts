@@ -14,7 +14,7 @@ describe('Store (wasm driver)', () => {
     expect(store.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(store.isCurrent).toBe(true);
     expect(migrate(store.driver)).toEqual([]); // nothing pending
-    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4]);
+    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
     await store.close();
   });
 
@@ -121,5 +121,47 @@ describe('Store refs, imports and path-scoped edges (migration 0004)', () => {
     expect(store.refs.count()).toBe(0);
     expect(store.imports.count()).toBe(0);
     await store.close();
+  });
+});
+
+describe('summaries and compile log (migration 0005)', () => {
+  it('caches summaries by node and logs routes and packs', async () => {
+    const { Store } = await import('../src/store.js');
+    const store = await Store.open();
+    store.summaries.upsert({ nodeId: 'src/a.ts', level: 'file', hash: 'h1', text: 'A.', model: 'extractive' });
+    store.summaries.upsert({ nodeId: 'src/a.ts', level: 'file', hash: 'h2', text: 'A2.', model: 'extractive' });
+    expect(store.summaries.get('src/a.ts')?.hash).toBe('h2');
+    store.summaries.upsert({ nodeId: 'src/', level: 'directory', hash: 't', text: 'dir', model: 'extractive' });
+    expect(store.summaries.prune(new Set(['src/']))).toBe(1);
+    store.compileLog.recordRoute({ routeId: 'r1', text: 'fix x', branch: 'single', H: 0.2, w: { bugfix: 1 }, json: '{}', createdAt: '2026-01-01T00:00:00Z' });
+    store.compileLog.recordPack({ packId: 'p1', routeId: 'r1', createdAt: '2026-01-01T00:00:01Z', budget: 100, tokensUsed: 10, policyVersion: 'v', json: '{"packId":"p1"}', items: [{ itemId: 'i1', tier: 2, kind: 'body', path: 'src/a.ts', intent: 'bugfix', rule: 'anchor', score: 1, tokens: 10 }] });
+    store.compileLog.recordPack({ packId: 'p2', createdAt: '2026-01-01T00:00:02Z', budget: 100, tokensUsed: 5, policyVersion: 'v', json: '{"packId":"p2"}', items: [] });
+    expect(store.compileLog.pack()).toBe('{"packId":"p2"}');
+    expect(store.compileLog.pack('p1')).toBe('{"packId":"p1"}');
+    expect(store.compileLog.branchCounts()).toEqual({ single: 1 });
+    await store.close();
+  });
+});
+
+describe('wasm persistence', () => {
+  it('serialises concurrent persists to the same file', async () => {
+    const { Store } = await import('../src/store.js');
+    const { mkdtempSync, rmSync, existsSync, readdirSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'riaf-persist-'));
+    try {
+      const store = await Store.open({ path: join(dir, 'index.sqlite') });
+      store.kv.set('k', 'v');
+      await Promise.all([store.persist(), store.persist(), store.persist()]);
+      expect(existsSync(join(dir, 'index.sqlite'))).toBe(true);
+      expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toEqual([]);
+      await store.close();
+      const again = await Store.open({ path: join(dir, 'index.sqlite') });
+      expect(again.kv.get('k')).toBe('v');
+      await again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -5,6 +5,7 @@ import { CURRENT_SCHEMA_VERSION, migrate, schemaVersion } from './migrations/ind
 import { MerkleIndex } from './merkle.js';
 import { FtsIndex } from './fts.js';
 import { TrigramIndex } from './trigram.js';
+import { CompileLog, SummaryRepo } from './compile.js';
 import { ChunkRepo, EdgeRepo, ImportRepo, KvRepo, RefRepo, SymbolRepo, type ChunkRecord } from './repo.js';
 
 export interface StoreOptions {
@@ -24,6 +25,8 @@ export class Store {
   readonly kv: KvRepo;
   readonly refs: RefRepo;
   readonly imports: ImportRepo;
+  readonly summaries: SummaryRepo;
+  readonly compileLog: CompileLog;
   readonly fts: FtsIndex;
   readonly trigram: TrigramIndex;
 
@@ -35,6 +38,8 @@ export class Store {
     this.kv = new KvRepo(driver);
     this.refs = new RefRepo(driver);
     this.imports = new ImportRepo(driver);
+    this.summaries = new SummaryRepo(driver);
+    this.compileLog = new CompileLog(driver);
     this.fts = new FtsIndex(driver);
     this.trigram = new TrigramIndex(driver);
   }

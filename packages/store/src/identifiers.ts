@@ -43,10 +43,15 @@ export function toFtsText(text: string): string {
   return tokenizeForFts(text).join(' ');
 }
 
-/** Turns a natural-language or identifier query into an FTS5 MATCH expression. */
-export function buildFtsQuery(query: string, mode: 'and' | 'or' = 'and'): string | undefined {
+/**
+ * Turns a natural-language or identifier query into an FTS5 MATCH expression. With `prefix`, words
+ * longer than that many letters match by their first `prefix` letters, a cheap stand-in for stemming
+ * (`normalisation` and `normalize` both match `normal*`).
+ */
+export function buildFtsQuery(query: string, mode: 'and' | 'or' = 'and', prefix?: number): string | undefined {
   const toks = tokenizeForFts(query).filter((t) => t.length >= 2);
   if (toks.length === 0) return undefined;
-  const quoted = [...new Set(toks)].map((t) => `"${t.replace(/"/g, '')}"`);
+  const quoted = [...new Set(toks.map((t) => (prefix && t.length > prefix + 1 && /^[a-z]+$/.test(t) ? `${t.slice(0, prefix)}*` : t)))]
+    .map((t) => (t.endsWith('*') ? `"${t.slice(0, -1).replace(/"/g, '')}"*` : `"${t.replace(/"/g, '')}"`));
   return quoted.join(mode === 'and' ? ' AND ' : ' OR ');
 }
