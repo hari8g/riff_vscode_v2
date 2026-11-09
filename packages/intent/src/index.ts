@@ -1,8 +1,15 @@
 /**
- * @riaf/intent — L4 router and policy composer: task units, intent vector, entropy gate, probe, composed policy (ADR-0003).
- *
- * Placeholder until milestone M3; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/intent — L4 router and policy composer (ADR-0003: intent as a distribution). Decomposes a
+ * request into task units, grounds anchors, classifies each unit into an intent vector, gates on its
+ * entropy (single / blended / probe → clarify | generic) and composes the primitive policies.
  */
-export const PACKAGE = '@riaf/intent' as const;
-export const MILESTONE = 'M3' as const;
+export * from './lexicon.js';
+export * from './classify.js';
+export * from './entropy.js';
+export * from './decompose.js';
+export * from './anchors.js';
+export * from './probe.js';
+export * from './clarify.js';
+export * from './compose.js';
+export * from './defaults.js';
+export * from './route.js';

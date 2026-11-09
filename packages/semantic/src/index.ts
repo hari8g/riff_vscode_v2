@@ -1,8 +1,9 @@
 /**
- * @riaf/semantic — L3 meaning: bottom-up summaries, architecture map, conventions, entity-grounded skills, run-book, embeddings.
- *
- * Placeholder until milestone M3; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/semantic — L3 meaning and conventions: bottom-up extractive summaries cached by subtree hash,
+ * the architecture map, conventions, the ≤60-line run-book, and wiki pages.
  */
-export const PACKAGE = '@riaf/semantic' as const;
-export const MILESTONE = 'M3' as const;
+export * from './summaries.js';
+export * from './architecture.js';
+export * from './conventions.js';
+export * from './runbook.js';
+export * from './semantic.js';

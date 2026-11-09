@@ -20,10 +20,13 @@
     "test": "vitest run --root ../.. packages/govern"
   },
   "dependencies": {
-    "@riaf/kernel": "workspace:*",
-    "@riaf/store": "workspace:*",
+    "@riaf/compiler": "workspace:*",
     "@riaf/graph": "workspace:*",
+    "@riaf/kernel": "workspace:*",
     "@riaf/semantic": "workspace:*",
-    "@riaf/compiler": "workspace:*"
+    "@riaf/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@riaf/parse": "workspace:*"
   }
 }

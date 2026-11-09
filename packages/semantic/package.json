@@ -20,9 +20,12 @@
     "test": "vitest run --root ../.. packages/semantic"
   },
   "dependencies": {
-    "@riaf/kernel": "workspace:*",
-    "@riaf/store": "workspace:*",
     "@riaf/graph": "workspace:*",
-    "@riaf/history": "workspace:*"
+    "@riaf/history": "workspace:*",
+    "@riaf/kernel": "workspace:*",
+    "@riaf/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@riaf/parse": "workspace:*"
   }
 }

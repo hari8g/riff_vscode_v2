@@ -54,5 +54,32 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  // Tests may build fixture indexes with the lower pipeline (parse → graph → history → semantic) even
+  // where production code may not import it; nothing above the importing layer is ever allowed.
+  {
+    files: ['packages/*/test/**/*.ts'],
+    rules: {
+      'boundaries/element-types': ['error', {
+        default: 'disallow',
+        rules: [
+          { from: 'kernel', allow: ['kernel'] },
+          { from: 'store', allow: ['store', 'kernel'] },
+          { from: 'parse', allow: ['parse', 'kernel', 'store'] },
+          { from: 'graph', allow: ['graph', 'kernel', 'store', 'parse'] },
+          { from: 'history', allow: ['history', 'kernel', 'store', 'parse', 'graph'] },
+          { from: 'semantic', allow: ['semantic', 'kernel', 'store', 'parse', 'graph', 'history'] },
+          { from: 'intent', allow: ['intent', 'kernel', 'store', 'parse', 'graph', 'history', 'semantic'] },
+          { from: 'compiler', allow: ['compiler', 'kernel', 'store', 'parse', 'graph', 'history', 'semantic', 'intent'] },
+          { from: 'govern', allow: ['govern', 'kernel', 'store', 'parse', 'graph', 'history', 'semantic', 'compiler'] },
+          { from: 'models', allow: ['models', 'kernel'] },
+          { from: 'daemon', allow: ['daemon', 'kernel', 'store', 'parse', 'graph', 'history', 'semantic', 'intent', 'compiler', 'govern', 'models'] },
+          { from: 'serve-mcp', allow: ['serve-mcp', 'kernel', 'daemon', 'compiler'] },
+          { from: 'cli', allow: ['cli', 'kernel', 'daemon', 'serve-mcp', 'eval', 'compiler'] },
+          { from: 'extension', allow: ['extension', 'kernel', 'daemon', 'models', 'compiler'] },
+          { from: 'eval', allow: ['eval', 'kernel', 'daemon', 'compiler'] },
+        ],
+      }],
+    },
+  },
   { ignores: ['**/dist/**', '**/node_modules/**', 'fixtures/**', 'tooling/**'] },
 );

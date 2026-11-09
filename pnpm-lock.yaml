@@ -86,6 +86,10 @@ importers:
       '@riaf/store':
         specifier: workspace:*
         version: link:../store
+    devDependencies:
+      '@riaf/parse':
+        specifier: workspace:*
+        version: link:../parse
 
   packages/daemon:
     dependencies:
@@ -173,6 +177,10 @@ importers:
       '@riaf/store':
         specifier: workspace:*
         version: link:../store
+    devDependencies:
+      '@riaf/parse':
+        specifier: workspace:*
+        version: link:../parse
 
   packages/graph:
     dependencies:
@@ -197,6 +205,10 @@ importers:
       '@riaf/store':
         specifier: workspace:*
         version: link:../store
+    devDependencies:
+      '@riaf/parse':
+        specifier: workspace:*
+        version: link:../parse
 
   packages/intent:
     dependencies:
@@ -212,6 +224,10 @@ importers:
       '@riaf/store':
         specifier: workspace:*
         version: link:../store
+    devDependencies:
+      '@riaf/parse':
+        specifier: workspace:*
+        version: link:../parse
 
   packages/kernel:
     dependencies:
@@ -251,6 +267,10 @@ importers:
       '@riaf/store':
         specifier: workspace:*
         version: link:../store
+    devDependencies:
+      '@riaf/parse':
+        specifier: workspace:*
+        version: link:../parse
 
   packages/serve-mcp:
     dependencies:
