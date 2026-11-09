@@ -1,0 +1,27 @@
+{
+  "name": "@riaf/store",
+  "version": "0.1.0",
+  "description": "RIAF v2 L0 persistence: one SQLite file per repository (sqlite-wasm by default), migrations, Merkle table, FTS5, trigram and vector search.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run --root ../.. packages/store"
+  },
+  "dependencies": {
+    "@riaf/kernel": "workspace:*",
+    "@sqlite.org/sqlite-wasm": "^3.54.1-build1"
+  },
+  "peerDependencies": {
+    "better-sqlite3": ">=11"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": { "optional": true }
+  }
+}

@@ -1,0 +1,97 @@
+import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
+import { hashBlob, symbolId } from '@riaf/kernel';
+import { Store, CURRENT_SCHEMA_VERSION, MIGRATIONS, migrate } from '../src/index.js';
+
+const tmp = mkdtempSync(join(tmpdir(), 'riaf-store-'));
+afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+describe('Store (wasm driver)', () => {
+  it('opens in memory, applies all migrations once, and is idempotent', async () => {
+    const store = await Store.open();
+    expect(store.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(store.isCurrent).toBe(true);
+    expect(migrate(store.driver)).toEqual([]); // nothing pending
+    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3]);
+    await store.close();
+  });
+
+  it('round-trips 10,000 blobs quickly and reports changes correctly', async () => {
+    const store = await Store.open();
+    const blobs = Array.from({ length: 10_000 }, (_, i) => ({
+      path: `src/mod${i % 50}/file${i}.ts`,
+      hash: hashBlob(`content ${i}`),
+      size: 100 + i,
+      mtimeMs: 1_700_000_000_000 + i,
+      lang: 'typescript',
+    }));
+    const t0 = performance.now();
+    const first = store.merkle.upsertBlobs(blobs);
+    const ms = performance.now() - t0;
+    expect(first.added.length).toBe(10_000);
+    expect(store.merkle.countBlobs()).toBe(10_000);
+    expect(ms).toBeLessThan(15_000);
+
+    const again = store.merkle.upsertBlobs(blobs);
+    expect(again.added).toEqual([]);
+    expect(again.changed).toEqual([]);
+    expect(again.unchanged).toBe(10_000);
+
+    const edited = { ...blobs[7]!, hash: hashBlob('changed') };
+    const third = store.merkle.upsertBlobs([edited]);
+    expect(third.changed).toEqual([edited.path]);
+    expect(store.merkle.getBlob(edited.path)?.hash).toBe(edited.hash);
+    await store.close();
+  });
+
+  it('persists to disk and reloads with the same data', async () => {
+    const path = join(tmp, 'index.sqlite');
+    const a = await Store.open({ path });
+    a.kv.set('hello', 'world');
+    a.symbols.upsertMany([{ id: symbolId('src/a.ts', 'A.run', 'method'), kind: 'method', name: 'run', qualifiedName: 'A.run', path: 'src/a.ts', blobHash: hashBlob('x') }]);
+    await a.persist();
+    await a.close();
+    expect(existsSync(path)).toBe(true);
+
+    const b = await Store.open({ path });
+    expect(b.kv.get('hello')).toBe('world');
+    expect(b.symbols.byPath('src/a.ts').map((s) => s.qualifiedName)).toEqual(['A.run']);
+    expect(b.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    await b.close();
+  });
+
+  it('transactions roll back on error', async () => {
+    const store = await Store.open();
+    expect(() =>
+      store.driver.transaction(() => {
+        store.kv.set('k', 'v');
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+    expect(store.kv.get('k')).toBeUndefined();
+    await store.close();
+  });
+
+  it('symbol and edge repositories upsert, query and delete by path', async () => {
+    const store = await Store.open();
+    const a = symbolId('src/a.ts', 'A.run', 'method');
+    const b = symbolId('src/b.ts', 'helper', 'function');
+    store.symbols.upsertMany([
+      { id: a, kind: 'method', name: 'run', qualifiedName: 'A.run', path: 'src/a.ts', startLine: 3, endLine: 9, blobHash: hashBlob('a'), signature: 'run(): void' },
+      { id: b, kind: 'function', name: 'helper', qualifiedName: 'helper', path: 'src/b.ts', blobHash: hashBlob('b') },
+    ]);
+    store.edges.upsertMany([{ src: a, dst: b, kind: 'invokes', confidence: 0.9 }]);
+    expect(store.edges.outgoing(a, 'invokes').map((e) => e.dst)).toEqual([b]);
+    expect(store.edges.incoming(b)[0]?.confidence).toBe(0.9);
+    expect(store.symbols.searchName('help').map((s) => s.name)).toEqual(['helper']);
+    expect(store.symbols.get(a)?.signature).toBe('run(): void');
+
+    store.removePath('src/a.ts');
+    expect(store.symbols.get(a)).toBeUndefined();
+    expect(store.edges.incoming(b)).toEqual([]);
+    expect(store.stats().symbols).toBe(1);
+    await store.close();
+  });
+});

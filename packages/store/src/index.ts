@@ -1,0 +1,9 @@
+export * from './driver/types.js';
+export { openDriver, type OpenDriverOptions } from './driver/index.js';
+export * from './migrations/index.js';
+export * from './merkle.js';
+export * from './identifiers.js';
+export * from './fts.js';
+export * from './trigram.js';
+export * from './repo.js';
+export * from './store.js';

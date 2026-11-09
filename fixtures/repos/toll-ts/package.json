@@ -1,0 +1,8 @@
+{
+  "name": "toll-ts-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Small MLFF tolling service used as a RIAF test fixture. Not a real product.",
+  "type": "module",
+  "scripts": { "test": "vitest run" }
+}
