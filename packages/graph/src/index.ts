@@ -1,8 +1,15 @@
 /**
- * @riaf/graph — L1 structural graph: heterogeneous ISS graph, personalized PageRank repo map, closure, impact, clusters.
- *
- * Placeholder until milestone M1; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/graph — L1 structural graph: delta-aware edge building from tags and imports, reference
+ * resolution, personalized PageRank, the repo map, closure and impact queries, clusters, test mapping.
  */
-export const PACKAGE = '@riaf/graph' as const;
-export const MILESTONE = 'M1' as const;
+export * from './resolve.js';
+export * from './build.js';
+export * from './view.js';
+export * from './repomap.js';
+export * from './closure.js';
+export * from './impact.js';
+export * from './tests.js';
+export * from './clusters.js';
+export * from './jump.js';
+export * from './graph.js';
+export * from './stats.js';

@@ -1,0 +1,9 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.fleet</groupId><artifactId>fleet-parent</artifactId><version>0.1.0</version></parent>
+  <artifactId>fleet-dispatch</artifactId>
+  <dependencies>
+    <dependency><groupId>com.fleet</groupId><artifactId>fleet-model</artifactId><version>0.1.0</version></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.10.2</version><scope>test</scope></dependency>
+  </dependencies>
+</project>
