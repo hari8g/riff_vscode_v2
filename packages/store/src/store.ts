@@ -5,7 +5,7 @@ import { CURRENT_SCHEMA_VERSION, migrate, schemaVersion } from './migrations/ind
 import { MerkleIndex } from './merkle.js';
 import { FtsIndex } from './fts.js';
 import { TrigramIndex } from './trigram.js';
-import { ChunkRepo, EdgeRepo, KvRepo, SymbolRepo, type ChunkRecord } from './repo.js';
+import { ChunkRepo, EdgeRepo, ImportRepo, KvRepo, RefRepo, SymbolRepo, type ChunkRecord } from './repo.js';
 
 export interface StoreOptions {
   driver?: OpenDriverOptions['driver'];
@@ -22,6 +22,8 @@ export class Store {
   readonly edges: EdgeRepo;
   readonly chunks: ChunkRepo;
   readonly kv: KvRepo;
+  readonly refs: RefRepo;
+  readonly imports: ImportRepo;
   readonly fts: FtsIndex;
   readonly trigram: TrigramIndex;
 
@@ -31,6 +33,8 @@ export class Store {
     this.edges = new EdgeRepo(driver);
     this.chunks = new ChunkRepo(driver);
     this.kv = new KvRepo(driver);
+    this.refs = new RefRepo(driver);
+    this.imports = new ImportRepo(driver);
     this.fts = new FtsIndex(driver);
     this.trigram = new TrigramIndex(driver);
   }
@@ -72,6 +76,8 @@ export class Store {
         this.trigram.removeChunk(id);
       }
       this.chunks.deleteByPath(path);
+      this.refs.deleteByPath(path);
+      this.imports.deleteByPath(path);
       this.edges.deleteBySourcePath(path, 'treesitter');
       this.edges.deleteBySourcePath(path, 'lsp');
       this.symbols.deleteByPath(path);

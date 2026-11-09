@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@riaf/kernel": "workspace:*",
-    "@riaf/store": "workspace:*"
+    "@riaf/store": "workspace:*",
+    "web-tree-sitter": "0.22.6"
   }
 }

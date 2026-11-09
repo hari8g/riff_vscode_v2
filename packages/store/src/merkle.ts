@@ -84,6 +84,13 @@ export class MerkleIndex {
     return summary;
   }
 
+  /** Refreshes size and mtime for rows whose hash is unchanged (keeps the stage bitmap). */
+  touchStats(blobs: readonly BlobRecord[]): void {
+    this.db.transaction(() => {
+      for (const b of blobs) this.db.run('UPDATE blob SET size = ?, mtime_ms = ? WHERE path = ? AND hash = ?', [b.size, b.mtimeMs, b.path, b.hash]);
+    });
+  }
+
   removeBlobs(paths: readonly string[]): number {
     let n = 0;
     this.db.transaction(() => {
@@ -118,6 +125,16 @@ export class MerkleIndex {
 
   getBlob(path: string): BlobRow | undefined {
     return this.db.get<BlobRow>('SELECT * FROM blob WHERE path = ?', [path]);
+  }
+
+  /** Every indexed path, sorted. */
+  paths(): string[] {
+    return this.db.all<{ path: string }>('SELECT path FROM blob ORDER BY path').map((r) => r.path);
+  }
+
+  /** Every blob row, sorted by path. */
+  listBlobs(): BlobRow[] {
+    return this.db.all<BlobRow>('SELECT * FROM blob ORDER BY path');
   }
 
   countBlobs(): number {

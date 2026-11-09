@@ -77,6 +77,30 @@ export class SymbolRepo {
     return this.db.run('DELETE FROM symbol WHERE path = ?', [path]).changes;
   }
 
+  byQualifiedName(qualifiedName: string, limit = 50): SymbolRecord[] {
+    return this.db.all<SymbolRow>('SELECT * FROM symbol WHERE qualified_name = ? LIMIT ?', [qualifiedName, limit]).map(fromRow);
+  }
+
+  /** The innermost symbol in `path` whose range contains 1-based `line` (files excluded). */
+  atLine(path: string, line: number): SymbolRecord | undefined {
+    const r = this.db.get<SymbolRow>(
+      `SELECT * FROM symbol WHERE path = ? AND kind != 'file' AND start_line <= ? AND end_line >= ?
+       ORDER BY (end_line - start_line) ASC LIMIT 1`, [path, line, line]);
+    return r ? fromRow(r) : undefined;
+  }
+
+  children(parentId: SymbolId): SymbolRecord[] {
+    return this.db.all<SymbolRow>('SELECT * FROM symbol WHERE parent_id = ? ORDER BY start_line', [parentId]).map(fromRow);
+  }
+
+  /** Every symbol, optionally restricted to kinds (for whole-graph passes). */
+  all(kinds?: readonly SymbolKind[]): SymbolRecord[] {
+    return (kinds && kinds.length
+      ? this.db.all<SymbolRow>(`SELECT * FROM symbol WHERE kind IN (${kinds.map(() => '?').join(',')}) ORDER BY path, start_line`, [...kinds])
+      : this.db.all<SymbolRow>('SELECT * FROM symbol ORDER BY path, start_line')
+    ).map(fromRow);
+  }
+
   count(): number {
     return Number(this.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM symbol')?.n ?? 0);
   }
@@ -136,6 +160,35 @@ export class EdgeRepo {
       `DELETE FROM edge WHERE source = ? AND (src IN (SELECT id FROM symbol WHERE path = ?) OR dst IN (SELECT id FROM symbol WHERE path = ?))`,
       [source, path, path],
     ).changes;
+  }
+
+  /**
+   * Deletes edges whose source symbol lives in `path` (ids are `path#...`, so this is a range scan and
+   * works after the symbols are gone). Incoming edges from unchanged files are kept.
+   */
+  deleteOutgoingFromPath(path: string, sources?: readonly EdgeSource[]): number {
+    const lo = `${path}#`;
+    const hi = `${path}$`; // '$' sorts immediately after '#'
+    if (!sources || sources.length === 0) return this.db.run('DELETE FROM edge WHERE src >= ? AND src < ?', [lo, hi]).changes;
+    let n = 0;
+    for (const s of sources) n += this.db.run('DELETE FROM edge WHERE src >= ? AND src < ? AND source = ?', [lo, hi, s]).changes;
+    return n;
+  }
+
+  /** Edges pointing into symbols of `path`, e.g. to find dangling edges after a symbol was renamed. */
+  incomingToPath(path: string): Required<EdgeRecord>[] {
+    return this.db.all<EdgeRow>('SELECT * FROM edge WHERE dst >= ? AND dst < ?', [`${path}#`, `${path}$`]).map(edgeFromRow);
+  }
+
+  /** Deletes edges whose destination no longer exists in the symbol table. */
+  deleteDangling(): number {
+    return this.db.run('DELETE FROM edge WHERE dst NOT IN (SELECT id FROM symbol) OR src NOT IN (SELECT id FROM symbol)').changes;
+  }
+
+  /** All edges of the given kinds (for whole-graph algorithms such as PageRank and clustering). */
+  allOfKinds(kinds: readonly EdgeKind[]): Required<EdgeRecord>[] {
+    if (kinds.length === 0) return [];
+    return this.db.all<EdgeRow>(`SELECT * FROM edge WHERE kind IN (${kinds.map(() => '?').join(',')})`, [...kinds]).map(edgeFromRow);
   }
 
   count(): number {
@@ -206,5 +259,111 @@ export class KvRepo {
   }
   delete(key: string): void {
     this.db.run('DELETE FROM kv WHERE key = ?', [key]);
+  }
+}
+
+/** A reference as stored: `scopeId` is the innermost enclosing symbol (or the file symbol). */
+export interface RefRecord {
+  path: string;
+  scopeId: SymbolId;
+  name: string;
+  kind: string;
+  line: number;
+}
+
+interface RefRow { path: string; scope_id: string; name: string; kind: string; line: number }
+const refFromRow = (r: RefRow): RefRecord => ({ path: r.path, scopeId: r.scope_id as SymbolId, name: r.name, kind: r.kind, line: Number(r.line) });
+
+export class RefRepo {
+  constructor(private readonly db: SqliteDriver) {}
+
+  /** Replaces every reference recorded for `path`. */
+  replaceForPath(path: string, refs: readonly RefRecord[]): void {
+    this.db.transaction(() => {
+      this.db.run('DELETE FROM tag_ref WHERE path = ?', [path]);
+      for (const r of refs) this.db.run('INSERT INTO tag_ref(path, scope_id, name, kind, line) VALUES (?, ?, ?, ?, ?)', [r.path, r.scopeId, r.name, r.kind, r.line]);
+    });
+  }
+
+  byPath(path: string): RefRecord[] {
+    return this.db.all<RefRow>('SELECT * FROM tag_ref WHERE path = ? ORDER BY line', [path]).map(refFromRow);
+  }
+
+  byName(name: string): RefRecord[] {
+    return this.db.all<RefRow>('SELECT * FROM tag_ref WHERE name = ? ORDER BY path, line', [name]).map(refFromRow);
+  }
+
+  byScope(scopeId: SymbolId): RefRecord[] {
+    return this.db.all<RefRow>('SELECT * FROM tag_ref WHERE scope_id = ? ORDER BY line', [scopeId]).map(refFromRow);
+  }
+
+  deleteByPath(path: string): number {
+    return this.db.run('DELETE FROM tag_ref WHERE path = ?', [path]).changes;
+  }
+
+  count(): number {
+    return Number(this.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM tag_ref')?.n ?? 0);
+  }
+}
+
+/** One import statement; a statement resolving to several files is stored once per target. */
+export interface ImportRecord {
+  path: string;
+  spec: string;
+  line: number;
+  lang: string;
+  system?: boolean;
+  resolved?: string;
+}
+
+interface ImportRow { path: string; spec: string; line: number; lang: string; system: number; resolved: string | null }
+const importFromRow = (r: ImportRow): ImportRecord => ({
+  path: r.path, spec: r.spec, line: Number(r.line), lang: r.lang,
+  ...(Number(r.system) ? { system: true } : {}),
+  ...(r.resolved !== null ? { resolved: r.resolved } : {}),
+});
+
+export class ImportRepo {
+  constructor(private readonly db: SqliteDriver) {}
+
+  /** Replaces every import recorded for `path`. */
+  replaceForPath(path: string, rows: readonly ImportRecord[]): void {
+    this.db.transaction(() => {
+      this.db.run('DELETE FROM import_ref WHERE path = ?', [path]);
+      for (const r of rows) {
+        this.db.run('INSERT INTO import_ref(path, spec, line, lang, system, resolved) VALUES (?, ?, ?, ?, ?, ?)', [r.path, r.spec, r.line, r.lang, r.system ? 1 : 0, r.resolved ?? null]);
+      }
+    });
+  }
+
+  byPath(path: string): ImportRecord[] {
+    return this.db.all<ImportRow>('SELECT * FROM import_ref WHERE path = ? ORDER BY line', [path]).map(importFromRow);
+  }
+
+  /** Files that import `path`. */
+  importersOf(path: string): string[] {
+    return this.db.all<{ path: string }>('SELECT DISTINCT path FROM import_ref WHERE resolved = ? ORDER BY path', [path]).map((r) => r.path);
+  }
+
+  /** Every import row (used to re-resolve after files are added or removed). */
+  all(): ImportRecord[] {
+    return this.db.all<ImportRow>('SELECT * FROM import_ref ORDER BY path, line').map(importFromRow);
+  }
+
+  /** Paths that have at least one unresolved import or an import resolved to a file not in `files`. */
+  pathsNeedingResolution(files: ReadonlySet<string>): string[] {
+    const out = new Set<string>();
+    for (const r of this.db.all<{ path: string; resolved: string | null }>('SELECT path, resolved FROM import_ref')) {
+      if (r.resolved === null || !files.has(r.resolved)) out.add(r.path);
+    }
+    return [...out].sort();
+  }
+
+  deleteByPath(path: string): number {
+    return this.db.run('DELETE FROM import_ref WHERE path = ?', [path]).changes;
+  }
+
+  count(): number {
+    return Number(this.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM import_ref')?.n ?? 0);
   }
 }

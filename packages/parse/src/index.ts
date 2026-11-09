@@ -1,8 +1,16 @@
 /**
- * @riaf/parse — L1 syntax and symbols: tree-sitter tags, AST chunker, import resolver, optional LSP enrichment.
- *
- * Placeholder until milestone M1; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/parse — L1 syntax and symbols: tree-sitter tags for nine grammars, an AST-aligned chunker,
+ * import resolution, file discovery into the Merkle table, the incremental parse stage and optional
+ * LSP enrichment.
  */
-export const PACKAGE = '@riaf/parse' as const;
-export const MILESTONE = 'M1' as const;
+export * from './languages.js';
+export { grammarPath, grammarSearchPath, loadLanguage, parseSource } from './treesitter/loader.js';
+export * from './treesitter/tags.js';
+export * from './chunker.js';
+export * from './imports.js';
+export * from './scan.js';
+export * from './parseFile.js';
+export * from './stage.js';
+export * from './lsp/client.js';
+export * from './lsp/servers.js';
+export * from './lsp/enrich.js';

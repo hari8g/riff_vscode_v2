@@ -113,6 +113,33 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    name: 'refs_imports',
+    sql: `
+      CREATE TABLE IF NOT EXISTS tag_ref (
+        path     TEXT NOT NULL,
+        scope_id TEXT NOT NULL,
+        name     TEXT NOT NULL,
+        kind     TEXT NOT NULL,
+        line     INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS tag_ref_path  ON tag_ref(path);
+      CREATE INDEX IF NOT EXISTS tag_ref_name  ON tag_ref(name);
+      CREATE INDEX IF NOT EXISTS tag_ref_scope ON tag_ref(scope_id);
+
+      CREATE TABLE IF NOT EXISTS import_ref (
+        path     TEXT NOT NULL,
+        spec     TEXT NOT NULL,
+        line     INTEGER NOT NULL,
+        lang     TEXT NOT NULL,
+        system   INTEGER NOT NULL DEFAULT 0,
+        resolved TEXT
+      );
+      CREATE INDEX IF NOT EXISTS import_ref_path     ON import_ref(path);
+      CREATE INDEX IF NOT EXISTS import_ref_resolved ON import_ref(resolved);
+    `,
+  },
 ];
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

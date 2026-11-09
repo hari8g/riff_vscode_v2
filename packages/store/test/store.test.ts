@@ -14,7 +14,7 @@ describe('Store (wasm driver)', () => {
     expect(store.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(store.isCurrent).toBe(true);
     expect(migrate(store.driver)).toEqual([]); // nothing pending
-    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3]);
+    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4]);
     await store.close();
   });
 
@@ -92,6 +92,34 @@ describe('Store (wasm driver)', () => {
     expect(store.symbols.get(a)).toBeUndefined();
     expect(store.edges.incoming(b)).toEqual([]);
     expect(store.stats().symbols).toBe(1);
+    await store.close();
+  });
+});
+
+describe('Store refs, imports and path-scoped edges (migration 0004)', () => {
+  it('replaces refs and imports per path and deletes only outgoing edges of a path', async () => {
+    const { Store } = await import('../src/store.js');
+    const { symbolId } = await import('@riaf/kernel');
+    const store = await Store.open();
+    const a = symbolId('src/a.ts', 'run', 'function');
+    const b = symbolId('src/b.ts', 'helper', 'function');
+    store.symbols.upsertMany([
+      { id: a, kind: 'function', name: 'run', qualifiedName: 'run', path: 'src/a.ts', startLine: 1, endLine: 3, blobHash: 'h1' },
+      { id: b, kind: 'function', name: 'helper', qualifiedName: 'helper', path: 'src/b.ts', startLine: 1, endLine: 9, blobHash: 'h2' },
+    ]);
+    store.refs.replaceForPath('src/a.ts', [{ path: 'src/a.ts', scopeId: a, name: 'helper', kind: 'call', line: 2 }]);
+    store.refs.replaceForPath('src/a.ts', [{ path: 'src/a.ts', scopeId: a, name: 'helper', kind: 'call', line: 3 }]);
+    expect(store.refs.byName('helper').map((r) => r.line)).toEqual([3]);
+    store.imports.replaceForPath('src/a.ts', [{ path: 'src/a.ts', spec: './b', line: 1, lang: 'typescript', resolved: 'src/b.ts' }, { path: 'src/a.ts', spec: 'zod', line: 2, lang: 'typescript' }]);
+    expect(store.imports.importersOf('src/b.ts')).toEqual(['src/a.ts']);
+    expect(store.imports.pathsNeedingResolution(new Set(['src/a.ts', 'src/b.ts']))).toEqual(['src/a.ts']);
+    store.edges.upsertMany([{ src: a, dst: b, kind: 'invokes' }, { src: b, dst: a, kind: 'invokes' }]);
+    expect(store.edges.deleteOutgoingFromPath('src/b.ts')).toBe(1);
+    expect(store.edges.incomingToPath('src/b.ts').map((e) => e.src)).toEqual([a]);
+    expect(store.symbols.atLine('src/b.ts', 4)?.id).toBe(b);
+    store.removePath('src/a.ts');
+    expect(store.refs.count()).toBe(0);
+    expect(store.imports.count()).toBe(0);
     await store.close();
   });
 });
