@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MLFF">
+  <!-- MLFF product mark (placeholder, original drawing): a toll gantry spanning free-flowing lanes.
+       Replace this file with the official MLFF logo if one exists; the console loads it as-is. -->
+  <rect width="64" height="64" rx="12" fill="#007BC0"/>
+  <path d="M10 22h44" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M14 22v30M50 22v30" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M24 26v4M32 26v4M40 26v4" stroke="#7FD3F7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 52l4-14M32 52v-14M42 52l-4-14" stroke="#ffffff" stroke-opacity=".55" stroke-width="2" stroke-dasharray="3 3"/>
+  <path d="M24 14a11 11 0 0 1 16 0" fill="none" stroke="#7FD3F7" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M28 17.5a5.5 5.5 0 0 1 8 0" fill="none" stroke="#7FD3F7" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

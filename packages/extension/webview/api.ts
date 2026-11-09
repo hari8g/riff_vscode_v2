@@ -26,6 +26,8 @@ export function ask(req: Record<string, unknown>): Promise<Msg> {
 }
 
 export const repoRoot = document.body.dataset['repo'] ?? '';
+/** Brand asset URLs supplied by the host (webview URIs in VS Code, plain paths in the dev server). */
+export const brand = { mps: document.body.dataset['mps'] ?? '', mlff: document.body.dataset['mlff'] ?? '' };
 export const repoName = repoRoot.split(/[\\/]/).filter(Boolean).pop() ?? 'repository';
 
 /** Per-panel UI state that survives the webview being hidden and shown. */

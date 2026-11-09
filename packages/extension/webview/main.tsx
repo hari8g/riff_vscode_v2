@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ask, repoName, save, saved } from './api.js';
+import { ask, brand, repoName, save, saved } from './api.js';
 import { Icon, Palette, symName, ToastHost, useTheme, type PaletteItem } from './kit.js';
 import { Adapters } from './pages/adapters.js';
 import { Governance } from './pages/governance.js';
@@ -72,10 +72,15 @@ function App() {
   const nextTheme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
   return (
     <div className="shell">
+      <div className="supergraphic" aria-hidden="true" />
       <nav className="rail" aria-label="Pages">
         <div className="brand">
-          <span className="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--teal)" /><stop offset="1" stopColor="var(--i-feature)" /></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="8" fill="url(#lg)" /><path d="M9 21V11h6.5a3.5 3.5 0 0 1 0 7H12m4 0l4 3" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-          <div><b>RIAF</b><small>Repository intelligence</small></div>
+          {brand.mps ? <span className="mps-plate"><img src={brand.mps} alt="Bosch MPS — Mobility Platform and Services" /></span> : null}
+          <div className="brand-t"><b>RIAF Console</b><small>Bosch MPS · Repository intelligence</small></div>
+        </div>
+        <div className="product">
+          {brand.mlff && <img className="mlff-mark" src={brand.mlff} alt="MLFF" />}
+          <div><b>MLFF</b><small>Multi-Lane Free Flow tolling</small></div>
         </div>
         <div className="repo-pill" title={repoName}><Icon name="folder" size={14} /><span>{repoName}</span></div>
         <div className="navs">
@@ -90,6 +95,7 @@ function App() {
           <div className={`daemon ${live.ok ? 'ok' : 'down'}`}><span className="live-dot" />{live.ok ? `daemon · ${live.files?.toLocaleString()} files` : 'connecting…'}</div>
           {live.ok && live.pending ? <div className="muted small">{live.pending} pending</div> : null}
           <div className="hint"><kbd>/</kbd> new task · <kbd>g</kbd> + letter</div>
+          <div className="internal">Bosch internal · runs locally, nothing leaves this machine</div>
         </div>
       </nav>
       <div className="content">

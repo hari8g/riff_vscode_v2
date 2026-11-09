@@ -146,7 +146,7 @@ function openConsole(context: vscode.ExtensionContext): void {
   const asset = (f: string) => panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', f));
   const nonce = Math.random().toString(36).slice(2);
   const root = workspaceRoot() ?? '';
-  panel.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${panel.webview.cspSource} data:; style-src ${panel.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/"/g, '&quot;')}"><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
+  panel.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${panel.webview.cspSource} data:; style-src ${panel.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/"/g, '&quot;')}" data-mps="${asset('mps-logo.png')}" data-mlff="${asset('mlff-mark.svg')}"><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
   panel.webview.onDidReceiveMessage(async (msg: ConsoleRequest & { id: number }) => {
     try {
       const root = workspaceRoot();

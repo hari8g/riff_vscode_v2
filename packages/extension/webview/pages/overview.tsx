@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ask, repoName, type Msg } from '../api.js';
+import { ask, brand, repoName, type Msg } from '../api.js';
 import { Btn, Card, Chip, Count, Donut, Empty, fmtK, Icon, Skeleton, Stat, useToast } from '../kit.js';
 
 const STAGES = ['scan', 'parse', 'graph', 'history', 'summaries', 'lsp'];
 const STAGE_TEXT: Record<string, string> = { scan: 'files on disk', parse: 'tree-sitter tags', graph: 'symbol graph', history: 'git blame & co-change', summaries: 'bottom-up summaries', lsp: 'language servers' };
-const BRANCH_COLORS: Record<string, string> = { single: 'var(--teal)', blended: 'var(--i-feature)', probe: 'var(--i-review)', clarify: 'var(--ember)', generic: 'var(--slate)' };
+const BRANCH_COLORS: Record<string, string> = { single: 'var(--teal)', blended: 'var(--i-refactor)', probe: 'var(--i-review)', clarify: 'var(--ember)', generic: 'var(--slate)' };
 
 export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
   const toast = useToast();
@@ -37,7 +37,7 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
     <div className="stack-lg">
       <section className="hero">
         <div className="hero-l">
-          <span className="eyebrow">Repository</span>
+          <span className="eyebrow">{brand.mlff && <img src={brand.mlff} alt="" />}MLFF · Multi-Lane Free Flow · repository</span>
           <h1 className="hero-t">{repoName}</h1>
           <div className="row wrap">
             {s.head && <Chip mono><Icon name="commit" size={12} />{String(s.head).slice(0, 10)}</Chip>}

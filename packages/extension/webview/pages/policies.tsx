@@ -5,7 +5,7 @@ import { Btn, Card, Chip, INTENT_LABEL, INTENTS, intentVar, pct, Skeleton, useTo
 
 interface Primitive { anchors: string[]; expansion: { rule: string; hops?: number; cap?: number; exclude?: string }[]; history: string[]; weights: Record<string, number> }
 interface Policies { router: { entropy: { single_below: number; blend_below: number }; top_intent_min: number; blend_floor: number }; budget: { default_total: number; fixed: { map: number; runbook: number } }; primitives: Record<string, Primitive> }
-const BUCKET_COLORS = ['var(--teal)', 'var(--i-feature)', 'var(--ember)', 'var(--i-review)', 'var(--moss)', 'var(--i-merge)'];
+const BUCKET_COLORS = ['var(--teal)', 'var(--i-refactor)', 'var(--moss)', 'var(--i-merge)', 'var(--ember)', 'var(--i-review)'];
 
 export function PoliciesPage() {
   const toast = useToast();

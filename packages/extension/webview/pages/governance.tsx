@@ -5,7 +5,7 @@ import { Card, Count, Empty, fmtK, INTENT_LABEL, intentVar, pct, Radar, Skeleton
 const DECISIONS: { key: string; label: string; color: string; text: string }[] = [
   { key: 'allow', label: 'Allowed', color: 'var(--line-2)', text: 'ran normally' },
   { key: 'serve:index', label: 'Served from index', color: 'var(--teal)', text: 'grep/glob answered without a process' },
-  { key: 'serve:cache', label: 'Served from cache', color: 'var(--i-feature)', text: 'repeat read of an unchanged file' },
+  { key: 'serve:cache', label: 'Served from cache', color: 'var(--i-refactor)', text: 'repeat read of an unchanged file' },
   { key: 'reflect', label: 'Reflect', color: 'var(--i-merge)', text: 'soft limit: checkpoint' },
   { key: 'block', label: 'Blocked', color: 'var(--ember)', text: 'loop or hard limit' },
 ];
