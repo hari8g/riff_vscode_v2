@@ -1,8 +1,12 @@
 /**
- * @riaf/compiler — L5 context pack compiler: primitive policies, sufficiency expansion, knapsack, tiers, stages, renders.
- *
- * Placeholder until milestone M3; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/compiler — L5 context pack compiler: sufficiency expansion over the graph, scoring with
+ * personalized PageRank, a bucketed knapsack with a sufficiency stop, tiers and stages, and renders
+ * for Claude, Copilot, any model's system prompt, JSON and AGENTS.md.
  */
-export const PACKAGE = '@riaf/compiler' as const;
-export const MILESTONE = 'M3' as const;
+export * from './view.js';
+export * from './candidates.js';
+export * from './expand.js';
+export * from './knapsack.js';
+export * from './compile.js';
+export * from './render/index.js';
+export { where, routeLine } from './render/common.js';

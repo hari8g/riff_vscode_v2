@@ -56,6 +56,20 @@ export interface TypeContext {
 
 const HEADER = /\.(h|hh|hpp|hxx)$/;
 
+/**
+ * Member names so common in standard libraries (Map.get, list.append, stream.write…) that a bare name
+ * match is no evidence of a call into repository code. They still bind through scope, file, imports
+ * and type context; only the global name fallback skips them.
+ */
+export const GENERIC_MEMBER_NAMES: ReadonlySet<string> = new Set([
+  'get', 'set', 'has', 'add', 'delete', 'remove', 'clear', 'push', 'pop', 'shift', 'unshift', 'map', 'filter', 'reduce', 'forEach', 'find',
+  'some', 'every', 'includes', 'indexOf', 'join', 'split', 'slice', 'splice', 'concat', 'sort', 'keys', 'values', 'entries', 'toString',
+  'valueOf', 'replace', 'trim', 'then', 'catch', 'finally', 'append', 'extend', 'items', 'update', 'copy', 'write', 'read', 'close', 'open',
+  'send', 'emit', 'on', 'off', 'once', 'format', 'parse', 'log', 'info', 'warn', 'error', 'debug', 'apply', 'call', 'bind', 'size', 'length',
+  'next', 'equals', 'hashCode', 'compareTo', 'isEmpty', 'contains', 'put', 'stream', 'collect', 'of', 'orElse', 'orElseThrow', 'isPresent',
+  'ifPresent', 'start', 'stop', 'run', 'init', 'free', 'malloc', 'printf', 'sprintf', 'strlen', 'memcpy', 'memset',
+]);
+
 /** In-memory index over every symbol and resolved import, rebuilt per graph stage run. */
 export class SymbolIndex {
   readonly byId = new Map<SymbolId, SymbolLite>();
@@ -161,6 +175,7 @@ export class SymbolIndex {
     const samePkg = candidates.filter((c) => c.path.slice(0, c.path.lastIndexOf('/')) === dir0);
     if (samePkg.length) return pickTop(samePkg, samePkg.length === 1 ? 0.85 : 0.6);
     // 4. global name match; prefer top-level definitions, confidence decays with ambiguity
+    if (GENERIC_MEMBER_NAMES.has(ref.name)) return [];
     const top = candidates.filter((c) => !c.parentId || this.byId.get(c.parentId)?.kind === 'file');
     const pool = ref.kind === 'call' && top.length ? top : candidates;
     if (pool.length === 1) return [{ dst: pool[0]!.id, confidence: 0.7 }];

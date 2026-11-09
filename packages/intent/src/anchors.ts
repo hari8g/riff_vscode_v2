@@ -94,6 +94,7 @@ export function nameCoverage(store: Store, text: string, max = 3): SymbolRecord[
   if (words.size === 0) return [];
   const scored: { s: SymbolRecord; score: number }[] = [];
   for (const s of store.symbols.all(['function', 'method', 'class', 'interface', 'struct', 'enum', 'type'])) {
+    if (/(^|\/)(test|tests|__tests__)\/|\.(test|spec)\.|(^|\/)test_|_test\.|Test\.java$/.test(s.path)) continue; // helpers in tests are never the subject
     const parts = identifierWords(s.name).filter((w) => w.length >= 3);
     if (parts.length === 0) continue;
     const covered = parts.filter((w) => words.has(w.slice(0, 5))).length;
