@@ -20,6 +20,7 @@
     "test": "vitest run --root ../.. packages/models"
   },
   "dependencies": {
-    "@riaf/kernel": "workspace:*"
+    "@riaf/kernel": "workspace:*",
+    "undici": "^6.29.1"
   }
 }

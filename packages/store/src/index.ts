@@ -9,3 +9,4 @@ export * from './repo.js';
 export * from './store.js';
 export * from './compile.js';
 export * from './history.js';
+export * from './govern.js';

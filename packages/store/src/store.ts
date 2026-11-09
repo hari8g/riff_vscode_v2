@@ -7,6 +7,7 @@ import { FtsIndex } from './fts.js';
 import { TrigramIndex } from './trigram.js';
 import { CompileLog, SummaryRepo } from './compile.js';
 import { HistoryRepo } from './history.js';
+import { GovernRepo } from './govern.js';
 import { ChunkRepo, EdgeRepo, ImportRepo, KvRepo, RefRepo, SymbolRepo, type ChunkRecord } from './repo.js';
 
 export interface StoreOptions {
@@ -29,6 +30,7 @@ export class Store {
   readonly summaries: SummaryRepo;
   readonly compileLog: CompileLog;
   readonly history: HistoryRepo;
+  readonly govern: GovernRepo;
   readonly fts: FtsIndex;
   readonly trigram: TrigramIndex;
 
@@ -43,6 +45,7 @@ export class Store {
     this.summaries = new SummaryRepo(driver);
     this.compileLog = new CompileLog(driver);
     this.history = new HistoryRepo(driver);
+    this.govern = new GovernRepo(driver);
     this.fts = new FtsIndex(driver);
     this.trigram = new TrigramIndex(driver);
   }

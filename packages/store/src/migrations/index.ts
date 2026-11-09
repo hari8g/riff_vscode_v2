@@ -269,6 +269,62 @@ export const MIGRATIONS: readonly Migration[] = [
       ) WITHOUT ROWID;
     `,
   },
+  {
+    version: 7,
+    name: 'govern',
+    sql: `
+      CREATE TABLE IF NOT EXISTS session (
+        id         TEXT PRIMARY KEY,
+        started_at TEXT NOT NULL,
+        ended_at   TEXT,
+        outcome    TEXT,
+        request    TEXT,
+        pack_id    TEXT
+      );
+      CREATE TABLE IF NOT EXISTS tool_call (
+        session_id TEXT NOT NULL,
+        seq        INTEGER NOT NULL,
+        at         TEXT NOT NULL,
+        phase      TEXT NOT NULL,
+        tool       TEXT NOT NULL,
+        args_key   TEXT NOT NULL,
+        args_json  TEXT NOT NULL,
+        decision   TEXT NOT NULL,
+        tokens     INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (session_id, seq)
+      ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS pack_read (
+        session_id TEXT NOT NULL,
+        pack_id    TEXT NOT NULL,
+        item_id    TEXT NOT NULL,
+        at         TEXT NOT NULL,
+        PRIMARY KEY (session_id, pack_id, item_id)
+      ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS prior (
+        intent     TEXT PRIMARY KEY,
+        weight     REAL NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS tool_cache (
+        key        TEXT PRIMARY KEY,
+        tool       TEXT NOT NULL,
+        result     TEXT NOT NULL,
+        blobs      TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS skill (
+        id            TEXT PRIMARY KEY,
+        entity_id     TEXT NOT NULL,
+        purpose       TEXT NOT NULL,
+        playbook      TEXT NOT NULL,
+        apis          TEXT NOT NULL,
+        trajectory_id TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        uses          INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS skill_entity ON skill(entity_id);
+    `,
+  },
 ];
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

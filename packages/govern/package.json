@@ -27,6 +27,7 @@
     "@riaf/store": "workspace:*"
   },
   "devDependencies": {
-    "@riaf/parse": "workspace:*"
+    "@riaf/parse": "workspace:*",
+    "yaml": "^2.9.1"
   }
 }

@@ -1,8 +1,10 @@
 /**
- * @riaf/govern — L6 governance: tool-call budgets, tool cache, loop guard, compaction advice, telemetry, skill distillation.
- *
- * Placeholder until milestone M5; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/govern — L6 governance and learning: phase budgets, loop guard, repeat-read cache, grep/glob
+ * answered from the index, compaction advice, telemetry, pack utilisation, intent priors and skill
+ * distillation. `Governor` is what the Claude Code hooks talk to (through the daemon).
  */
-export const PACKAGE = '@riaf/govern' as const;
-export const MILESTONE = 'M5' as const;
+export * from './normalize.js';
+export * from './budgets.js';
+export * from './serve.js';
+export * from './learn.js';
+export * from './governor.js';

@@ -14,7 +14,7 @@ describe('Store (wasm driver)', () => {
     expect(store.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(store.isCurrent).toBe(true);
     expect(migrate(store.driver)).toEqual([]); // nothing pending
-    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     await store.close();
   });
 

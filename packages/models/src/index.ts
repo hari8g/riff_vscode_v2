@@ -1,8 +1,11 @@
 /**
- * @riaf/models — ModelPort adapters: Copilot LM, Anthropic, OpenAI-compatible SSO gateway, Ollama; prompt cache and pricing.
- *
- * Placeholder until milestone M3; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/models — ModelPort adapters: Anthropic, OpenAI-compatible gateways (SSO tokens, corporate
+ * proxies), Ollama and Copilot (VS Code LM API), with memoisation, cost accounting and per-job
+ * selection. Only the daemon (and the extension for Copilot) wires these into ports.
  */
-export const PACKAGE = '@riaf/models' as const;
-export const MILESTONE = 'M3' as const;
+export * from './http.js';
+export * from './classify.js';
+export * from './adapters.js';
+export * from './cache.js';
+export * from './pricing.js';
+export * from './select.js';
