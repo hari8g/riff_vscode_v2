@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/kernel" },
+    { "path": "packages/store" },
+    { "path": "packages/parse" },
+    { "path": "packages/graph" },
+    { "path": "packages/history" },
+    { "path": "packages/semantic" },
+    { "path": "packages/intent" },
+    { "path": "packages/compiler" },
+    { "path": "packages/govern" },
+    { "path": "packages/models" },
+    { "path": "packages/daemon" },
+    { "path": "packages/serve-mcp" },
+    { "path": "packages/cli" },
+    { "path": "packages/extension" },
+    { "path": "packages/eval" }
+  ]
+}

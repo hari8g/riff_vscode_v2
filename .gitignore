@@ -1,0 +1,23 @@
+# build
+node_modules/
+dist/
+*.tsbuildinfo
+reports/
+coverage/
+*.vsix
+
+# riaf runtime state (the index is never committed; policies and runbook are)
+.riaf/*.sqlite
+.riaf/*.sqlite-journal
+.riaf/*.sqlite-wal
+.riaf/daemon.json
+.riaf/daemon.sock
+.riaf/*.log
+fixtures/repos/*/.riaf/
+
+# editors / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

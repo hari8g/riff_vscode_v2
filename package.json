@@ -1,0 +1,42 @@
+{
+  "name": "riaf-vscode-v2-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RIAF v2 — repository intelligence that compiles a budgeted, provenance-stamped context pack for any frontier model. Local-first, zero native dependencies.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "rimraf packages/*/dist packages/*/tsconfig.tsbuildinfo",
+    "typecheck": "tsc -b tsconfig.build.json --noEmit false --dry",
+    "lint": "eslint \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "schemas": "node tooling/scripts/gen-schemas.mjs",
+    "schemas:check": "node tooling/scripts/gen-schemas.mjs --check",
+    "verify": "pnpm build && pnpm lint && pnpm test && pnpm schemas:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.17.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^5.1.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^3.0.0",
+    "yaml": "^2.6.0",
+    "zod": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
