@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { INTENTS, RENDER_TARGETS, type Intent, type RenderTarget } from '@riaf/kernel';
-import { formatWikiPage, formatWikiTree, serveHttp, serveStdio } from '@riaf/serve-mcp';
+import { formatWikiPage, formatWikiTree, hookScript, hooksConfig, pluginFiles, serveHttp, serveStdio } from '@riaf/serve-mcp';
 import { bool, int, str, type ParsedArgs } from '../args.js';
 import { findRoot, openSession } from '../connect.js';
 import type { Io } from '../io.js';
@@ -152,6 +152,21 @@ export async function cmdInit(p: ParsedArgs, io: Io): Promise<number> {
     }, io);
     for (const [name, body] of Object.entries(SLASH_COMMANDS)) writeIfAbsent(join(root, '.claude/commands', name), body, io, force);
     appendLineOnce(join(root, 'CLAUDE.md'), '@.riaf/runbook.md', io);
+    if (bool(p, 'hooks', true)) {
+      const cliPath = self ? resolve(self) : '';
+      mkdirSync(join(root, '.riaf/hooks'), { recursive: true });
+      writeFileSync(join(root, '.riaf/hooks/riaf-hook.mjs'), hookScript({ cliPath }));
+      io.err('wrote .riaf/hooks/riaf-hook.mjs');
+      mergeJson(join(root, '.claude/settings.json'), (j) => {
+        const hooks = (j['hooks'] as Record<string, unknown[]> | undefined) ?? {};
+        for (const [event, entries] of Object.entries(hooksConfig('node "$CLAUDE_PROJECT_DIR/.riaf/hooks/riaf-hook.mjs"'))) {
+          // replace RIAF's own entries, keep everyone else's
+          const others = (hooks[event] ?? []).filter((e) => !JSON.stringify(e).includes('riaf-hook.mjs'));
+          hooks[event] = [...others, ...(entries as unknown[])];
+        }
+        j['hooks'] = hooks;
+      }, io);
+    }
   }
   if (host === 'copilot' || host === 'both') {
     mergeJson(join(root, '.vscode/mcp.json'), (j) => {
@@ -197,4 +212,21 @@ export async function cmdHistory(p: ParsedArgs, io: Io): Promise<number> {
   } finally {
     await s.rpc.close();
   }
+}
+
+/** \`riaf plugin --out DIR\` — writes an installable Claude Code plugin (MCP server, hooks, slash commands). */
+export async function cmdPlugin(p: ParsedArgs, io: Io): Promise<number> {
+  const out = str(p, 'out');
+  if (!out) {
+    io.err('usage: riaf plugin --out <dir>');
+    return 2;
+  }
+  const self = process.argv[1];
+  const files = pluginFiles({ version: '0.4.0', cliPath: self ? resolve(self) : 'riaf', commands: SLASH_COMMANDS });
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(dirname(join(out, rel)), { recursive: true });
+    writeFileSync(join(out, rel), body);
+  }
+  io.out(`wrote the RIAF Claude Code plugin to ${resolve(out)} (${Object.keys(files).length} files); install it with \`/plugin\` in Claude Code`);
+  return 0;
 }

@@ -9,6 +9,7 @@ import { Graph } from '@riaf/graph';
 import { runParseStage, scanIntoStore } from '@riaf/parse';
 import { Store } from '@riaf/store';
 import { checkBudget, newBudgetState } from '../src/budgets.js';
+import { DEFAULT_GOVERNANCE } from '../src/defaults.js';
 import { Governor } from '../src/governor.js';
 import { callKey } from '../src/normalize.js';
 import { serveGlob, serveGrep } from '../src/serve.js';
@@ -29,6 +30,10 @@ async function setup() {
   return { store, graph, clock, gov: new Governor({ root, store, graph, governance, clock }) };
 }
 const call = (tool: string, args: Record<string, unknown>, sessionId = 's1'): ToolCall => ({ sessionId, phase: 'explore', tool, args, at: '2026-11-09T10:00:00Z' });
+
+describe('defaults', () => {
+  it('built-in governance equals the repository file', () => expect(DEFAULT_GOVERNANCE).toEqual(governance));
+});
 
 describe('budgets', () => {
   it('reflects once past a soft limit and blocks past the hard limit', () => {

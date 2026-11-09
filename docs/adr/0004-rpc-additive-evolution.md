@@ -17,3 +17,5 @@ Protocol 1.1 (this ADR) adds `daemon.info`, `daemon.shutdown`, a free-text `quer
 Protocol 1.2 (M3) adds `pack.get`, `wiki.structure`, `wiki.page`, `runbook.get`, and optional `sessionId` / `includeRunbook` on `pack.compile`; `route` and `pack.compile` become served.
 
 Protocol 1.3 (M4) adds `history.timeline` and `history.rationale`; `graph.jump` now fills `blame`.
+
+Protocol 1.4 (M5) serves `govern.toolCall` and `govern.event` (kinds `session.start`, `tool.result`, `pack.read`, `session.end`) and adds `telemetry.query`.

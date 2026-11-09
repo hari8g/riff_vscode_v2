@@ -2,12 +2,12 @@ import { RiafError } from '@riaf/kernel';
 import { parseArgs } from './args.js';
 import { cmdDoctor, cmdImpact, cmdIndex, cmdJump, cmdServe, cmdStatus } from './commands/index.js';
 import { cmdEval } from './commands/eval.js';
-import { cmdHistory, cmdInit, cmdMcp, cmdPack, cmdRunbook, cmdWiki } from './commands/m3.js';
+import { cmdHistory, cmdInit, cmdMcp, cmdPack, cmdPlugin, cmdRunbook, cmdWiki } from './commands/m3.js';
 import type { Io } from './io.js';
 
-export const CLI_VERSION = '0.3.0';
+export const CLI_VERSION = '0.4.0';
 
-const BOOLEANS = new Set(['json', 'full', 'in-process', 'lsp', 'detached', 'watch', 'poll', 'help', 'version', 'quiet', 'write', 'force', 'interactive', 'golden', 'approve-golden', 'why', 'history']);
+const BOOLEANS = new Set(['json', 'full', 'in-process', 'lsp', 'detached', 'watch', 'poll', 'help', 'version', 'quiet', 'write', 'force', 'interactive', 'golden', 'approve-golden', 'why', 'history', 'hooks']);
 
 export const USAGE = `riaf ${CLI_VERSION} — repository intelligence for frontier models
 
@@ -25,6 +25,7 @@ commands:
   runbook [--write]                 print or regenerate .riaf/runbook.md
   init [--host claude|copilot|both] write .riaf/, the run-book, CLAUDE.md/AGENTS.md import, MCP config
   mcp [--http PORT]                 serve the RIAF MCP tools (stdio for Claude Code)
+  plugin --out DIR                  write an installable Claude Code plugin (MCP, hooks, commands)
   doctor                            check environment, grammars, index, policies, LSP servers
   serve [--detached] [--lsp]        run the repository daemon in the foreground
   eval [--runner scripted,compiler,claude] [--golden|--approve-golden]
@@ -37,7 +38,7 @@ global options:
 `;
 
 type Command = (p: ReturnType<typeof parseArgs>, io: Io) => Promise<number>;
-const COMMANDS: Record<string, Command> = { index: cmdIndex, status: cmdStatus, jump: cmdJump, impact: cmdImpact, doctor: cmdDoctor, serve: cmdServe, eval: cmdEval, pack: cmdPack, wiki: cmdWiki, runbook: cmdRunbook, init: cmdInit, mcp: cmdMcp, history: cmdHistory };
+const COMMANDS: Record<string, Command> = { index: cmdIndex, status: cmdStatus, jump: cmdJump, impact: cmdImpact, doctor: cmdDoctor, serve: cmdServe, eval: cmdEval, pack: cmdPack, wiki: cmdWiki, runbook: cmdRunbook, init: cmdInit, mcp: cmdMcp, history: cmdHistory, plugin: cmdPlugin };
 
 /** Runs the CLI with `argv` (without node and script) and returns the exit code. */
 export async function runCli(argv: readonly string[], io: Io): Promise<number> {

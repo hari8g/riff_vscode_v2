@@ -44,7 +44,7 @@ describe('DaemonCore in-process', () => {
     expect(bad.diagnostics[0]?.file).toBe('policies.yaml');
 
     await expect(core.call('graph.jump', {} as never)).rejects.toThrow(/invalid params/);
-    await expect(core.call('govern.toolCall', { sessionId: 's', phase: 'explore', tool: 'Read', args: {}, at: '2026-01-01T00:00:00Z' })).rejects.toThrow(/not available/);
+    expect(await core.call('govern.toolCall', { sessionId: 's', phase: 'explore', tool: 'Read', args: { file_path: 'src/toll/plate.ts' }, at: '2026-01-01T00:00:00Z' })).toEqual({ kind: 'allow' });
 
     const info = await core.call('daemon.info', {});
     expect(info.methods).toContain('graph.jump');

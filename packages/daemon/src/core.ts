@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { compile, render, type RepoView } from '@riaf/compiler';
-import { createLogger, hashWith, PackSchema, RiafError, shortHash, type Logger, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
+import { createLogger, hashWith, PackSchema, RiafError, shortHash, type Intent, type Logger, type ModelRouter, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, type SymbolId, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
 import { Graph, GRAPH_STAGE } from '@riaf/graph';
 import { History, HISTORY_STAGE, type Rationale, type TimelineEntry } from '@riaf/history';
+import { DEFAULT_GOVERNANCE, Governor } from '@riaf/govern';
 import { DEFAULT_POLICIES, route } from '@riaf/intent';
+import { createModelRouter, type ModelSettings } from '@riaf/models';
 import { Semantic, SUMMARY_STAGE } from '@riaf/semantic';
 import { clientFor, enrichWithLsp, familyOf, languageOf, PARSE_STAGE, readRepoText, runParseStage, scanIntoStore, type DiscoverOptions } from '@riaf/parse';
 import { Store, type StoreOptions } from '@riaf/store';
@@ -47,6 +49,8 @@ export class DaemonCore implements RpcCaller {
   readonly graph: Graph;
   readonly semantic: Semantic;
   readonly history: History;
+  readonly governor: Governor;
+  readonly models: ModelRouter | undefined;
   /** Paths parsed by the most recent run (LSP enrichment works on these). */
   private lastParsed: string[] = [];
   onShutdown: (() => void) | undefined;
@@ -56,6 +60,8 @@ export class DaemonCore implements RpcCaller {
     this.semantic = new Semantic(store, this.graph, opts.repoName ?? basename(resolve(root)));
     this.history = new History(store);
     this.semantic.setConventionSource(() => this.history.conventions());
+    this.governor = new Governor({ root, store, graph: this.graph, governance: loadPolicies(root).governance ?? DEFAULT_GOVERNANCE });
+    this.models = this.loadModels(logger);
     this.scheduler = new Scheduler(this.buildStages(), store, root, logger, opts.afterRun);
     this.registerHandlers();
   }
@@ -95,7 +101,8 @@ export class DaemonCore implements RpcCaller {
       {
         name: HISTORY_STAGE, after: [GRAPH_STAGE], merkleGated: true, enabled: () => this.opts.history !== false,
         run: async ({ events, logger }) => {
-          const r = await this.history.update({ root, events, logger });
+          const summarizer = this.models?.for('summarize');
+          const r = await this.history.update({ root, events, logger, ...(summarizer ? { summarizer } : {}) });
           return { changed: r.mined + r.blamed, detail: { mined: r.mined, blamed: r.blamed, adrs: r.adrs, coChange: r.coChangeEdges, ...(r.skipped ? { skipped: r.skipped } : {}) } };
         },
       },
@@ -137,6 +144,25 @@ export class DaemonCore implements RpcCaller {
     return this.scheduler.stageNames;
   }
 
+  /** Model adapters from `.riaf/models.json` (optional; nothing is wired without it). */
+  private loadModels(logger: Logger): ModelRouter | undefined {
+    try {
+      const settings = JSON.parse(readFileSync(join(this.root, '.riaf', 'models.json'), 'utf8')) as ModelSettings;
+      return createModelRouter(settings);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') logger.warn('models.json ignored', { error: String(e) });
+      return undefined;
+    }
+  }
+
+  /** Route dependencies: store, graph, policies, learned priors and the optional classifier arbiter. */
+  private routeDeps() {
+    const { policies, version } = this.policies();
+    const priors = this.store.govern.priors() as Partial<Record<Intent, number>>;
+    const arbiter = this.models?.for('classify');
+    return { store: this.store, graph: this.graph, policies, policyVersion: version, ...(Object.keys(priors).length ? { priors } : {}), ...(arbiter ? { arbiter } : {}) };
+  }
+
   /** Validated policies for this repository (built-in defaults when `.riaf/policies.yaml` is absent or invalid). */
   policies(): { policies: PoliciesFile; version: string } {
     const l = loadPolicies(this.root);
@@ -152,7 +178,7 @@ export class DaemonCore implements RpcCaller {
       constraints = undefined;
     }
     const head = gitHead(this.root);
-    return { repoName: this.opts.repoName ?? basename(resolve(this.root)), store: this.store, graph: this.graph, semantic: this.semantic, ...(this.opts.history !== false && this.store.history.count() > 0 ? { history: this.history.facts() } : {}), ...(head ? { commit: head } : {}), ...(constraints ? { constraints } : {}) };
+    return { repoName: this.opts.repoName ?? basename(resolve(this.root)), store: this.store, graph: this.graph, semantic: this.semantic, ...(this.opts.history !== false && this.store.history.count() > 0 ? { history: this.history.facts() } : {}), ...(this.store.govern.skillCount() > 0 ? { skills: (entities: readonly SymbolId[]) => this.store.govern.skillsFor(entities) } : {}), ...(head ? { commit: head } : {}), ...(constraints ? { constraints } : {}) };
   }
 
   /** Runs the pipeline now (or joins the run in progress). */
@@ -198,7 +224,7 @@ export class DaemonCore implements RpcCaller {
         alternatives: j.alternatives.map((a) => a.id),
         references: j.references.map((r) => ({ symbol: r.symbol, path: r.path, line: r.line, kind: r.kind, confidence: r.confidence })),
         blame: d && d.kind !== 'file' ? this.history.blame(d.id, 5).map((b) => ({ commit: b.commit, summary: b.summary, at: b.at })) : [],
-        skills: [],
+        skills: d && d.kind !== 'file' ? this.store.govern.skillsFor([d.id], 3).map((k) => ({ purpose: k.purpose, playbook: k.playbook })) : [],
       };
     };
     h['history.timeline'] = (p) => {
@@ -217,14 +243,12 @@ export class DaemonCore implements RpcCaller {
       return { closure: r.closure.map((c) => ({ symbol: c.symbol, distance: c.distance, via: c.via })), coChange: r.coChange, tests: r.tests };
     };
     h['route'] = async (p) => {
-      const { policies, version } = this.policies();
-      const r = await route(p, { store: this.store, graph: this.graph, policies, policyVersion: version });
+      const r = await route(p, this.routeDeps());
       this.logRoute(p.text, r.policy);
       return r.policy;
     };
     h['pack.compile'] = async (p) => {
-      const { policies, version } = this.policies();
-      const policy = p.route ?? (await route(p.request!, { store: this.store, graph: this.graph, policies, policyVersion: version })).policy;
+      const policy = p.route ?? (await route(p.request!, this.routeDeps())).policy;
       const routeId = p.route ? undefined : this.logRoute(p.request!.text, policy, p.sessionId);
       const includeRunbook = p.includeRunbook ?? !['claude', 'json'].includes(p.target);
       const pack = compile(policy, this.repoView(), { ...(p.budget ? { budget: p.budget } : {}), includeRunbook, ...(p.sessionId ? { sessionId: p.sessionId } : {}) });
@@ -233,7 +257,49 @@ export class DaemonCore implements RpcCaller {
         tokensUsed: pack.tokensUsed, policyVersion: pack.policyVersion, json: JSON.stringify(pack),
         items: pack.items.map((i) => ({ itemId: i.id, tier: i.tier, kind: i.kind, ...((i.source as { path?: string }).path ? { path: (i.source as { path: string }).path } : {}), intent: i.why.intent, rule: i.why.rule, score: i.why.score, tokens: i.tokens })),
       });
+      if (p.sessionId) {
+        this.governor.onPackCompiled(p.sessionId, pack, p.request?.text);
+        for (const sk of pack.items.filter((i) => i.kind === 'skill')) this.store.govern.markSkillUsed((i => i.slice(i.indexOf(':') + 1))((sk.source as { virtual: string }).virtual));
+      }
       return { pack, rendered: render(pack, p.target) };
+    };
+    h['govern.toolCall'] = (p) => this.governor.onToolCall(p);
+    h['govern.event'] = (p) => {
+      const pl = p.payload;
+      switch (p.kind) {
+        case 'session.start':
+          this.store.govern.startSession(p.sessionId, new Date().toISOString(), typeof pl['request'] === 'string' ? pl['request'] : undefined);
+          break;
+        case 'tool.result':
+          this.governor.onToolResult(p.sessionId, String(pl['tool'] ?? ''), (pl['args'] as Record<string, unknown>) ?? {}, typeof pl['result'] === 'string' ? pl['result'] : JSON.stringify(pl['result'] ?? ''));
+          break;
+        case 'pack.read':
+          this.store.govern.recordPackRead(p.sessionId, String(pl['packId'] ?? ''), (pl['itemIds'] as string[]) ?? [], new Date().toISOString());
+          break;
+        case 'session.end': {
+          const o = pl['outcome'];
+          const s = this.governor.onSessionEnd(p.sessionId, o === 'success' || o === 'failure' || o === 'unknown' ? o : undefined);
+          this.logger.info('session ended', { sessionId: p.sessionId, calls: s.calls, utilisation: s.utilisation, skills: s.skills.length });
+          break;
+        }
+        default:
+          throw new RiafError('invalid_input', `unknown govern event ${p.kind}`);
+      }
+      return { ok: true as const };
+    };
+    h['telemetry.query'] = (p) => {
+      const since = p.since ?? '1970-01-01T00:00:00Z';
+      const byDecision: Record<string, number> = {};
+      let total = 0;
+      for (const r of this.store.driver.all<{ decision: string; n: number }>('SELECT decision, COUNT(*) AS n FROM tool_call WHERE at >= ? GROUP BY decision', [since])) {
+        byDecision[r.decision] = Number(r.n);
+        total += Number(r.n);
+      }
+      return {
+        sessions: Number(this.store.driver.get<{ n: number }>('SELECT COUNT(*) AS n FROM session WHERE started_at >= ?', [since])?.n ?? 0),
+        toolCalls: { total, byDecision }, branches: this.store.compileLog.branchCounts(since), utilisation: this.store.govern.utilisationByRule(),
+        priors: this.store.govern.priors(), skills: this.store.govern.skillCount(), packs: this.store.compileLog.packCount(),
+      };
     };
     h['pack.get'] = (p) => {
       const json = this.store.compileLog.pack(p.packId, p.sessionId);

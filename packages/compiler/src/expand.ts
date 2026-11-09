@@ -106,6 +106,15 @@ export function expand(ctx: ExpandContext): void {
     }
   }
   history(ctx, anchors);
+  // skills: how this kind of change went before on the same entities
+  if (view.skills && anchors.length) {
+    const owner = policy.primitives[0]!;
+    view.skills(anchors.map((a) => a.id)).slice(0, 2).forEach((sk, i) => push({
+      key: `skill:${sk.id}`, tier: 3, kind: 'skill', virtual: `skill:${sk.id}`,
+      content: `Skill (${sk.entityId.slice(sk.entityId.indexOf('#') + 1, sk.entityId.lastIndexOf('@')) || sk.entityId}): ${sk.purpose}\nPlaybook: ${sk.playbook}${sk.apis.length ? `\nAPIs: ${sk.apis.slice(0, 5).join(', ')}` : ''}`,
+      intent: owner.intent, rule: 'skill', weight: owner.weight, score: 0.6 * owner.weight / (1 + 0.3 * i), stage: 0, bucket: bucketOf(policy, 'history'),
+    }));
+  }
 }
 
 function runRule(

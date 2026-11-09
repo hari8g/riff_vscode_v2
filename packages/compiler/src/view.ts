@@ -26,6 +26,8 @@ export interface RepoView {
   history?: HistoryFacts;
   /** HEAD commit, stamped into the pack. */
   commit?: string;
+  /** Skills distilled from earlier sessions, for the given entities (M5). */
+  skills?: (entities: readonly SymbolId[]) => { id: string; entityId: string; purpose: string; playbook: string; apis: string[] }[];
   /** Hand-written run-book constraints (`.riaf/constraints.md`). */
   constraints?: string;
 }

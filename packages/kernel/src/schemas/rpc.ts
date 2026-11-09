@@ -46,7 +46,7 @@ const StageStatusSchema = z.object({
 });
 
 /** Protocol version; additive changes (new methods, new optional fields) keep the major (ADR-0004). */
-export const RPC_PROTOCOL_VERSION = '1.3' as const;
+export const RPC_PROTOCOL_VERSION = '1.4' as const;
 
 export const RPC = {
   'daemon.info': {
@@ -182,6 +182,18 @@ export const RPC = {
   'govern.event': {
     params: z.object({ sessionId: z.string().min(1), kind: z.string().min(1), payload: z.record(z.string(), z.unknown()) }),
     result: z.object({ ok: z.literal(true) }),
+  },
+  'telemetry.query': {
+    params: z.object({ since: z.string().optional() }),
+    result: z.object({
+      sessions: z.number().int().nonnegative(),
+      toolCalls: z.object({ total: z.number().int().nonnegative(), byDecision: z.record(z.string(), z.number().int().nonnegative()) }),
+      branches: z.record(z.string(), z.number().int().nonnegative()),
+      utilisation: z.array(z.object({ rule: z.string(), intent: z.string(), delivered: z.number().int(), read: z.number().int() })),
+      priors: z.record(z.string(), z.number()),
+      skills: z.number().int().nonnegative(),
+      packs: z.number().int().nonnegative(),
+    }),
   },
   'policies.get': {
     params: z.object({}),

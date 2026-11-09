@@ -30,6 +30,8 @@ interface SessionState {
   tested: boolean;
   tokens: number;
   compactionAdvised: boolean;
+  /** Outcome of the most recent test command after an edit. */
+  lastTest?: 'pass' | 'fail';
   /** Read results keyed by (path, range) with the blob hash they were read at. */
   reads: Map<string, { blob: string; seq: number; text: string }>;
 }
@@ -152,6 +154,12 @@ export class Governor {
       const blob = path ? this.opts.store.merkle.getBlob(path)?.hash : undefined;
       if (path && blob) s.reads.set(`${path}:${args['offset'] ?? ''}:${args['limit'] ?? ''}`, { blob, seq: s.seq, text: result.slice(0, 60_000) });
     }
+    if (tool === 'Bash' && isTestCommand(args['command'])) {
+      const failed = /\b(\d+ (failed|failing|errors?)|FAIL(ED)?\b|Traceback|AssertionError|BUILD FAILURE|exit code [1-9])/.test(result);
+      const passed = /\b(\d+ passed|passed|PASS\b|OK\b|Tests? run: \d+, Failures: 0)/i.test(result);
+      if (failed) s.lastTest = 'fail';
+      else if (passed) s.lastTest = 'pass';
+    }
     if (EDIT_TOOLS.has(tool)) {
       // a changed file invalidates its cached reads (the index catches up on the next scan)
       const path = relPath(this.opts.root, args['file_path']);
@@ -167,9 +175,11 @@ export class Governor {
   }
 
   /** Session end (Stop hook): utilisation, priors, and skills when the session succeeded. */
-  onSessionEnd(sessionId: string, outcome: 'success' | 'failure' | 'unknown' = 'unknown'): SessionSummary {
+  onSessionEnd(sessionId: string, outcome?: 'success' | 'failure' | 'unknown'): SessionSummary {
     const at = this.clock.now().toISOString();
-    this.state(sessionId);
+    const st = this.state(sessionId);
+    // without an explicit outcome, a session that edited code and whose last test run passed succeeded
+    outcome ??= st.edited && st.lastTest === 'pass' ? 'success' : st.lastTest === 'fail' ? 'failure' : 'unknown';
     const { store, graph, root } = this.opts;
     store.govern.endSession(sessionId, at, outcome);
     const utilisation = recordUtilisation(store, root, sessionId, at);
