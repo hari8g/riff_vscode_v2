@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "propertyNames": {
+    "type": "string",
+    "enum": [
+      "bugfix",
+      "feature",
+      "merge",
+      "review",
+      "refactor",
+      "onboarding",
+      "unknown"
+    ]
+  },
+  "additionalProperties": {
+    "type": "number",
+    "minimum": 0,
+    "maximum": 1
+  }
+}

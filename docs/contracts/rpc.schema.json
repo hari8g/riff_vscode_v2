@@ -1,0 +1,1912 @@
+{
+  "index.status": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "blobs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "symbols": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "edges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "type": "string"
+              },
+              "pending": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "done": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lastMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "lastError": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "pending",
+              "done"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "repo",
+        "blobs",
+        "symbols",
+        "edges",
+        "stages",
+        "schemaVersion"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "index.rebuild": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "full": {
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "scheduled": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "scheduled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "route": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ide": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "activeFile": {
+              "type": "string",
+              "minLength": 1
+            },
+            "selection": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "startLine": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "endLine": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "path",
+                "startLine",
+                "endLine"
+              ]
+            },
+            "openFiles": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "branch": {
+              "type": "string"
+            },
+            "failingTests": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "stackTrace": {
+              "type": "string"
+            },
+            "diffFiles": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "interactive": {
+              "default": true,
+              "type": "boolean"
+            }
+          }
+        },
+        "budget": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "intentHint": {
+          "type": "string",
+          "enum": [
+            "bugfix",
+            "feature",
+            "merge",
+            "review",
+            "refactor",
+            "onboarding",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "units": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anchors": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+                }
+              },
+              "ungrounded": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "w": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "enum": [
+                    "bugfix",
+                    "feature",
+                    "merge",
+                    "review",
+                    "refactor",
+                    "onboarding",
+                    "unknown"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "H": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "dependsOn": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "anchors",
+              "ungrounded",
+              "w",
+              "H",
+              "dependsOn"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "branch": {
+          "type": "string",
+          "enum": [
+            "single",
+            "blended",
+            "probe",
+            "clarify",
+            "generic"
+          ]
+        },
+        "w": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "bugfix",
+              "feature",
+              "merge",
+              "review",
+              "refactor",
+              "onboarding",
+              "unknown"
+            ]
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "H": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "primitives": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "enum": [
+                  "bugfix",
+                  "feature",
+                  "merge",
+                  "review",
+                  "refactor",
+                  "onboarding",
+                  "unknown"
+                ]
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "intent",
+              "weight"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+          }
+        },
+        "expansion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule": {
+                "type": "string",
+                "enum": [
+                  "callers",
+                  "callees",
+                  "exercising_test",
+                  "sibling_template",
+                  "implemented_interfaces",
+                  "both_branch_touched",
+                  "co_change_partners",
+                  "tests_over",
+                  "invariants_on",
+                  "reference_closure",
+                  "inheritance_tree",
+                  "dynamic_dispatch_sites",
+                  "module_summaries",
+                  "file_skeletons",
+                  "one_hop"
+                ]
+              },
+              "hops": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "cap": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              },
+              "exclude": {
+                "type": "string",
+                "enum": [
+                  "in_diff",
+                  "tests",
+                  "generated"
+                ]
+              }
+            },
+            "required": [
+              "rule"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "historyScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "blame_on_anchors",
+              "reverts_touching_anchors",
+              "origin_commits_of_sibling",
+              "both_branch_summaries",
+              "recent_incidents_on",
+              "adrs"
+            ]
+          }
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "fixed": {
+              "type": "object",
+              "properties": {
+                "map": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "runbook": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "map",
+                "runbook"
+              ],
+              "additionalProperties": false
+            },
+            "variable": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "required": [
+            "total",
+            "fixed",
+            "variable"
+          ],
+          "additionalProperties": false
+        },
+        "stages": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "question": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "options": {
+                  "minItems": 2,
+                  "maxItems": 3,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "intent": {
+                        "type": "string",
+                        "enum": [
+                          "bugfix",
+                          "feature",
+                          "merge",
+                          "review",
+                          "refactor",
+                          "onboarding",
+                          "unknown"
+                        ]
+                      },
+                      "w": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "enum": [
+                            "bugfix",
+                            "feature",
+                            "merge",
+                            "review",
+                            "refactor",
+                            "onboarding",
+                            "unknown"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "intent",
+                      "w"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "question",
+                "options"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policyVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "units",
+        "branch",
+        "w",
+        "H",
+        "primitives",
+        "anchors",
+        "expansion",
+        "historyScope",
+        "budget",
+        "stages",
+        "question",
+        "policyVersion"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "pack.compile": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "route": {
+          "type": "object",
+          "properties": {
+            "units": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "anchors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+                    }
+                  },
+                  "ungrounded": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "w": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "enum": [
+                        "bugfix",
+                        "feature",
+                        "merge",
+                        "review",
+                        "refactor",
+                        "onboarding",
+                        "unknown"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "H": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "dependsOn": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "text",
+                  "anchors",
+                  "w",
+                  "H"
+                ]
+              }
+            },
+            "branch": {
+              "type": "string",
+              "enum": [
+                "single",
+                "blended",
+                "probe",
+                "clarify",
+                "generic"
+              ]
+            },
+            "w": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "bugfix",
+                  "feature",
+                  "merge",
+                  "review",
+                  "refactor",
+                  "onboarding",
+                  "unknown"
+                ]
+              },
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "H": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "primitives": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "bugfix",
+                      "feature",
+                      "merge",
+                      "review",
+                      "refactor",
+                      "onboarding",
+                      "unknown"
+                    ]
+                  },
+                  "weight": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "intent",
+                  "weight"
+                ]
+              }
+            },
+            "anchors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              }
+            },
+            "expansion": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rule": {
+                    "type": "string",
+                    "enum": [
+                      "callers",
+                      "callees",
+                      "exercising_test",
+                      "sibling_template",
+                      "implemented_interfaces",
+                      "both_branch_touched",
+                      "co_change_partners",
+                      "tests_over",
+                      "invariants_on",
+                      "reference_closure",
+                      "inheritance_tree",
+                      "dynamic_dispatch_sites",
+                      "module_summaries",
+                      "file_skeletons",
+                      "one_hop"
+                    ]
+                  },
+                  "hops": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  },
+                  "cap": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "exclude": {
+                    "type": "string",
+                    "enum": [
+                      "in_diff",
+                      "tests",
+                      "generated"
+                    ]
+                  }
+                },
+                "required": [
+                  "rule"
+                ]
+              }
+            },
+            "historyScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "blame_on_anchors",
+                  "reverts_touching_anchors",
+                  "origin_commits_of_sibling",
+                  "both_branch_summaries",
+                  "recent_incidents_on",
+                  "adrs"
+                ]
+              }
+            },
+            "budget": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "fixed": {
+                  "type": "object",
+                  "properties": {
+                    "map": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "runbook": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "map",
+                    "runbook"
+                  ]
+                },
+                "variable": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              },
+              "required": [
+                "total",
+                "fixed",
+                "variable"
+              ]
+            },
+            "stages": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "question": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "options": {
+                      "minItems": 2,
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "intent": {
+                            "type": "string",
+                            "enum": [
+                              "bugfix",
+                              "feature",
+                              "merge",
+                              "review",
+                              "refactor",
+                              "onboarding",
+                              "unknown"
+                            ]
+                          },
+                          "w": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "enum": [
+                                "bugfix",
+                                "feature",
+                                "merge",
+                                "review",
+                                "refactor",
+                                "onboarding",
+                                "unknown"
+                              ]
+                            },
+                            "additionalProperties": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "intent",
+                          "w"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "options"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "policyVersion": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "units",
+            "branch",
+            "w",
+            "H",
+            "primitives",
+            "anchors",
+            "expansion",
+            "historyScope",
+            "budget",
+            "stages",
+            "question",
+            "policyVersion"
+          ]
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ide": {
+              "default": {},
+              "type": "object",
+              "properties": {
+                "activeFile": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "selection": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "startLine": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "endLine": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "startLine",
+                    "endLine"
+                  ]
+                },
+                "openFiles": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "branch": {
+                  "type": "string"
+                },
+                "failingTests": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "stackTrace": {
+                  "type": "string"
+                },
+                "diffFiles": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "interactive": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              }
+            },
+            "budget": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "intentHint": {
+              "type": "string",
+              "enum": [
+                "bugfix",
+                "feature",
+                "merge",
+                "review",
+                "refactor",
+                "onboarding",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        "budget": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "target": {
+          "default": "json",
+          "type": "string",
+          "enum": [
+            "claude",
+            "copilot",
+            "fragment",
+            "json",
+            "agentsmd"
+          ]
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "pack": {
+          "type": "object",
+          "properties": {
+            "packId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{7,40}$"
+            },
+            "route": {
+              "type": "object",
+              "properties": {
+                "w": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "bugfix",
+                      "feature",
+                      "merge",
+                      "review",
+                      "refactor",
+                      "onboarding",
+                      "unknown"
+                    ]
+                  },
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "H": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "branch": {
+                  "type": "string",
+                  "enum": [
+                    "single",
+                    "blended",
+                    "probe",
+                    "clarify",
+                    "generic"
+                  ]
+                },
+                "stages": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "question": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "w",
+                "H",
+                "branch",
+                "stages"
+              ],
+              "additionalProperties": false
+            },
+            "budget": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "tokensUsed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "openLookups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "args": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "tool",
+                  "args",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tier": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "const": 1
+                      },
+                      {
+                        "type": "number",
+                        "const": 2
+                      },
+                      {
+                        "type": "number",
+                        "const": 3
+                      },
+                      {
+                        "type": "number",
+                        "const": 4
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "signature",
+                      "body",
+                      "summary",
+                      "commit",
+                      "co_change",
+                      "convention",
+                      "skill",
+                      "runbook",
+                      "test",
+                      "diff"
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "range": {
+                                "type": "object",
+                                "properties": {
+                                  "startLine": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "endLine": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "startLine",
+                                  "endLine"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "blobHash": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "commit": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{7,40}$"
+                              }
+                            },
+                            "required": [
+                              "path"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "commit": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{7,40}$"
+                              }
+                            },
+                            "required": [
+                              "commit"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "virtual": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "virtual"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "why": {
+                    "type": "object",
+                    "properties": {
+                      "intent": {
+                        "type": "string",
+                        "enum": [
+                          "bugfix",
+                          "feature",
+                          "merge",
+                          "review",
+                          "refactor",
+                          "onboarding",
+                          "unknown"
+                        ]
+                      },
+                      "rule": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "score": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "intent",
+                      "rule",
+                      "weight",
+                      "score"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "stage": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "tier",
+                  "kind",
+                  "source",
+                  "hash",
+                  "why",
+                  "tokens",
+                  "stage",
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "policyVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "schemaVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          "required": [
+            "packId",
+            "repo",
+            "route",
+            "budget",
+            "tokensUsed",
+            "openLookups",
+            "items",
+            "policyVersion",
+            "schemaVersion",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "rendered": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pack",
+        "rendered"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "graph.jump": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "definition": {
+          "type": "object",
+          "properties": {
+            "symbol": {
+              "type": "string",
+              "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "startLine": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "endLine": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "signature": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol",
+            "path",
+            "startLine",
+            "endLine",
+            "signature"
+          ],
+          "additionalProperties": false
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "line": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "symbol",
+              "path",
+              "line",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "blame": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "commit",
+              "at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "purpose": {
+                "type": "string"
+              },
+              "playbook": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "purpose",
+              "playbook"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "references",
+        "blame",
+        "skills"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "graph.impact": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "symbols": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+          }
+        },
+        "hops": {
+          "default": 2,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        }
+      },
+      "required": [
+        "symbols"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "closure": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "distance": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "via": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "symbol",
+              "distance",
+              "via"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "coChange": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "support": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "confidence": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "symbol",
+              "support",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+          }
+        }
+      },
+      "required": [
+        "closure",
+        "coChange",
+        "tests"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "govern.toolCall": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "explore",
+            "plan",
+            "implement",
+            "verify"
+          ]
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "sessionId",
+        "phase",
+        "tool",
+        "args",
+        "at"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "allow"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "serve"
+            },
+            "result": {},
+            "from": {
+              "type": "string",
+              "enum": [
+                "cache",
+                "index"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "result",
+            "from"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "rewrite"
+            },
+            "tool": {
+              "type": "string",
+              "minLength": 1
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool",
+            "args",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "reflect"
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "block"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "govern.event": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "sessionId",
+        "kind",
+        "payload"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "policies.get": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "string"
+        },
+        "governance": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "policies",
+        "governance",
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "policies.validate": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "string"
+        },
+        "governance": {
+          "type": "string"
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file",
+              "path",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "ok",
+        "diagnostics"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

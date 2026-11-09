@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ide": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "activeFile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "startLine": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "endLine": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "path",
+            "startLine",
+            "endLine"
+          ]
+        },
+        "openFiles": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "branch": {
+          "type": "string"
+        },
+        "failingTests": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stackTrace": {
+          "type": "string"
+        },
+        "diffFiles": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "interactive": {
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "budget": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "intentHint": {
+      "type": "string",
+      "enum": [
+        "bugfix",
+        "feature",
+        "merge",
+        "review",
+        "refactor",
+        "onboarding",
+        "unknown"
+      ]
+    }
+  },
+  "required": [
+    "text"
+  ]
+}

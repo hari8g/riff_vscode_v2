@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+      }
+    },
+    "ungrounded": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "w": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "bugfix",
+          "feature",
+          "merge",
+          "review",
+          "refactor",
+          "onboarding",
+          "unknown"
+        ]
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "H": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "dependsOn": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "text",
+    "anchors",
+    "w",
+    "H"
+  ]
+}

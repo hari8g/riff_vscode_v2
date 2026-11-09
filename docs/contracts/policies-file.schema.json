@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "router": {
+      "type": "object",
+      "properties": {
+        "entropy": {
+          "type": "object",
+          "properties": {
+            "single_below": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "blend_below": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "single_below",
+            "blend_below"
+          ]
+        },
+        "top_intent_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "blend_floor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "clarify_max_questions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      },
+      "required": [
+        "entropy",
+        "top_intent_min",
+        "blend_floor",
+        "clarify_max_questions"
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "default_total": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "fixed": {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "runbook": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "map",
+            "runbook"
+          ]
+        }
+      },
+      "required": [
+        "default_total",
+        "fixed"
+      ]
+    },
+    "primitives": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "bugfix",
+          "feature",
+          "merge",
+          "review",
+          "refactor",
+          "onboarding",
+          "unknown"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "anchors": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "stack_trace",
+                "issue_terms",
+                "failing_test",
+                "selection",
+                "sibling_feature",
+                "extension_points",
+                "conflict_hunks",
+                "diff_symbols",
+                "target_symbols",
+                "architecture_nodes",
+                "grounded_identifiers"
+              ]
+            }
+          },
+          "expansion": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": {
+                  "type": "string",
+                  "enum": [
+                    "callers",
+                    "callees",
+                    "exercising_test",
+                    "sibling_template",
+                    "implemented_interfaces",
+                    "both_branch_touched",
+                    "co_change_partners",
+                    "tests_over",
+                    "invariants_on",
+                    "reference_closure",
+                    "inheritance_tree",
+                    "dynamic_dispatch_sites",
+                    "module_summaries",
+                    "file_skeletons",
+                    "one_hop"
+                  ]
+                },
+                "hops": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4
+                },
+                "cap": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "exclude": {
+                  "type": "string",
+                  "enum": [
+                    "in_diff",
+                    "tests",
+                    "generated"
+                  ]
+                }
+              },
+              "required": [
+                "rule"
+              ]
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "blame_on_anchors",
+                "reverts_touching_anchors",
+                "origin_commits_of_sibling",
+                "both_branch_summaries",
+                "recent_incidents_on",
+                "adrs"
+              ]
+            }
+          },
+          "weights": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "required": [
+          "anchors",
+          "expansion",
+          "history",
+          "weights"
+        ]
+      },
+      "required": [
+        "bugfix",
+        "feature",
+        "merge",
+        "review",
+        "refactor",
+        "onboarding",
+        "unknown"
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "router",
+    "budget",
+    "primitives"
+  ]
+}

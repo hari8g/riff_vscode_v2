@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "phases": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "explore",
+          "plan",
+          "implement",
+          "verify"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "soft_calls": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "max_calls": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "soft_tokens": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "max_tokens": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "max_minutes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "soft_calls",
+          "max_calls",
+          "soft_tokens",
+          "max_tokens",
+          "max_minutes"
+        ]
+      },
+      "required": [
+        "explore",
+        "plan",
+        "implement",
+        "verify"
+      ]
+    },
+    "guard": {
+      "type": "object",
+      "properties": {
+        "serve_first_reads": {
+          "type": "boolean"
+        },
+        "serve_repeat_reads": {
+          "type": "boolean"
+        },
+        "rewrite_grep_to_index": {
+          "type": "boolean"
+        },
+        "loop_threshold": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        }
+      },
+      "required": [
+        "serve_first_reads",
+        "serve_repeat_reads",
+        "rewrite_grep_to_index",
+        "loop_threshold"
+      ]
+    },
+    "compaction": {
+      "type": "object",
+      "properties": {
+        "advise_at_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "keep": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "advise_at_ratio",
+        "keep"
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "phases",
+    "guard",
+    "compaction"
+  ]
+}
