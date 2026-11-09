@@ -1,5 +1,5 @@
 # RIAF v2 retrieval policies — versioned with the repository.
-# Validated by @riaf/kernel schemas/policy.ts. Loaded by @riaf/intent and @riaf/compiler (M3).
+# Validated by @riaf/kernel schemas/policy.ts. Loaded by @riaf/intent and @riaf/compiler.
 version: 1
 
 router:

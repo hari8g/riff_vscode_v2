@@ -20,13 +20,16 @@
     "test": "vitest run --root ../.. packages/cli"
   },
   "dependencies": {
-    "@riaf/kernel": "workspace:*",
+    "@riaf/compiler": "workspace:*",
     "@riaf/daemon": "workspace:*",
-    "@riaf/serve-mcp": "workspace:*",
     "@riaf/eval": "workspace:*",
-    "@riaf/compiler": "workspace:*"
+    "@riaf/kernel": "workspace:*",
+    "@riaf/serve-mcp": "workspace:*"
   },
   "bin": {
     "riaf": "./dist/main.js"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2"
   }
 }

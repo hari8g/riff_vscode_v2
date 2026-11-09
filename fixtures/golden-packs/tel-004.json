@@ -1,0 +1,339 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/telemetry/pipeline.py:\n  class Pipeline\n    def __init__(self, config: Config, sink=None)\n    def submit(self, frame)\n    def flush(self)\nsrc/telemetry/codec.py:\n  @dataclass(frozen=True) class Frame\n  def checksum(payload: bytes) -> int\n  def encode(frame: Frame) -> bytes\n  def decode(data: bytes) -> Frame\nsrc/telemetry/buffer.py:\n  class RingBuffer\n    def __init__(self, capacity)\n    def __len__(self)\n    @property def capacity(self)\n    def push(self, item)\n    def drain(self)\nsrc/telemetry/sinks.py:\n  class Sink\n    def write(self, batch)\n  class MemorySink(Sink)\n    def __init__(self)\n    def write(self, batch)\n  class FailingSink(Sink)\n    def write(self, batch)\n  def make_sink(url)\nsrc/telemetry/sampler.py:\n  class Sampler\n    def __init__(self, every=1)\n    def accept(self, frame: Frame) -> bool\n    def reset(self)\nsrc/telemetry/config.py:\n  @dataclass(frozen=True) class Config\n    @classmethod def from_env(cls, env=None)",
+      "hash": "3928b38461680dd35b1bbbcdf294eaf27bf4e87c6572eca79700a359b61c406b",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 312,
+      "why": {
+        "intent": "feature",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def make_sink(url):\n    \"\"\"Creates a sink from a URL; only memory:// is built in.\"\"\"\n    if url.startswith(\"memory://\"):\n        return MemorySink()\n    raise ValueError(f\"unsupported sink {url}\")",
+      "hash": "0516155256a0dd0f92f46608c3031a297f696c9f2ad3f11074444e8297cf4644",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/sinks.py",
+        "range": {
+          "endLine": 30,
+          "startLine": 26
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 66,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.8769,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def write(self, batch):\n        raise NotImplementedError",
+      "hash": "0f0e8cb78abddb0d754407b8c424e4b1a369083aec96868541b8b0dedca83c3c",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/sinks.py",
+        "range": {
+          "endLine": 6,
+          "startLine": 5
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 20,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.7736,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def encode(frame: Frame) -> bytes:\n    \"\"\"Encodes a frame and appends its checksum byte.\"\"\"\n    payload = struct.pack(_FMT, MAGIC, frame.vehicle_id, frame.timestamp_ms, frame.speed_kmh)\n    return payload + bytes([checksum(payload)])",
+      "hash": "195a238e393aa1fdacad8d27a20b0ae9ebba88b223f801d5a6302cf1badb0398",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/codec.py",
+        "range": {
+          "endLine": 25,
+          "startLine": 22
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 77,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.6993,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def test_roundtrip():\n    f = Frame(7, 1700000000000, 42.5)\n    assert decode(encode(f)) == f",
+      "hash": "2b7a3fbc83bc55b8779b23b08eade93379696721b5f6f66b354423e99520040c",
+      "id": "i5",
+      "kind": "test",
+      "source": {
+        "path": "tests/test_codec.py",
+        "range": {
+          "endLine": 8,
+          "startLine": 6
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 31,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.65,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def __init__(self, config: Config, sink=None):\n        self.config = config\n        self.sampler = Sampler(config.sample_every)\n        self.buffer = RingBuffer(config.buffer_size)\n        self.sink = sink if sink is not None else make_sink(config.sink_url)",
+      "hash": "4022217675cde81101e267e0952b80af417ca794f76931737eca343c7218ebf9",
+      "id": "i6",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/pipeline.py",
+        "range": {
+          "endLine": 15,
+          "startLine": 11
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 85,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.6101,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def accept(self, frame: Frame) -> bool:\n        count = self._seen.get(frame.vehicle_id, 0)\n        self._seen[frame.vehicle_id] = count + 1\n        return count % self.every == 0",
+      "hash": "b9acf9bc0443e3102a9d25e0753b201f19b8ec5cc885cc287ae657dd2acf5151",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/sampler.py",
+        "range": {
+          "endLine": 16,
+          "startLine": 13
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 61,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.5725,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def test_bad_checksum_rejected():\n    data = bytearray(encode(Frame(1, 2, 3.0)))\n    data[-1] ^= 0xFF\n    with pytest.raises(ValueError):\n        decode(bytes(data))",
+      "hash": "367b272f05c88775ad2b635b0ee034cd0ea2db71d8fcb52dd29d2b88a9c42f32",
+      "id": "i8",
+      "kind": "test",
+      "source": {
+        "path": "tests/test_codec.py",
+        "range": {
+          "endLine": 15,
+          "startLine": 11
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 55,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.5,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def __init__(self, every=1):\n        self.every = max(1, every)\n        self._seen = {}",
+      "hash": "7677c28bba08b5ba1dbe6542a8f21a8ddee1f527ea5cc8c2019e0b54a7e867a9",
+      "id": "i9",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/sampler.py",
+        "range": {
+          "endLine": 11,
+          "startLine": 9
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 31,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.4571,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def __init__(self, capacity):\n        if capacity <= 0:\n            raise ValueError(\"capacity must be positive\")\n        self._items = [None] * capacity\n        self._start = 0\n        self._size = 0\n        self.dropped = 0",
+      "hash": "978a3b2e4a4042ce52d5b18e1aad27b970695629a7f953931f281df1053b3b5c",
+      "id": "i10",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/buffer.py",
+        "range": {
+          "endLine": 11,
+          "startLine": 5
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 75,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.4211,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def checksum(payload: bytes) -> int:\n    \"\"\"Simple additive checksum modulo 256.\"\"\"\n    return sum(payload) % 256",
+      "hash": "c2f6ce792ce31a4ccdad0cae8e95fa72a838f499e5e57cff04ec61e758636f8f",
+      "id": "i11",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/codec.py",
+        "range": {
+          "endLine": 19,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 38,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def decode(data: bytes) -> Frame:\n    \"\"\"Decodes a frame, validating magic and checksum.\"\"\"\n    payload, check = data[:-1], data[-1]\n    if checksum(payload) != check:\n        raise ValueError(\"bad checksum\")\n    magic, vehicle_id, ts, speed = struct.unpack(_FMT, payload)\n    if magic != MAGIC:\n        raise ValueError(\"bad magic\")\n    return Frame(vehicle_id, ts, speed)",
+      "hash": "359951ac806c8dcbe499df3e78daa3497596f7ad1d33d2548d1c2e185023c198",
+      "id": "i12",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/codec.py",
+        "range": {
+          "endLine": 36,
+          "startLine": 28
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 124,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Python code raises built-in exceptions (`ValueError`, `IOError`) on bad input (confidence 1.00, 5 observations)",
+      "hash": "85ed3ffbdd43182860e4ffb3daa91a28a665aa8e4aa0717f88199722350341de",
+      "id": "i13",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:errors:raise"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 36,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "python tests are `test_*.py` files under `tests/` (confidence 1.00, 3 observations)",
+      "hash": "80cfbd8cfc01de7ba07c95f39716c1195c956a2b1a88fc8b214ddf1258bbfb42",
+      "id": "i14",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:tests:python"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 28,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/telemetry/sinks.py#make_sink@function"
+      },
+      "reason": "history scope origin_commits_of_sibling requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    },
+    {
+      "args": {
+        "query": "FileSink"
+      },
+      "reason": "“FileSink” is not in the index — new code or a different name?",
+      "tool": "riaf_jump"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "telemetry-py",
+  "route": {
+    "H": 0.045294,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.001256,
+      "feature": 0.987069,
+      "merge": 0.001256,
+      "onboarding": 0.001256,
+      "refactor": 0.001256,
+      "review": 0.001256,
+      "unknown": 0.006651
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1039
+}

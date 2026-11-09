@@ -1,0 +1,681 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/gantry/reading.ts:\n  export interface GantryReading\n  export type VehicleClass = 'car' | 'lcv' | 'bus' | 'truck' | 'multi-axle';\n  export function isTrusted(r: GantryReading): boolean\nsrc/toll/ledger.ts:\n  export interface LedgerEntry\n  export class Ledger\n    post(sessionId: string, amountPaise: number): void\n    private tryWrite(e: LedgerEntry): boolean\n    drain(): LedgerEntry[]\n    total(): number\nsrc/settlement/bank.ts:\n  export interface BankGateway\n    submit(batch: SettlementBatch): Promise<{ accepted: boolean; reference?: string; reason?: string }>\n  export class FakeBank implements BankGateway\n    constructor(private readonly rejectOver = Number.POSITIVE_INFINITY)\n    async submit(batch: SettlementBatch)\nsrc/gantry/dedupe.ts:\n  export class ReadingDeduper\n    constructor(private readonly windowMs = 2_000)\n    accept(r: GantryReading): GantryReading | undefined\n    prune(now: number): void\nsrc/toll/session.ts:\n  export type SessionState = 'open' | 'closed' | 'disputed';\n  export class TollSession\n    constructor( readonly id: string, readonly plate: Plate, private readonly ledger: Ledger, private readonly flags: FeatureFlags, )\n    close(amountPaise: number): void\n    durationMs(): number\nsrc/gantry/gantry.ts:\n  export class Gantry\n    constructor(readonly id: string, readonly plazaId: string, laneCount: number)\n    lane(id: number): Lane\n    ingest(r: GantryReading): void\n    healthyLanes(now: number): number[]\nsrc/util/ids.ts:\n  export function nextId(prefix: string): string\n  export function resetIds(): void\nsrc/settlement/batch.ts:\n  export interface SettlementBatch\n  export function makeBatches(idPrefix: string, entries: readonly LedgerEntry[], maxEntries: number, now: number): SettlementBatch[]\nsrc/config/flags.ts:\n  export type FlagName = 'charge-on-close' | 'strict-checksum' | 'dispute-queue';\n  export class FeatureFlags\n    constructor(initial: readonly FlagName[] = ['charge-on-close'])\n    isEnabled(flag: FlagName): boolean\n    set(flag: FlagName, on: boolean): void\n    static fromEnv(env: Record<string, string | undefined>): FeatureFlags\nsrc/toll/processor.ts:\n  export class PassageProcessor\n    constructor( private readonly store: SessionStore, private readonly ledger: Ledger, private readonly pricing: PricingEngine, private readonly flags: FeatureFlags, private readonly notifier: Notifier, private readonly plazaId: string, )\n    async process(raw: GantryReading): Promise<TollSession | undefined>\nsrc/gantry/lane.ts:\n  export class Lane\n    constructor(readonly gantryId: string, readonly id: number, private readonly staleAfterMs = 60_000)\n    record(r: GantryReading): void\n    reportFault(): void\n    isHealthy(now: number): boolean\n    clearFaults(): void\nsrc/toll/plate.ts:\n  export interface Plate\n  export function validatePlate(plate: Plate): boolean\n  export function plateChecksum(text: string): number\n  export function normalizePlate(raw: string): string\nsrc/api/handlers.ts:\n  export interface HttpRequest\n  export interface HttpResponse\n  export class ApiHandlers\n    constructor(private readonly sessions: SessionStore, private readonly disputes: DisputeQueue)\n    handle(req: HttpRequest, now: number): HttpResponse\n    private getSession(id: string): HttpResponse\n    private openDispute(body: Record<string, unknown>, now: number): HttpResponse\nsrc/settlement/settler.ts:\n  export interface SettlementReport\n  export class Settler\n    constructor(private readonly ledger: Ledger, private readonly bank: BankGateway, private readonly clock: Clock, private readonly batchSize = 500)\n    async settle(): Promise<SettlementReport>\nsrc/pricing/engine.ts:\n  export interface PassageHistory\n    lastPassageAt(plate: string, plazaId: string): number | undefined\n  export class PricingEngine\n    constructor(private readonly history: PassageHistory, private readonly tariff: Tariff = DEFAULT_TARIFF)\n    quote(r: GantryReading, plazaId: string): number\nsrc/disputes/queue.ts:\n  export class DisputeQueue\n    constructor(private readonly flags: FeatureFlags)\n    enqueue(d: Dispute): boolean\n    next(): Dispute | undefined\n    resolve(id: string, upheld: boolean, at: number): Dispute\n    size(): number\nsrc/toll/store.ts:\n  export class SessionStore\n    put(s: TollSession): void\n    get(id: string): TollSession | undefined\n    openSessions(): TollSession[]\nsrc/disputes/dispute.ts:\n  export type DisputeStatus = 'open' | 'upheld' | 'rejected';\n  export interface Dispute\nsrc/util/clock.ts:\n  export interface Clock\n    now(): number\n  export class FixedClock implements Clock\n    constructor(private at: number)\n    now(): number\n    advance(ms: number): void\nsrc/notify/notifier.ts:\n  export interface Notifier\n    send(to: string, message: string): Promise<void>\n  export class MemoryNotifier implements Notifier\n    async send(to: string, message: string): Promise<void>\nsrc/pricing/peak.ts:\n  export interface PeakWindow\n  export function isPeak(hour: number, windows: readonly PeakWindow[] = DEFAULT_PEAKS): PeakWindow | undefined\n  export function applySurcharge(paise: number, w: PeakWindow | undefined): number\nsrc/notify/templates.ts:\n  export function chargeMessage(plate: string, paise: number, plaza: string): string\n  export function disputeMessage(plate: string, status: string): string\n  export function fitsOneSms(text: string): boolean\nsrc/pricing/tariff.ts:\n  export interface Tariff\n  export function baseFare(t: Tariff, cls: VehicleClass): number\nsrc/util/money.ts:\n  export function rupees(paise: number): string\n  export function addPaise(a: number, b: number): number\n  export function discount(paise: number, percent: number): number",
+      "hash": "b078bd26b086683a1b885b2062d206289d9a1cbb35ce427d4cdb825ecea00717",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 1840,
+      "why": {
+        "intent": "onboarding",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "A deliberately small multi-lane free-flow tolling service used by RIAF's tests: a session that closes and charges a ledger, plate validation with a checksum, and operator feature flags.\n- src/ — directory\n- test/ — directory\n- package.json — package.json.\n- tsconfig.json — tsconfig.json.",
+      "hash": "e2165aaf1e6b3768b026f178186b727764eb93b38ed6a6638bce6ade26b62f02",
+      "id": "i2",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 74,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.7,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src: 1 file, 9 directories.\n- api/ — src/api: 1 file.\n- config/ — src/config: 1 file.\n- disputes/ — src/disputes: 2 files.\n- gantry/ — src/gantry: 4 files.\n- notify/ — src/notify: 2 files.\n- pricing/ — src/pricing: 3 files.\n- settlement/ — src/settlement: 3 files.\n- toll/ — src/toll: 5 files.\n- util/ — src/util: 3 files.\n- index.ts — index.ts.",
+      "hash": "b2853eec2112fd0bbeba43312151305e5117ac16a68db69659ac2d53e8104435",
+      "id": "i3",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 93,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.6364,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src/gantry: 4 files.\n- dedupe.ts — Defines ReadingDeduper.\n- gantry.ts — Defines Gantry.\n- lane.ts — Defines Lane.\n- reading.ts — Defines GantryReading, VehicleClass, MIN_CONFIDENCE, ….",
+      "hash": "1194596f435aa3359b3ea096bb01ecd42f033397930ff4088e8469ef4ea7f01c",
+      "id": "i4",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/gantry/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 49,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.5833,
+        "weight": 1
+      }
+    },
+    {
+      "content": "languages: typescript 31\nframeworks: vitest\nentry points: src/api/handlers.ts, src/gantry/gantry.ts\ncluster src/toll/: 15 files\ncluster src/pricing/: 7 files\ncluster src/settlement/: 4 files\ncluster ./: 3 files\ncluster src/disputes/: 3 files\ncluster src/gantry/: 2 files",
+      "hash": "2fd31e1ade3b30c07870f828884476e058846b1c40d0c9461ab998e83750bc6a",
+      "id": "i5",
+      "kind": "summary",
+      "source": {
+        "virtual": "architecture"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 70,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.56,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines ReadingDeduper. class ReadingDeduper — Adjacent lanes often read the same vehicle twice..",
+      "hash": "fe708412d47a78653c15982fce4944eab70d54adabd73368b0a93c7debb7c85d",
+      "id": "i6",
+      "kind": "summary",
+      "source": {
+        "path": "src/gantry/dedupe.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 24,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.5385,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines Gantry. class Gantry — A gantry spanning several lanes at one plaza..",
+      "hash": "8ced5940f0c311142943f636d3f4a07b611390734961c9e412929985a6b1b739",
+      "id": "i7",
+      "kind": "summary",
+      "source": {
+        "path": "src/gantry/gantry.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 19,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.5,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines GantryReading, VehicleClass, MIN_CONFIDENCE, …. interface GantryReading — One ANPR read from a gantry camera.; type VehicleClass; constant MIN_CONFIDENCE — Reads below this confidence go to manual review instead of auto-charging.; function isTrusted.",
+      "hash": "52461e1af92efd20d2863377623359b040f1a76a4a21217cf2e7fcbe8a2b8f5f",
+      "id": "i8",
+      "kind": "summary",
+      "source": {
+        "path": "src/gantry/reading.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 83,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.4667,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src/settlement: 3 files.\n- bank.ts — Defines BankGateway, FakeBank.\n- batch.ts — Defines SettlementBatch, makeBatches.\n- settler.ts — Defines SettlementReport, Settler.",
+      "hash": "75f64039dc3f2758fce870ad2592ee6161073c156b250c77b6a3a14eb5de09bf",
+      "id": "i9",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/settlement/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 44,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.4375,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines BankGateway, FakeBank. interface BankGateway — Port to the acquiring bank's settlement API.; class FakeBank — In-memory gateway used in tests and the demo..",
+      "hash": "b25e13ff48f3f839e9bb230d363cd1ee6f4335407d0ff4d1120e6891ed3580fe",
+      "id": "i10",
+      "kind": "summary",
+      "source": {
+        "path": "src/settlement/bank.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 53,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.4118,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src/toll: 5 files.\n- ledger.ts — Defines LedgerEntry, Ledger.\n- plate.ts — Defines Plate, validatePlate, plateChecksum, ….\n- processor.ts — Defines PassageProcessor.\n- session.ts — Defines SessionState, TollSession.\n- store.ts — Defines SessionStore.",
+      "hash": "3c7a09b785ba33f6a1d8431c4141ec6800fbec662ffea2c3239c63f368441065",
+      "id": "i11",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/toll/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 65,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.3889,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines LedgerEntry, Ledger. interface LedgerEntry; class Ledger — In-memory ledger with retry-aware posting; real one talks to the settlement service..",
+      "hash": "46d39eb6317fe7de30843fe99f381a4e03cb592640e794d5aed43c4f52fd13e7",
+      "id": "i12",
+      "kind": "summary",
+      "source": {
+        "path": "src/toll/ledger.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 49,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.3684,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines SessionState, TollSession. type SessionState; class TollSession — One vehicle passage through a multi-lane free-flow gantry..",
+      "hash": "f84182d620380a6f493e29d53c69b8ae39563f122ef4cade6745657fdff36034",
+      "id": "i13",
+      "kind": "summary",
+      "source": {
+        "path": "src/toll/session.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 43,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.35,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src/util: 3 files.\n- clock.ts — Injectable clock so pricing windows and timeouts are testable.\n- ids.ts — Defines counter, nextId, resetIds.\n- money.ts — Amounts are integer paise throughout; these helpers keep rupee formatting in one place.",
+      "hash": "407ce878f099213793015ba053afd13b1ae02248a9a574107fdb72ce8ee02a45",
+      "id": "i14",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/util/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 61,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.3333,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Defines counter, nextId, resetIds. constant counter; function nextId — Monotonic, process-unique ids with a readable prefix (`ses-1`, `tx-2`).; function resetIds — Resets the counter; tests only..",
+      "hash": "fe636b63ff915f09727220d5297174df63c188dbe0aa7a49c1951064475fce62",
+      "id": "i15",
+      "kind": "summary",
+      "source": {
+        "path": "src/util/ids.ts"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 65,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.3182,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export interface GantryReading {\n  gantryId: string;\n  laneId: number;\n  plate: Plate;\n  /** Camera confidence in [0, 1]. */\n  confidence: number;\n  at: number;\n  vehicleClass: VehicleClass;\n}",
+      "hash": "7fe148daf544b046176127da899d8df7aa3117de662ba77d01d14ed7793c9a9b",
+      "id": "i16",
+      "kind": "body",
+      "source": {
+        "path": "src/gantry/reading.ts",
+        "range": {
+          "endLine": 12,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 63,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  constructor(\n    readonly id: string,\n    readonly plate: Plate,\n    private readonly ledger: Ledger,\n    private readonly flags: FeatureFlags,\n  ) {}",
+      "hash": "5d3edaa54f5bf01e28b6094c1b7076aba06ddafa05f46ec3b376c352866e509c",
+      "id": "i17",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 18,
+          "startLine": 13
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 49,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.7245,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export class Ledger {\n  private readonly entries: LedgerEntry[] = [];\n  private readonly maxRetries = 3;\n\n  post(sessionId: string, amountPaise: number): void {\n    if (amountPaise <= 0) throw new Error('amount must be positive');\n    for (let attempt = 0; attempt < this.maxRetries; attempt++) {\n      if (this.tryWrite({ sessionId, amountPaise, at: Date.now() })) return;\n    }\n    throw new Error(`ledger post failed after ${this.maxRetries} retries`);\n  }\n\n  private tryWrite(e: LedgerEntry): boolean {\n    this.entries.push(e);\n    return true;\n  }\n\n  /** Removes and returns every entry (settlement takes ownership). */\n  drain(): LedgerEntry[] {\n    return this.entries.splice(0, this.entries.length);\n  }\n\n  total(): number {\n    return this.entries.reduce((a, e) => a + e.amountPaise, 0);\n  }\n}",
+      "hash": "b60665141de8660bf20feed593cce59ba0739c3adc7a86619a3cf0a6bd2dc08c",
+      "id": "i18",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/ledger.ts",
+        "range": {
+          "endLine": 33,
+          "startLine": 8
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 268,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.6458,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export class Gantry {\n  private readonly lanes = new Map<number, Lane>();\n\n  constructor(readonly id: string, readonly plazaId: string, laneCount: number) {\n    for (let i = 1; i <= laneCount; i++) this.lanes.set(i, new Lane(id, i));\n  }\n\n  lane(id: number): Lane {\n    const l = this.lanes.get(id);\n    if (!l) throw new Error(`gantry ${this.id} has no lane ${id}`);\n    return l;\n  }\n\n  ingest(r: GantryReading): void {\n    this.lane(r.laneId).record(r);\n  }\n\n  healthyLanes(now: number): number[] {\n    return [...this.lanes.values()].filter((l) => l.isHealthy(now)).map((l) => l.id);\n  }\n}",
+      "hash": "f50696d47fa0bfef048cd5c25063993f0149f6f43e6b8a340324c0ea50bed7e5",
+      "id": "i19",
+      "kind": "body",
+      "source": {
+        "path": "src/gantry/gantry.ts",
+        "range": {
+          "endLine": 25,
+          "startLine": 5
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 202,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.6266,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** One ANPR read from a gantry camera. */\nexport interface GantryReading {\n  gantryId: string\n  laneId: number\n  plate: Plate\n  /** Camera confidence in [0, 1]. */\n  confidence: number\n  at: number\n  vehicleClass: VehicleClass\n}\nexport type VehicleClass = 'car' | 'lcv' | 'bus' | 'truck' | 'multi-axle';\n/** Reads below this confidence go to manual review instead of auto-charging. */\nexport const MIN_CONFIDENCE\nexport function isTrusted(r: GantryReading): boolean",
+      "hash": "e31083f515241b25d30fa7bd4d0b9945f5de3704738dbdcd4f99efa92daa4223",
+      "id": "i20",
+      "kind": "signature",
+      "source": {
+        "path": "src/gantry/reading.ts",
+        "range": {
+          "endLine": 21,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 153,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.6,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export interface LedgerEntry {\n  sessionId: string\n  amountPaise: number\n  at: number\n}\n/** In-memory ledger with retry-aware posting; real one talks to the settlement service. */\nexport class Ledger {\n  private readonly entries: LedgerEntry[] = []\n  private readonly maxRetries = 3\n  post(sessionId: string, amountPaise: number): void\n  private tryWrite(e: LedgerEntry): boolean\n  /** Removes and returns every entry (settlement takes ownership). */\n  drain(): LedgerEntry[]\n  total(): number\n}",
+      "hash": "7d8c83ee47010d56110dcb3c17bc8fa70ca8870979ab6eaa19f1345f768715f7",
+      "id": "i21",
+      "kind": "signature",
+      "source": {
+        "path": "src/toll/ledger.ts",
+        "range": {
+          "endLine": 33,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 162,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.5357,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  constructor(private readonly windowMs = 2_000) {}",
+      "hash": "3d096d4942d4d3359b18df89ecb08433cff218ac58ef05aee75c61a2b74ab099",
+      "id": "i22",
+      "kind": "body",
+      "source": {
+        "path": "src/gantry/dedupe.ts",
+        "range": {
+          "endLine": 10,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 17,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.5,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  submit(batch: SettlementBatch): Promise<{ accepted: boolean; reference?: string; reason?: string }>;",
+      "hash": "735dac8bff5e1b13e0addd2a640986ce007606a13de49b6c2cedcde26501feb5",
+      "id": "i23",
+      "kind": "body",
+      "source": {
+        "path": "src/settlement/bank.ts",
+        "range": {
+          "endLine": 5,
+          "startLine": 5
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 34,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.4956,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** Port to the acquiring bank's settlement API. */\nexport interface BankGateway {\n  submit(batch: SettlementBatch): Promise<{ accepted: boolean; reference?: string; reason?: string }>\n}\n/** In-memory gateway used in tests and the demo. */\nexport class FakeBank implements BankGateway {\n  readonly submitted: SettlementBatch[] = []\n  constructor(private readonly rejectOver = Number.POSITIVE_INFINITY)\n  async submit(batch: SettlementBatch)\n}",
+      "hash": "bf1d918c896dbcd0589660adf2ad63fac6fb6db972a51faab246e901c1118f69",
+      "id": "i24",
+      "kind": "signature",
+      "source": {
+        "path": "src/settlement/bank.ts",
+        "range": {
+          "endLine": 18,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 145,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4839,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** Adjacent lanes often read the same vehicle twice. Reads of the same plate at the same gantry within */\nexport class ReadingDeduper {\n  private readonly recent = new Map<string, GantryReading>()\n  constructor(private readonly windowMs = 2_000)\n  /** Returns the reading to keep, or undefined when it duplicates a better recent read. */\n  accept(r: GantryReading): GantryReading | undefined\n  prune(now: number): void\n}",
+      "hash": "7c5ae4eb5625e4380ebf53f1bfe6e78bd61ae1914fe703df71fbed376ca4a909",
+      "id": "i25",
+      "kind": "signature",
+      "source": {
+        "path": "src/gantry/dedupe.ts",
+        "range": {
+          "endLine": 30,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 137,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4412,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export function nextId(prefix: string): string {\n  counter += 1;\n  return `${prefix}-${counter}`;\n}",
+      "hash": "ffe78e429635275d8f8b28b8abc6e6e34d08b87245f5d360a047dfb975722a35",
+      "id": "i26",
+      "kind": "body",
+      "source": {
+        "path": "src/util/ids.ts",
+        "range": {
+          "endLine": 7,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 34,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.4257,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export type SessionState = 'open' | 'closed' | 'disputed';\n/** One vehicle passage through a multi-lane free-flow gantry. */\nexport class TollSession {\n  state: SessionState = 'open'\n  readonly openedAt = Date.now()\n  closedAt?: number\n  constructor( readonly id: string, readonly plate: Plate, private readonly ledger: Ledger, private readonly flags: FeatureFlags, )\n  /** Closes the session and posts the charge; a disputed plate never charges. */\n  close(amountPaise: number): void\n  durationMs(): number\n}",
+      "hash": "7b57bde0da3dd255f98892e9e1d4f69809802bc4e6789cd5301ac88cbdfb68b8",
+      "id": "i27",
+      "kind": "signature",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 37,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 167,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4054,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** A gantry spanning several lanes at one plaza. */\nexport class Gantry {\n  private readonly lanes = new Map<number, Lane>()\n  constructor(readonly id: string, readonly plazaId: string, laneCount: number)\n  lane(id: number): Lane\n  ingest(r: GantryReading): void\n  healthyLanes(now: number): number[]\n}",
+      "hash": "ff9521fc9d220345a8c1697565146284af9e351b7edc2033f90ee2eba3bd738b",
+      "id": "i28",
+      "kind": "signature",
+      "source": {
+        "path": "src/gantry/gantry.ts",
+        "range": {
+          "endLine": 25,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 100,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.375,
+        "weight": 1
+      }
+    },
+    {
+      "content": "let counter\n/** Monotonic, process-unique ids with a readable prefix (`ses-1`, `tx-2`). */\nexport function nextId(prefix: string): string\n/** Resets the counter; tests only. */\nexport function resetIds(): void",
+      "hash": "bf6b4a647947985f9fa849b7cde7f59fdc5e7db74e35b23af8a150684ec00859",
+      "id": "i29",
+      "kind": "signature",
+      "source": {
+        "path": "src/util/ids.ts",
+        "range": {
+          "endLine": 12,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 70,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.3488,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** A settlement batch sent to the acquiring bank. */\nexport interface SettlementBatch {\n  id: string\n  entries: LedgerEntry[]\n  totalPaise: number\n  createdAt: number\n}\n/** Groups entries into batches of at most `maxEntries`, preserving order. */\nexport function makeBatches(idPrefix: string, entries: readonly LedgerEntry[], maxEntries: number, now: number): SettlementBatch[]",
+      "hash": "277588ac732dc55cf7cfe6f8931b966b1135dc795c368f27602aa0b0dce86d7a",
+      "id": "i30",
+      "kind": "signature",
+      "source": {
+        "path": "src/settlement/batch.ts",
+        "range": {
+          "endLine": 20,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 124,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.3261,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export type FlagName = 'charge-on-close' | 'strict-checksum' | 'dispute-queue';\n/** Operator-controlled feature flags, loaded from the environment at boot. */\nexport class FeatureFlags {\n  private readonly enabled = new Set<FlagName>()\n  constructor(initial: readonly FlagName[] = ['charge-on-close'])\n  isEnabled(flag: FlagName): boolean\n  set(flag: FlagName, on: boolean): void\n  static fromEnv(env: Record<string, string | undefined>): FeatureFlags\n}",
+      "hash": "1d37ed1a17be5c0c5f41b231bb366f366e22ca990eb67a387f859652e11c5b47",
+      "id": "i31",
+      "kind": "signature",
+      "source": {
+        "path": "src/config/flags.ts",
+        "range": {
+          "endLine": 25,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 150,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.3061,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** Turns gantry readings into charged sessions: dedupe → trust check → price → close → notify. */\nexport class PassageProcessor {\n  private readonly deduper = new ReadingDeduper()\n  readonly manualReview: GantryReading[] = []\n  constructor( private readonly store: SessionStore, private readonly ledger: Ledger, private readonly pricing: PricingEngine, private readonly flags: FeatureFlags, private readonly notifier: Notifier, private readonly plazaId: string, )\n  async process(raw: GantryReading): Promise<TollSession | undefined>\n}",
+      "hash": "8c06a19f0623665bf7f92f0803cf5fed9e82d7cb62284b97e2a185870925d6fb",
+      "id": "i32",
+      "kind": "signature",
+      "source": {
+        "path": "src/toll/processor.ts",
+        "range": {
+          "endLine": 41,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 174,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.2885,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/gantry/reading.ts#GantryReading@interface"
+      },
+      "reason": "history scope adrs requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "toll-ts",
+  "route": {
+    "H": 0.084085,
+    "branch": "single",
+    "stages": [
+      [
+        "u1",
+        "u2"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.002616,
+      "feature": 0.002616,
+      "merge": 0.002616,
+      "onboarding": 0.973067,
+      "refactor": 0.002616,
+      "review": 0.002616,
+      "unknown": 0.013853
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 4681
+}

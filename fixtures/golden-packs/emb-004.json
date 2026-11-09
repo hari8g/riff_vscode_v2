@@ -1,0 +1,346 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "include/ring.h:\n  typedef struct ring\n    struct ring\n  void ring_init(ring_t *r);\n  int ring_push(ring_t *r, uint8_t byte);\n  int ring_pop(ring_t *r, uint8_t *byte);\n  size_t ring_count(const ring_t *r);\nsrc/ring.c:\n  void ring_init(ring_t *r)\n  int ring_push(ring_t *r, uint8_t byte)\n  int ring_pop(ring_t *r, uint8_t *byte)\n  size_t ring_count(const ring_t *r)\nsrc/uart.c:\n  void uart_init(uart_t *u, int port)\n  int uart_write(uart_t *u, const uint8_t *buf, size_t len)\n  int uart_poll(uart_t *u)\n  int uart_read(uart_t *u, uint8_t *byte)\n  int uart_send_frame(uart_t *u, const uint8_t *payload, size_t len)\ninclude/uart.h:\n  typedef struct uart\n    struct uart\n  void uart_init(uart_t *u, int port);\n  int uart_write(uart_t *u, const uint8_t *buf, size_t len);\n  int uart_poll(uart_t *u);\n  int uart_read(uart_t *u, uint8_t *byte);\n  int uart_send_frame(uart_t *u, const uint8_t *payload, size_t len);\nsrc/main.c:\n  int main(void)\ninclude/hal.h:\n  int hal_put(int port, uint8_t byte);\n  int hal_get(int port, uint8_t *byte);\n  uint32_t hal_millis(void);\nsrc/hal_stub.c:\n  int hal_put(int port, uint8_t byte)\n  int hal_get(int port, uint8_t *byte)\n  uint32_t hal_millis(void)\nsrc/crc.c:\n  uint16_t crc16_update(uint16_t crc, uint8_t byte)\n  uint16_t crc16(const uint8_t *data, size_t len)\ninclude/crc.h:\n  uint16_t crc16(const uint8_t *data, size_t len);\n  uint16_t crc16_update(uint16_t crc, uint8_t byte);",
+      "hash": "a4ce14f5099c7704f6e16ee9bc3c25e10c949b0a29a6693d029a54ffa8448129",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 464,
+      "why": {
+        "intent": "feature",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "typedef struct ring {\n    uint8_t data[RING_CAPACITY];\n    size_t head;\n    size_t tail;\n    size_t count;\n} ring_t;",
+      "hash": "8e6682d891d312a6d1b8d83862190bfde22870bc693ee8a872db3d56f2070f28",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "include/ring.h",
+        "range": {
+          "endLine": 14,
+          "startLine": 9
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 38,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "void ring_init(ring_t *r) {\n    r->head = 0;\n    r->tail = 0;\n    r->count = 0;\n}",
+      "hash": "4fbae2a9170c553a78fb572bd9008cfe2291066410a89cb7bf9ed47fc9753d17",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "src/ring.c",
+        "range": {
+          "endLine": 7,
+          "startLine": 3
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 28,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.7029,
+        "weight": 1
+      }
+    },
+    {
+      "content": "static void test_full_rejects(void) {\n    ring_t r;\n    ring_init(&r);\n    for (int i = 0; i < RING_CAPACITY; i++) assert(ring_push(&r, (uint8_t)i) == 0);\n    assert(ring_push(&r, 0) == -1);\n    assert(ring_count(&r) == RING_CAPACITY);\n}",
+      "hash": "c3f678ef1cea917605a36aabecf3226c14d1f41eed116d00c5365da94697d910",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "test/test_ring.c",
+        "range": {
+          "endLine": 21,
+          "startLine": 15
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 81,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.65,
+        "weight": 1
+      }
+    },
+    {
+      "content": "void uart_init(uart_t *u, int port) {\n    u->port = port;\n    u->errors = 0;\n    ring_init(&u->rx);\n}",
+      "hash": "c1294920473a6ad3edb1342ea28949260111ae9470972b9c37e0ec4f5f08eabc",
+      "id": "i5",
+      "kind": "body",
+      "source": {
+        "path": "src/uart.c",
+        "range": {
+          "endLine": 9,
+          "startLine": 5
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 35,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.6154,
+        "weight": 1
+      }
+    },
+    {
+      "content": "cmake_minimum_required(VERSION 3.16)\nproject(embedded_c C)\n\nadd_library(fw src/uart.c src/ring.c src/crc.c src/hal_stub.c)\ntarget_include_directories(fw PUBLIC include)\n\nadd_executable(firmware src/main.c)\ntarget_link_libraries(firmware fw)\n\nenable_testing()\nadd_executable(test_ring test/test_ring.c)\ntarget_link_libraries(test_ring fw)\nadd_test(NAME ring COMMAND test_ring)\nadd_executable(test_crc test/test_crc.c)\ntarget_link_libraries(test_crc fw)\nadd_test(NAME crc COMMAND test_crc)",
+      "hash": "9e5e18668d5f828845a2aa6a8f743b7452e4af2761108177b5741954bb0df3c1",
+      "id": "i6",
+      "kind": "body",
+      "source": {
+        "path": "CMakeLists.txt",
+        "range": {
+          "endLine": 16,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 158,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.5517,
+        "weight": 1
+      }
+    },
+    {
+      "content": "void ring_init(ring_t *r);",
+      "hash": "5fcda9d838376093d281ba0ffe7b5c4e95c0ece2c7468e6f5da870eb0dcf6891",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "include/ring.h",
+        "range": {
+          "endLine": 16,
+          "startLine": 16
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 9,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.5073,
+        "weight": 1
+      }
+    },
+    {
+      "content": "static void test_push_pop_order(void) {\n    ring_t r;\n    ring_init(&r);\n    ring_push(&r, 1);\n    ring_push(&r, 2);\n    uint8_t b;\n    assert(ring_pop(&r, &b) == 0 && b == 1);\n    assert(ring_pop(&r, &b) == 0 && b == 2);\n    assert(ring_pop(&r, &b) == -1);\n}",
+      "hash": "d772efbe5b0c6c59545d3da70c6e645940e44f2b4e2f68ea651f23dbcd7998e6",
+      "id": "i8",
+      "kind": "body",
+      "source": {
+        "path": "test/test_ring.c",
+        "range": {
+          "endLine": 13,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 90,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.5,
+        "weight": 1
+      }
+    },
+    {
+      "content": "int ring_pop(ring_t *r, uint8_t *byte) {\n    if (r->count == 0) {\n        return -1;\n    }\n    *byte = r->data[r->tail];\n    r->tail = (r->tail + 1) % RING_CAPACITY;\n    r->count--;\n    return 0;\n}",
+      "hash": "a73b28933c5513dec77d0689a72b877501efeed25bc3b77ed3f7a88b0f77a31a",
+      "id": "i9",
+      "kind": "body",
+      "source": {
+        "path": "src/ring.c",
+        "range": {
+          "endLine": 29,
+          "startLine": 21
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 68,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4533,
+        "weight": 1
+      }
+    },
+    {
+      "content": "int ring_push(ring_t *r, uint8_t byte) {\n    if (r->count == RING_CAPACITY) {\n        return -1;\n    }\n    r->data[r->head] = byte;\n    r->head = (r->head + 1) % RING_CAPACITY;\n    r->count++;\n    return 0;\n}",
+      "hash": "73d9527c21750bda9ac7ef1df94656472142963f48164a2178d508cf2acaf5a7",
+      "id": "i10",
+      "kind": "body",
+      "source": {
+        "path": "src/ring.c",
+        "range": {
+          "endLine": 18,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 71,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4533,
+        "weight": 1
+      }
+    },
+    {
+      "content": "int uart_poll(uart_t *u) {\n    uint8_t b;\n    int moved = 0;\n    while (hal_get(u->port, &b) == 0) {\n        if (ring_push(&u->rx, b) != 0) {\n            u->errors++;\n            break;\n        }\n        moved++;\n    }\n    return moved;\n}",
+      "hash": "344eac0949ac8a705920c84a2fce575c7c7fb372904b27731ed71189dfc35d03",
+      "id": "i11",
+      "kind": "body",
+      "source": {
+        "path": "src/uart.c",
+        "range": {
+          "endLine": 34,
+          "startLine": 23
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 81,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "int uart_write(uart_t *u, const uint8_t *buf, size_t len) {\n    for (size_t i = 0; i < len; i++) {\n        if (hal_put(u->port, buf[i]) != 0) {\n            u->errors++;\n            return -1;\n        }\n    }\n    return (int)len;\n}",
+      "hash": "620b8de3fbf525d81ad12826b27cee3b51623af89bcf80d46d4f8d1e87049645",
+      "id": "i12",
+      "kind": "body",
+      "source": {
+        "path": "src/uart.c",
+        "range": {
+          "endLine": 20,
+          "startLine": 12
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 78,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "c file names use snake_case (confidence 1.00, 3 observations)",
+      "hash": "09719ed003b4d2086fb9f28015ec453a65a707b17aef35641609d1d5b02b0ce8",
+      "id": "i13",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:naming:c"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 20,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "c tests are test files under `test/` (confidence 1.00, 2 observations)",
+      "hash": "9d250fa297445699df2cf824ce98399ca47c7bb72efb42907df07e66aa2bc9e1",
+      "id": "i14",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:tests:c"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 23,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "include/ring.h#ring_t@type"
+      },
+      "reason": "history scope origin_commits_of_sibling requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    },
+    {
+      "args": {
+        "query": "ring_peek"
+      },
+      "reason": "“ring_peek” is not in the index — new code or a different name?",
+      "tool": "riaf_jump"
+    },
+    {
+      "args": {
+        "query": "uint8_t"
+      },
+      "reason": "“uint8_t” is not in the index — new code or a different name?",
+      "tool": "riaf_jump"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "embedded-c",
+  "route": {
+    "H": 0.310183,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.01337,
+      "feature": 0.862363,
+      "merge": 0.01337,
+      "onboarding": 0.01337,
+      "refactor": 0.01337,
+      "review": 0.01337,
+      "unknown": 0.070787
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1244
+}

@@ -20,8 +20,10 @@
     "test": "vitest run --root ../.. packages/serve-mcp"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@riaf/compiler": "workspace:*",
     "@riaf/kernel": "workspace:*",
-    "@riaf/daemon": "workspace:*",
-    "@riaf/compiler": "workspace:*"
+    "zod": "^4.6.7",
+    "@riaf/daemon": "workspace:*"
   }
 }

@@ -1,0 +1,303 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java:\n  public class NearestVehiclePolicy implements AssignmentPolicy\n    public NearestVehiclePolicy(double maxRadiusKm)\n    @Override public Optional<Vehicle> choose(Trip trip, List<Vehicle> candidates)\nmodel/src/main/java/com/fleet/model/Vehicle.java:\n  public class Vehicle\n    public Vehicle(String id, GeoPoint position, int seats)\n    public String getId()\n    public GeoPoint getPosition()\n    public int getSeats()\n    public VehicleStatus getStatus()\n    public void moveTo(GeoPoint p)\n    public void assign()\n    public void release()\n    public void sendToMaintenance()\ndispatch/src/main/java/com/fleet/dispatch/DispatchService.java:\n  public class DispatchService\n    public DispatchService(VehicleRepository repository, AssignmentPolicy policy)\n    public Optional<Vehicle> assign(Trip trip)\n    public void complete(Trip trip)\nmodel/src/main/java/com/fleet/model/Trip.java:\n  public class Trip\n    public Trip(String id, GeoPoint pickup, GeoPoint dropoff, int passengers)\n    public String getId()\n    public GeoPoint getPickup()\n    public GeoPoint getDropoff()\n    public int getPassengers()\n    public String getVehicleId()\n    public void assignTo(Vehicle v)\n    public boolean isAssigned()\ndispatch/src/main/java/com/fleet/dispatch/GeoUtil.java:\n  public final class GeoUtil\n    private GeoUtil()\n    public static double distanceKm(GeoPoint a, GeoPoint b)\ndispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java:\n  public class InMemoryVehicleRepository implements VehicleRepository\n    @Override public Optional<Vehicle> find(String id)\n    @Override public List<Vehicle> findAvailable()\n    @Override public void save(Vehicle vehicle)\ndispatch/src/main/java/com/fleet/dispatch/VehicleRepository.java:\n  public interface VehicleRepository\n    Optional<Vehicle> find(String id);\n    List<Vehicle> findAvailable();\n    void save(Vehicle vehicle);\ndispatch/src/main/java/com/fleet/dispatch/AssignmentPolicy.java:\n  public interface AssignmentPolicy\n    Optional<Vehicle> choose(Trip trip, List<Vehicle> candidates);\ndispatch/src/main/java/com/fleet/dispatch/DispatchController.java:\n  public class DispatchController\n    public DispatchController(DispatchService service)\n    public String requestTrip(double fromLat, double fromLon, double toLat, double toLon, int passengers)\nmodel/src/main/java/com/fleet/model/VehicleStatus.java:\n  public enum VehicleStatus\n    public boolean isAssignable()",
+      "hash": "c64d84b8c1bb287f0927ec8321cbbc101d6b6a9eda87b5da060848d674da2d79",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 809,
+      "why": {
+        "intent": "refactor",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    @Override\n    public Optional<Vehicle> choose(Trip trip, List<Vehicle> candidates) {\n        Vehicle best = null;\n        double bestKm = Double.MAX_VALUE;\n        for (Vehicle v : candidates) {\n            if (v.getSeats() < trip.getPassengers()) continue;\n            double km = GeoUtil.distanceKm(v.getPosition(), trip.getPickup());\n            if (km <= maxRadiusKm && km < bestKm) {\n                best = v;\n                bestKm = km;\n            }\n        }\n        return Optional.ofNullable(best);\n    }",
+      "hash": "71c714bb84c5646afbb02e67efea2fa3c5ad7293a3138ccd2ce66ebadc77417d",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java",
+        "range": {
+          "endLine": 29,
+          "startLine": 16
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 171,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.8696,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    public static double distanceKm(GeoPoint a, GeoPoint b) {\n        double dLat = Math.toRadians(b.lat() - a.lat());\n        double dLon = Math.toRadians(b.lon() - a.lon());\n        double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)\n                + Math.cos(Math.toRadians(a.lat())) * Math.cos(Math.toRadians(b.lat()))\n                * Math.sin(dLon / 2) * Math.sin(dLon / 2);\n        return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));\n    }",
+      "hash": "bd6031118263609d47e54368446854521447992acd8c81144b7064c957f0dcbe",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java",
+        "range": {
+          "endLine": 19,
+          "startLine": 12
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 152,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.8104,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    public String requestTrip(double fromLat, double fromLon, double toLat, double toLon, int passengers) {\n        Trip trip = new Trip(UUID.randomUUID().toString(), new GeoPoint(fromLat, fromLon), new GeoPoint(toLat, toLon), passengers);\n        return service.assign(trip).map(v -> v.getId()).orElse(\"none\");\n    }\n}",
+      "hash": "dcf0e6e1a47c7af4209970e46f9c85b22ca42a9291002c075cb8c9c5e74df0d3",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/DispatchController.java",
+        "range": {
+          "endLine": 20,
+          "startLine": 16
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 106,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    @Override\n    public void save(Vehicle vehicle) {\n        vehicles.put(vehicle.getId(), vehicle);\n    }\n}",
+      "hash": "fe888e36c946466426a33950a87f1d29d475cfd7d0df940595f3b4d0e020b5c8",
+      "id": "i5",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java",
+        "range": {
+          "endLine": 32,
+          "startLine": 28
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 36,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "        DispatchService service = new DispatchService(repo, new NearestVehiclePolicy(25));\n        Trip trip = new Trip(\"t1\", new GeoPoint(12.98, 77.60), new GeoPoint(12.90, 77.50), 2);\n        assertEquals(\"near\", service.assign(trip).orElseThrow().getId());\n        assertTrue(trip.isAssigned());\n    }",
+      "hash": "81b561760295a18c943237f8651ece04f2b768600b7f587720fa5b6e7ceddf28",
+      "id": "i6",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/test/java/com/fleet/dispatch/DispatchServiceTest.java",
+        "range": {
+          "endLine": 22,
+          "startLine": 18
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 102,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "        NearestVehiclePolicy policy = new NearestVehiclePolicy(50);\n        Trip trip = new Trip(\"t\", new GeoPoint(0, 0), new GeoPoint(1, 1), 6);\n        assertTrue(policy.choose(trip, List.of(new Vehicle(\"small\", new GeoPoint(0, 0), 4))).isEmpty());\n    }\n}",
+      "hash": "d20da4b98af9c28d473330821c471247910ed10338622ee0eff1f1d9e9204fb8",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/test/java/com/fleet/dispatch/NearestVehiclePolicyTest.java",
+        "range": {
+          "endLine": 18,
+          "startLine": 14
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 87,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    Optional<Vehicle> choose(Trip trip, List<Vehicle> candidates);",
+      "hash": "10b732cb1ecfb7c58ca08066b42c397e5467cf8f415fc8c94dad115eb7c1692b",
+      "id": "i8",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/AssignmentPolicy.java",
+        "range": {
+          "endLine": 10,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 22,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    public String getId() { return id; }",
+      "hash": "3f9b1eef3af8beef8b46d459919b4c3a4f44c464257381f81d4719fad93cbdec",
+      "id": "i9",
+      "kind": "body",
+      "source": {
+        "path": "model/src/main/java/com/fleet/model/Vehicle.java",
+        "range": {
+          "endLine": 17,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 13,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.6154,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    public Optional<Vehicle> assign(Trip trip) {\n        Optional<Vehicle> chosen = policy.choose(trip, repository.findAvailable());\n        chosen.ifPresent(v -> {\n            v.assign();\n            trip.assignTo(v);\n            repository.save(v);\n        });\n        return chosen;\n    }",
+      "hash": "de2f6e5e8e32e7fb1b0568925ce247b53c434f4fe8b39bb830fdd746b8483b1e",
+      "id": "i10",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/DispatchService.java",
+        "range": {
+          "endLine": 26,
+          "startLine": 18
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 97,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.5749,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    /** Assigns the trip to a vehicle and persists the vehicle; empty when none qualifies. */\n    public Optional<Vehicle> assign(Trip trip) {\n        Optional<Vehicle> chosen = policy.choose(trip, repository.findAvailable());\n        chosen.ifPresent(v -> {\n            v.assign();",
+      "hash": "751aef8d2d46fe8a5e1b65bb27e9813e988c9eef95c597216837197212d5c725",
+      "id": "i11",
+      "kind": "body",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/DispatchService.java",
+        "range": {
+          "endLine": 21,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 93,
+      "why": {
+        "intent": "refactor",
+        "rule": "dynamic_dispatch_sites",
+        "score": 0.54,
+        "weight": 1
+      }
+    },
+    {
+      "content": "public interface AssignmentPolicy {\n  Optional<Vehicle> choose(Trip trip, List<Vehicle> candidates);\n}",
+      "hash": "0f21b12b9aca8cfe47b3ab21e73bda6ded467e6bdef0e3def217184428b9f76a",
+      "id": "i12",
+      "kind": "signature",
+      "source": {
+        "path": "dispatch/src/main/java/com/fleet/dispatch/AssignmentPolicy.java",
+        "range": {
+          "endLine": 11,
+          "startLine": 9
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 33,
+      "why": {
+        "intent": "refactor",
+        "rule": "inheritance_tree",
+        "score": 0.5,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java#GeoUtil.distanceKm@method"
+      },
+      "reason": "history scope reverts_touching_anchors requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    },
+    {
+      "args": {
+        "query": "GeoPoint"
+      },
+      "reason": "“GeoPoint” is not in the index — new code or a different name?",
+      "tool": "riaf_jump"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "fleet-java",
+  "route": {
+    "H": 0.364198,
+    "branch": "blended",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.012889,
+      "feature": 0.048895,
+      "merge": 0.012889,
+      "onboarding": 0.012889,
+      "refactor": 0.831311,
+      "review": 0.012889,
+      "unknown": 0.068238
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1721
+}

@@ -13,3 +13,5 @@ Protocol 1.1 (this ADR) adds `daemon.info`, `daemon.shutdown`, a free-text `quer
 ## Consequences
 - Clients built for 1.0 keep working against a 1.1 daemon.
 - Each milestone that adds RPC methods bumps the minor in the same commit as the schema change.
+
+Protocol 1.2 (M3) adds `pack.get`, `wiki.structure`, `wiki.page`, `runbook.get`, and optional `sessionId` / `includeRunbook` on `pack.compile`; `route` and `pack.compile` become served.

@@ -1,8 +1,8 @@
 /**
- * @riaf/serve-mcp — MCP server for Claude Code and any MCP client, Claude Code hooks, installable plugin bundle.
- *
- * Placeholder until milestone M3; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/serve-mcp — the MCP server for Claude Code and any MCP client: riaf_pack, riaf_jump,
+ * riaf_impact, riaf_history, riaf_wiki and the riaf:// resources, over stdio or streamable HTTP.
+ * Hooks and the installable plugin arrive with M5.
  */
-export const PACKAGE = '@riaf/serve-mcp' as const;
-export const MILESTONE = 'M3' as const;
+export * from './format.js';
+export * from './server.js';
+export * from './transports.js';

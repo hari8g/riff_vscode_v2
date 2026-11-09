@@ -1,10 +1,10 @@
 import { createServer, type Server, type Socket } from 'node:net';
 import { rmSync } from 'node:fs';
-import { RPC, RiafError, toRiafError, type Logger, type RpcMethod, type RpcParams, type RpcResult } from '@riaf/kernel';
+import { RPC, RiafError, toRiafError, type Logger, type RpcMethod, type RpcParsedParams, type RpcResult } from '@riaf/kernel';
 import { encodeLine, JSONRPC_ERRORS, LineDecoder, type WireError } from './protocol.js';
 
 /** One handler per RPC method; params arrive already validated and defaulted by the method's schema. */
-export type RpcHandlers = { [M in RpcMethod]?: (params: RpcParams<M> & Record<string, unknown>) => Promise<RpcResult<M>> | RpcResult<M> };
+export type RpcHandlers = { [M in RpcMethod]?: (params: RpcParsedParams<M>) => Promise<RpcResult<M>> | RpcResult<M> };
 
 export interface DispatchOptions {
   /** Validate results against the contract too (tests and debug builds). */

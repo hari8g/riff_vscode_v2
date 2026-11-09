@@ -115,7 +115,11 @@ export function discoverFiles(root: string, opts: DiscoverOptions = {}): Discove
   const max = opts.maxFileBytes ?? MAX_FILE_BYTES;
   const ignoredDirs = new Set(DEFAULT_IGNORED_DIRS);
   const out: DiscoveredFile[] = [];
-  const base = new IgnoreSet((opts.extraIgnores ?? []).map((p) => compileIgnore(p, '')).filter((r): r is IgnoreRule => r !== undefined));
+  // `.riafignore` (gitignore syntax) excludes paths from the index without touching git
+  const base = new IgnoreSet([
+    ...(opts.extraIgnores ?? []).map((p) => compileIgnore(p, '')).filter((r): r is IgnoreRule => r !== undefined),
+    ...readIgnoreFile(join(root, '.riafignore'), ''),
+  ]);
   const walk = (dir: string, rel: string, ignore: IgnoreSet) => {
     let names: string[];
     try {

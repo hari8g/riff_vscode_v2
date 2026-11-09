@@ -1,6 +1,10 @@
-import { join } from 'node:path';
-import { createLogger, RiafError, type Logger, type RpcMethod, type RpcParams, type RpcResult, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
+import { readFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
+import { compile, render, type RepoView } from '@riaf/compiler';
+import { createLogger, hashWith, PackSchema, RiafError, shortHash, type Logger, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
 import { Graph, GRAPH_STAGE } from '@riaf/graph';
+import { DEFAULT_POLICIES, route } from '@riaf/intent';
+import { Semantic, SUMMARY_STAGE } from '@riaf/semantic';
 import { clientFor, enrichWithLsp, familyOf, languageOf, PARSE_STAGE, readRepoText, runParseStage, scanIntoStore, type DiscoverOptions } from '@riaf/parse';
 import { Store, type StoreOptions } from '@riaf/store';
 import { gitHead } from './git.js';
@@ -10,7 +14,7 @@ import { Scheduler, type PipelineStage, type RunSummary } from './scheduler.js';
 import type { RpcCaller } from './rpc/client.js';
 import { fromWireError } from './rpc/protocol.js';
 
-export const DAEMON_VERSION = '0.2.0';
+export const DAEMON_VERSION = '0.3.0';
 
 export interface DaemonCoreOptions {
   root: string;
@@ -23,6 +27,8 @@ export interface DaemonCoreOptions {
   discover?: DiscoverOptions;
   /** Validate RPC results against the contract (tests). */
   validateResults?: boolean;
+  /** Name stamped into packs and the run-book; defaults to the root directory's name. */
+  repoName?: string;
   /** Called after each pipeline run (the daemon persists the store here). */
   afterRun?: (s: RunSummary) => Promise<void> | void;
 }
@@ -36,12 +42,14 @@ export class DaemonCore implements RpcCaller {
   readonly handlers: RpcHandlers = {};
   readonly scheduler: Scheduler;
   readonly graph: Graph;
+  readonly semantic: Semantic;
   /** Paths parsed by the most recent run (LSP enrichment works on these). */
   private lastParsed: string[] = [];
   onShutdown: (() => void) | undefined;
 
   private constructor(readonly root: string, readonly store: Store, private readonly opts: DaemonCoreOptions, readonly logger: Logger) {
     this.graph = new Graph(store);
+    this.semantic = new Semantic(store, this.graph, opts.repoName ?? basename(resolve(root)));
     this.scheduler = new Scheduler(this.buildStages(), store, root, logger, opts.afterRun);
     this.registerHandlers();
   }
@@ -79,6 +87,13 @@ export class DaemonCore implements RpcCaller {
         },
       },
       {
+        name: SUMMARY_STAGE, after: [GRAPH_STAGE], merkleGated: true,
+        run: async ({ events }) => {
+          const r = this.semantic.update({ events });
+          return { changed: r.files + r.directories };
+        },
+      },
+      {
         name: 'lsp', after: [GRAPH_STAGE], enabled: () => this.opts.lsp === true,
         run: async ({ store, signal }) => {
           const byFamily = new Map<string, string[]>();
@@ -107,6 +122,24 @@ export class DaemonCore implements RpcCaller {
   /** Names of the pipeline stages in run order. */
   get stageNames(): string[] {
     return this.scheduler.stageNames;
+  }
+
+  /** Validated policies for this repository (built-in defaults when `.riaf/policies.yaml` is absent or invalid). */
+  policies(): { policies: PoliciesFile; version: string } {
+    const l = loadPolicies(this.root);
+    return l.policies ? { policies: l.policies, version: l.version } : { policies: DEFAULT_POLICIES, version: 'builtin@1' };
+  }
+
+  /** The read view the compiler works on. */
+  repoView(): RepoView {
+    let constraints: string | undefined;
+    try {
+      constraints = readFileSync(join(this.root, '.riaf', 'constraints.md'), 'utf8');
+    } catch {
+      constraints = undefined;
+    }
+    const head = gitHead(this.root);
+    return { repoName: this.opts.repoName ?? basename(resolve(this.root)), store: this.store, graph: this.graph, semantic: this.semantic, ...(head ? { commit: head } : {}), ...(constraints ? { constraints } : {}) };
   }
 
   /** Runs the pipeline now (or joins the run in progress). */
@@ -159,6 +192,37 @@ export class DaemonCore implements RpcCaller {
       const r = this.graph.impact(p.symbols as never, p.hops);
       return { closure: r.closure.map((c) => ({ symbol: c.symbol, distance: c.distance, via: c.via })), coChange: r.coChange, tests: r.tests };
     };
+    h['route'] = async (p) => {
+      const { policies, version } = this.policies();
+      const r = await route(p, { store: this.store, graph: this.graph, policies, policyVersion: version });
+      this.logRoute(p.text, r.policy);
+      return r.policy;
+    };
+    h['pack.compile'] = async (p) => {
+      const { policies, version } = this.policies();
+      const policy = p.route ?? (await route(p.request!, { store: this.store, graph: this.graph, policies, policyVersion: version })).policy;
+      const routeId = p.route ? undefined : this.logRoute(p.request!.text, policy, p.sessionId);
+      const includeRunbook = p.includeRunbook ?? !['claude', 'json'].includes(p.target);
+      const pack = compile(policy, this.repoView(), { ...(p.budget ? { budget: p.budget } : {}), includeRunbook, ...(p.sessionId ? { sessionId: p.sessionId } : {}) });
+      this.store.compileLog.recordPack({
+        packId: pack.packId, ...(routeId ? { routeId } : {}), ...(p.sessionId ? { sessionId: p.sessionId } : {}), createdAt: pack.createdAt, budget: pack.budget,
+        tokensUsed: pack.tokensUsed, policyVersion: pack.policyVersion, json: JSON.stringify(pack),
+        items: pack.items.map((i) => ({ itemId: i.id, tier: i.tier, kind: i.kind, ...((i.source as { path?: string }).path ? { path: (i.source as { path: string }).path } : {}), intent: i.why.intent, rule: i.why.rule, score: i.why.score, tokens: i.tokens })),
+      });
+      return { pack, rendered: render(pack, p.target) };
+    };
+    h['pack.get'] = (p) => {
+      const json = this.store.compileLog.pack(p.packId, p.sessionId);
+      if (!json) return {};
+      const pack = PackSchema.parse(JSON.parse(json)) as Pack;
+      return { pack, rendered: render(pack, p.target) };
+    };
+    h['wiki.structure'] = (p) => ({ tree: this.semantic.wikiStructure(p.depth) });
+    h['wiki.page'] = (p) => this.semantic.wikiPage(p.node);
+    h['runbook.get'] = () => {
+      const text = this.semantic.runbook(this.repoView().constraints);
+      return { text, lines: text.trimEnd().split('\n').length };
+    };
     h['policies.get'] = () => {
       const l = loadPolicies(this.root);
       return { policies: l.policiesText, governance: l.governanceText, version: l.version };
@@ -167,6 +231,13 @@ export class DaemonCore implements RpcCaller {
       const v = validatePolicyTexts(p.policies, p.governance);
       return { ok: v.diagnostics.length === 0, diagnostics: v.diagnostics };
     };
+  }
+
+  private logRoute(text: string, policy: { branch: string; H: number; w: Record<string, number | undefined> }, sessionId?: string): string {
+    const createdAt = new Date().toISOString();
+    const routeId = `rt-${shortHash(hashWith('route', text, createdAt), 12)}`;
+    this.store.compileLog.recordRoute({ routeId, ...(sessionId ? { sessionId } : {}), text, branch: policy.branch, H: policy.H, w: Object.fromEntries(Object.entries(policy.w).map(([k, v]) => [k, v ?? 0])), json: JSON.stringify(policy), createdAt });
+    return routeId;
   }
 
   /** In-process RPC with the same validation as the socket server. */

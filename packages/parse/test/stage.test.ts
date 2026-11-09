@@ -21,6 +21,7 @@ describe('discovery', () => {
   it('honours .gitignore (nested, negation, dir-only) and default ignored dirs', () => {
     const d = copyFixture();
     writeFileSync(join(d, '.gitignore'), 'generated/\n*.log\n!keep.log\n/rootonly.ts\n');
+    writeFileSync(join(d, '.riafignore'), 'src/config/\n');
     for (const [p, c] of [['generated/x.ts', 'export const a = 1;'], ['node_modules/m/index.js', ''], ['a.log', ''], ['keep.log', ''], ['rootonly.ts', ''], ['src/rootonly.ts', 'export const b = 2;']]) {
       const full = join(d, p!);
       cpSync(FIXTURE + '/package.json', full, { force: true });
@@ -31,6 +32,7 @@ describe('discovery', () => {
     expect(paths).toContain('src/rootonly.ts');
     expect(paths).not.toContain('rootonly.ts');
     expect(paths.some((p) => p.startsWith('generated/') || p.startsWith('node_modules/'))).toBe(false);
+    expect(paths.some((p) => p.startsWith('src/config/'))).toBe(false); // .riafignore
   });
   it('compileIgnore handles ** and anchoring', () => {
     expect(compileIgnore('**/fixtures/*.json', '')!.re.test('a/b/fixtures/x.json')).toBe(true);

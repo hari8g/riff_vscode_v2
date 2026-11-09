@@ -1,0 +1,298 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/telemetry/pipeline.py:\n  class Pipeline\n    def __init__(self, config: Config, sink=None)\n    def submit(self, frame)\n    def flush(self)\nsrc/telemetry/codec.py:\n  @dataclass(frozen=True) class Frame\n  def checksum(payload: bytes) -> int\n  def encode(frame: Frame) -> bytes\n  def decode(data: bytes) -> Frame\nsrc/telemetry/buffer.py:\n  class RingBuffer\n    def __init__(self, capacity)\n    def __len__(self)\n    @property def capacity(self)\n    def push(self, item)\n    def drain(self)\nsrc/telemetry/sampler.py:\n  class Sampler\n    def __init__(self, every=1)\n    def accept(self, frame: Frame) -> bool\n    def reset(self)\nsrc/telemetry/config.py:\n  @dataclass(frozen=True) class Config\n    @classmethod def from_env(cls, env=None)\nsrc/telemetry/sinks.py:\n  class Sink\n    def write(self, batch)\n  class MemorySink(Sink)\n    def __init__(self)\n    def write(self, batch)\n  class FailingSink(Sink)\n    def write(self, batch)\n  def make_sink(url)",
+      "hash": "a8b1de01b3550dfa22078d64ecad91727e033c8c27a622afb080f9e8ed906ad1",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 312,
+      "why": {
+        "intent": "onboarding",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Python package that samples vehicle telemetry, encodes frames, buffers them and ships them to sinks.\n- src/ — directory\n- tests/ — directory\n- pyproject.toml — pyproject.toml.",
+      "hash": "56cc390b9c9c3ab0fa381ff6ed7c77558e5e90b9ff36e4a2c420e26c743a8f5a",
+      "id": "i2",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 45,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.7,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src: 0 files, 1 directory.\n- telemetry/ — src/telemetry: 7 files.",
+      "hash": "6c673decf6562f376aaaedb68f393b5f4611d742a4fd9e28ea681eab3057f757",
+      "id": "i3",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 17,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.6364,
+        "weight": 1
+      }
+    },
+    {
+      "content": "src/telemetry: 7 files.\n- __init__.py — Vehicle telemetry sampling, encoding and shipping.\n- buffer.py — Fixed-capacity ring buffer that drops the oldest frame when full.\n- codec.py — Binary frame codec: header byte, vehicle id, timestamp, speed and a checksum.\n- config.py — Runtime configuration loaded from the environment.\n- pipeline.py — Sample → encode → buffer → flush to a sink.\n- sampler.py — Down-samples a stream of readings.\n- sinks.py — Destinations for encoded frames.",
+      "hash": "4022b03caa0621139c2c66f4a29932ffb66bc1e0987672a08cbfa6212a804198",
+      "id": "i4",
+      "kind": "summary",
+      "source": {
+        "virtual": "summary:src/telemetry/"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 124,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.5833,
+        "weight": 1
+      }
+    },
+    {
+      "content": "languages: python 10\nframeworks: pytest\nentry points: src/telemetry/__init__.py\ncluster src/telemetry/: 5 files\ncluster src/telemetry/: 3 files\ncluster ./: 2 files\ncluster src/telemetry/: 2 files",
+      "hash": "724bf343c2f9054f9588006cd93ed2cf3fba878b22ed54759c44fd13ced5af9f",
+      "id": "i5",
+      "kind": "summary",
+      "source": {
+        "virtual": "architecture"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 50,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.56,
+        "weight": 1
+      }
+    },
+    {
+      "content": "Sample → encode → buffer → flush to a sink. class Pipeline.",
+      "hash": "0328776c5ddafa44d75753f2fd42c39844555f83f53c965a6ce824d57deee071",
+      "id": "i6",
+      "kind": "summary",
+      "source": {
+        "path": "src/telemetry/pipeline.py"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 15,
+      "why": {
+        "intent": "onboarding",
+        "rule": "module_summaries",
+        "score": 0.5385,
+        "weight": 1
+      }
+    },
+    {
+      "content": "class Pipeline:\n    def __init__(self, config: Config, sink=None):\n        self.config = config\n        self.sampler = Sampler(config.sample_every)\n        self.buffer = RingBuffer(config.buffer_size)\n        self.sink = sink if sink is not None else make_sink(config.sink_url)\n\n    def submit(self, frame):\n        \"\"\"Samples and buffers one frame; returns True when it was kept.\"\"\"\n        if not self.sampler.accept(frame):\n            return False\n        self.buffer.push(encode(frame))\n        return True\n\n    def flush(self):\n        \"\"\"Writes buffered frames to the sink; frames are kept if the sink fails.\"\"\"\n        batch = self.buffer.drain()\n        if not batch:\n            return 0\n        try:\n            self.sink.write(batch)\n        except IOError:\n            for item in batch:\n                self.buffer.push(item)\n            raise\n        return len(batch)",
+      "hash": "7d3981fc5446a27532f4dbe30a07d19d26e756368b467d1f290c99aed0366c1b",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/pipeline.py",
+        "range": {
+          "endLine": 35,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 288,
+      "why": {
+        "intent": "onboarding",
+        "rule": "anchor",
+        "score": 0.8496,
+        "weight": 1
+      }
+    },
+    {
+      "content": "class Pipeline {\n  def __init__(self, config: Config, sink=None)\n  /** Samples and buffers one frame; returns True when it was kept. */\n  def submit(self, frame)\n  /** Writes buffered frames to the sink; frames are kept if the sink fails. */\n  def flush(self)\n}",
+      "hash": "718b8978ee0c796539c1d02bde87b4d677b78cc1395f8bc0c6495037f09cba0a",
+      "id": "i8",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/pipeline.py",
+        "range": {
+          "endLine": 35,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 86,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.6,
+        "weight": 1
+      }
+    },
+    {
+      "content": "MAGIC = 0x7E\n_FMT = \">BIQf\"\n@dataclass(frozen=True) class Frame {\n}\n/** Simple additive checksum modulo 256. */\ndef checksum(payload: bytes) -> int\n/** Encodes a frame and appends its checksum byte. */\ndef encode(frame: Frame) -> bytes\n/** Decodes a frame, validating magic and checksum. */\ndef decode(data: bytes) -> Frame",
+      "hash": "051307c354d4806608c8e42ff69420e33ccdd047abc3f69628837d57024ff225",
+      "id": "i9",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/codec.py",
+        "range": {
+          "endLine": 36,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 108,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.5357,
+        "weight": 1
+      }
+    },
+    {
+      "content": "class RingBuffer {\n  def __init__(self, capacity)\n  def __len__(self)\n  @property def capacity(self)\n  /** Appends an item, overwriting the oldest one when the buffer is full. */\n  def push(self, item)\n  /** Returns all items oldest first and empties the buffer. */\n  def drain(self)\n}",
+      "hash": "cee326945640ceb9fc15eac28bacb325519fd141e7c6c47edf6af0060d764054",
+      "id": "i10",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/buffer.py",
+        "range": {
+          "endLine": 35,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 93,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4839,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** Keeps every n-th reading per vehicle. */\nclass Sampler {\n  def __init__(self, every=1)\n  def accept(self, frame: Frame) -> bool\n  def reset(self)\n}",
+      "hash": "892d14fc3299345362c6d6e363daeec797564f5d7ac6cffc09b15c84a489b755",
+      "id": "i11",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/sampler.py",
+        "range": {
+          "endLine": 19,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 50,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4412,
+        "weight": 1
+      }
+    },
+    {
+      "content": "DEFAULT_BUFFER_SIZE = 256\n@dataclass(frozen=True) class Config {\n  /** Builds a config from TELEMETRY_* variables, falling back to defaults. */\n  @classmethod def from_env(cls, env=None)\n}",
+      "hash": "f1cd38c1702edb238b1e6596e0d2fe2af90947f81f0964fd4400f81c675f275e",
+      "id": "i12",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/config.py",
+        "range": {
+          "endLine": 23,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 62,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.4054,
+        "weight": 1
+      }
+    },
+    {
+      "content": "class Sink {\n  def write(self, batch)\n}\n/** Collects batches in memory (tests and demos). */\nclass MemorySink(Sink) {\n  def __init__(self)\n  def write(self, batch)\n}\n/** Always raises; used to test retry behaviour. */\nclass FailingSink(Sink) {\n  def write(self, batch)\n}\n/** Creates a sink from a URL; only memory:// is built in. */\ndef make_sink(url)",
+      "hash": "08f92c24a026395a77128fc223db3b14929febbe0adf29239647794b8f544901",
+      "id": "i13",
+      "kind": "signature",
+      "source": {
+        "path": "src/telemetry/sinks.py",
+        "range": {
+          "endLine": 30,
+          "startLine": 1
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 117,
+      "why": {
+        "intent": "onboarding",
+        "rule": "file_skeletons",
+        "score": 0.375,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/telemetry/pipeline.py#Pipeline.submit@method"
+      },
+      "reason": "history scope adrs requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "telemetry-py",
+  "route": {
+    "H": 0.090101,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.002843,
+      "feature": 0.002843,
+      "merge": 0.002843,
+      "onboarding": 0.970735,
+      "refactor": 0.002843,
+      "review": 0.002843,
+      "unknown": 0.01505
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1367
+}

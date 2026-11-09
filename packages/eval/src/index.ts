@@ -14,3 +14,4 @@ export * from './harness.js';
 export * from './runners/types.js';
 export * from './runners/scripted.js';
 export * from './runners/claude.js';
+export * from './runners/compiler.js';

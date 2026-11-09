@@ -1,0 +1,340 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/toll/ledger.ts:\n  export interface LedgerEntry\n  export class Ledger\n    post(sessionId: string, amountPaise: number): void\n    private tryWrite(e: LedgerEntry): boolean\n    total(): number\nsrc/gantry/lane.ts:\n  export class Lane\n    record(r: GantryReading): void\nsrc/gantry/reading.ts:\n  export interface GantryReading\n  export function isTrusted(r: GantryReading): boolean\nsrc/config/flags.ts:\n  export class FeatureFlags\nsrc/gantry/gantry.ts:\n  export class Gantry\n    lane(id: number): Lane\n    ingest(r: GantryReading): void\nsrc/util/clock.ts:\n  export interface Clock\n    now(): number\n  export class FixedClock implements Clock\n    now(): number\nsrc/toll/session.ts:\n  export class TollSession\n    constructor( readonly id: string, readonly plate: Plate, private readonly ledger: Ledger, private readonly flags: FeatureFlags, )\n    close(amountPaise: number): void\nsrc/toll/processor.ts:\n  export class PassageProcessor\n    constructor( private readonly store: SessionStore, private readonly ledger: Ledger, private readonly pricing: PricingEngine, private readonly flags: FeatureFlags, private readonly notifier: Notifier, private readonly plazaId: string, )\n    async process(raw: GantryReading): Promise<TollSession | undefined>\nsrc/settlement/settler.ts:\n  export class Settler\n    constructor(private readonly ledger: Ledger, private readonly bank: BankGateway, private readonly clock: Clock, private readonly batchSize = 500)\n    async settle(): Promise<SettlementReport>\nsrc/pricing/engine.ts:\n  export class PricingEngine\n    quote(r: GantryReading, plazaId: string): number\nsrc/gantry/dedupe.ts:\n  export class ReadingDeduper\n    accept(r: GantryReading): GantryReading | undefined\nsrc/settlement/bank.ts:\n  export interface BankGateway\n  export class FakeBank implements BankGateway\nsrc/toll/plate.ts:\n  export interface Plate",
+      "hash": "4f49c0ee89d638081a53b57e74d13f036cf8bc06bf696047657169f75188199f",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 600,
+      "why": {
+        "intent": "refactor",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export class Ledger {\n  private readonly entries: LedgerEntry[] = [];\n  private readonly maxRetries = 3;\n\n  post(sessionId: string, amountPaise: number): void {\n    if (amountPaise <= 0) throw new Error('amount must be positive');\n    for (let attempt = 0; attempt < this.maxRetries; attempt++) {\n      if (this.tryWrite({ sessionId, amountPaise, at: Date.now() })) return;\n    }\n    throw new Error(`ledger post failed after ${this.maxRetries} retries`);\n  }\n\n  private tryWrite(e: LedgerEntry): boolean {\n    this.entries.push(e);\n    return true;\n  }\n\n  /** Removes and returns every entry (settlement takes ownership). */\n  drain(): LedgerEntry[] {\n    return this.entries.splice(0, this.entries.length);\n  }\n\n  total(): number {\n    return this.entries.reduce((a, e) => a + e.amountPaise, 0);\n  }\n}",
+      "hash": "b60665141de8660bf20feed593cce59ba0739c3adc7a86619a3cf0a6bd2dc08c",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/ledger.ts",
+        "range": {
+          "endLine": 33,
+          "startLine": 8
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 268,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.8696,
+        "weight": 1
+      }
+    },
+    {
+      "content": "\n  ingest(r: GantryReading): void {\n    this.lane(r.laneId).record(r);\n  }\n",
+      "hash": "091779968213220624dd1c796ed7b14bd9980b9562b4666b31359471d491c497",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "src/gantry/gantry.ts",
+        "range": {
+          "endLine": 21,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 26,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "/** Drains the ledger into bank batches; rejected batches are returned for retry. */\nexport class Settler {\n  constructor(private readonly ledger: Ledger, private readonly bank: BankGateway, private readonly clock: Clock, private readonly batchSize = 500) {}\n\n  async settle(): Promise<SettlementReport> {",
+      "hash": "fb8c46cb198544f62179e6063979210f767ad15460375b2f9fd31c7068884943",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "src/settlement/settler.ts",
+        "range": {
+          "endLine": 15,
+          "startLine": 11
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 99,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  constructor(\n    private readonly store: SessionStore,\n    private readonly ledger: Ledger,\n    private readonly pricing: PricingEngine,\n    private readonly flags: FeatureFlags,",
+      "hash": "39a8ca1c9d040c5261a996f2e2e2a82007ae90c59c963856550730b31fe299a3",
+      "id": "i5",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/processor.ts",
+        "range": {
+          "endLine": 22,
+          "startLine": 18
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 58,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    readonly id: string,\n    readonly plate: Plate,\n    private readonly ledger: Ledger,\n    private readonly flags: FeatureFlags,\n  ) {}",
+      "hash": "9243792a5a7977be387114245e0183033e0e90e877bae77ce8c1de992b9c7139",
+      "id": "i6",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 18,
+          "startLine": 14
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 44,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    }\n    if (this.flags.isEnabled('charge-on-close')) {\n      this.ledger.post(this.id, amountPaise);\n    }\n    this.closedAt = Date.now();",
+      "hash": "8d69df1e1a1974836f0d76fcdc6219f0f42359b4706eeeeecf1d45de38ccdc1d",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 30,
+          "startLine": 26
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 48,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "\nconst make = () => {\n  const ledger = new Ledger();\n  const notifier = new MemoryNotifier();\n  const p = new PassageProcessor(new SessionStore(), ledger, new PricingEngine({ lastPassageAt: () => undefined }), new FeatureFlags(), notifier, 'plaza-1');",
+      "hash": "d5012f61f597cc09e87137ad467ffab9ddf08a66626a876f71231aac2605a776",
+      "id": "i8",
+      "kind": "body",
+      "source": {
+        "path": "test/processor.test.ts",
+        "range": {
+          "endLine": 12,
+          "startLine": 8
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 84,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "\n  it('marks an invalid plate disputed and never charges', () => {\n    const ledger = new Ledger();\n    const s = new TollSession('s2', { text: 'BAD', region: 'KA' }, ledger, new FeatureFlags());\n    s.close(5500);",
+      "hash": "1ed60db62d77195e1b6ad9a07f80e01757653a5e31407c1bb38ab7249e84eae3",
+      "id": "i9",
+      "kind": "body",
+      "source": {
+        "path": "test/session.test.ts",
+        "range": {
+          "endLine": 18,
+          "startLine": 14
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 72,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "describe('TollSession', () => {\n  it('charges a valid plate on close', () => {\n    const ledger = new Ledger();\n    const s = new TollSession('s1', { text: 'KA01AB1234', region: 'KA' }, ledger, new FeatureFlags());\n    s.close(5500);",
+      "hash": "9ba495bfbe2ae6fd75cf45a4a746f88908296ee16a7c4b3bcc7a36804e153e06",
+      "id": "i10",
+      "kind": "body",
+      "source": {
+        "path": "test/session.test.ts",
+        "range": {
+          "endLine": 10,
+          "startLine": 6
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 80,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "\n  it('drains the ledger and reports rejected batches', async () => {\n    const ledger = new Ledger();\n    ledger.post('s1', 100);\n    ledger.post('s2', 200);",
+      "hash": "9269304095612f977d7f06f718430b37b69809e7a3b48f95faa0c7bc2a4fa2ae",
+      "id": "i11",
+      "kind": "body",
+      "source": {
+        "path": "test/settlement.test.ts",
+        "range": {
+          "endLine": 19,
+          "startLine": 15
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 53,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  it('drains the ledger and reports rejected batches', async () => {\n    const ledger = new Ledger();\n    ledger.post('s1', 100);\n    ledger.post('s2', 200);\n    const report = await new Settler(ledger, new FakeBank(150), new FixedClock(0), 1).settle();",
+      "hash": "5b8d374f5d3aba2103500eea2d96504d11af1a01656608ccd126492f9d09648c",
+      "id": "i12",
+      "kind": "body",
+      "source": {
+        "path": "test/settlement.test.ts",
+        "range": {
+          "endLine": 20,
+          "startLine": 16
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 85,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    const ledger = new Ledger();\n    ledger.post('s1', 100);\n    ledger.post('s2', 200);\n    const report = await new Settler(ledger, new FakeBank(150), new FixedClock(0), 1).settle();\n    expect(report.accepted).toHaveLength(1);",
+      "hash": "8ef7c303c9599ab678d38bc0f302202c987839024dc43b3d68024d84a6430672",
+      "id": "i13",
+      "kind": "body",
+      "source": {
+        "path": "test/settlement.test.ts",
+        "range": {
+          "endLine": 21,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 77,
+      "why": {
+        "intent": "refactor",
+        "rule": "reference_closure",
+        "score": 0.75,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  record(r: GantryReading): void {\n    if (r.laneId !== this.id || r.gantryId !== this.gantryId) throw new Error('reading for another lane');\n    this.lastReadAt = r.at;\n  }",
+      "hash": "5452dd7fac263a0f10e53f2c3e51e6bca9072aabf1478833098df92903173265",
+      "id": "i14",
+      "kind": "body",
+      "source": {
+        "path": "src/gantry/lane.ts",
+        "range": {
+          "endLine": 13,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 58,
+      "why": {
+        "intent": "refactor",
+        "rule": "anchor",
+        "score": 0.6877,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/toll/ledger.ts#Ledger.post@method"
+      },
+      "reason": "history scope reverts_touching_anchors requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "toll-ts",
+  "route": {
+    "H": 0.010757,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.00024,
+      "feature": 0.00024,
+      "merge": 0.00024,
+      "onboarding": 0.00024,
+      "refactor": 0.997531,
+      "review": 0.00024,
+      "unknown": 0.001269
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1652
+}

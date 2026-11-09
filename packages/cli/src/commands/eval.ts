@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { ClaudeHeadlessRunner, defaultPaths, loadTasks, renderMarkdown, runEval, ScriptedBaselineRunner, type Runner } from '@riaf/eval';
+import { checkGolden, ClaudeHeadlessRunner, compileTaskPack, CompilerRunner, defaultPaths, GOLDEN_TASKS, loadTasks, renderMarkdown, runEval, ScriptedBaselineRunner, type Runner } from '@riaf/eval';
 import { bool, int, str, type ParsedArgs } from '../args.js';
 import type { Io } from '../io.js';
 
@@ -14,13 +14,26 @@ export async function cmdEval(p: ParsedArgs, io: Io): Promise<number> {
   if (str(p, 'tasks')) paths.tasks = resolve(str(p, 'tasks')!);
   const only = str(p, 'only')?.split(',').filter(Boolean);
   const tasks = loadTasks(paths.tasks).filter((t) => !only || only.includes(t.id));
+  if (bool(p, 'golden') || bool(p, 'approve-golden')) {
+    const approve = bool(p, 'approve-golden');
+    let drift = 0;
+    for (const id of GOLDEN_TASKS) {
+      const task = tasks.find((t) => t.id === id);
+      if (!task) continue;
+      const d = checkGolden(paths.goldenPacks, id, await compileTaskPack(task, { paths }), approve);
+      if (d.status !== 'same') drift++;
+      io.out(`${d.status.padEnd(7)} ${id}${d.diff.length ? `\n${d.diff.map((l) => `    ${l}`).join('\n')}` : ''}`);
+    }
+    return drift && !approve ? 1 : 0;
+  }
   const names = (str(p, 'runner') ?? 'scripted').split(',');
   const runners: Runner[] = [];
   for (const n of names) {
     if (n === 'scripted') runners.push(new ScriptedBaselineRunner());
+    else if (n === 'compiler') runners.push(new CompilerRunner({ ...(int(p, 'budget') ? { budget: int(p, 'budget')! } : {}) }));
     else if (n === 'claude') runners.push(new ClaudeHeadlessRunner({ label: 'claude-baseline', maxTurns: int(p, 'max-turns', 30)!, ...(str(p, 'model') ? { model: str(p, 'model')! } : {}) }));
     else {
-      io.err(`unknown runner ${n} (available: scripted, claude; compiler arrives with M3)`);
+      io.err(`unknown runner ${n} (available: scripted, compiler, claude)`);
       return 2;
     }
   }

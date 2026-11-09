@@ -37,7 +37,7 @@ export function renderRunbook(input: RunbookInput): string {
   const pk = a.packages.filter((p) => p.dir);
   if (pk.length) flexible.push(`- packages: ${pk.slice(0, 12).map((p) => `${p.dir} (${p.name})`).join(', ')}${pk.length > 12 ? ', …' : ''}`);
   if (a.entryPoints.length) flexible.push(`- entry points: ${a.entryPoints.slice(0, 6).join(', ')}`);
-  for (const c of a.clusters.slice(0, 6)) flexible.push(`- ${c.name}/ (${c.files} files): ${c.sample.join(', ')}${c.files > c.sample.length ? ', …' : ''}`);
+  for (const c of a.clusters.slice(0, 6)) flexible.push(`- cluster of ${c.files} files: ${c.sample.map((d) => `${d}/`).join(', ')}`);
   if (a.testLayout.length) flexible.push(`- tests: ${a.testLayout.join(', ')}`);
   if (a.generated.length) flexible.push(`- generated (never edit): ${a.generated.join(', ')}`);
   const conv = input.conventions.filter((c) => c.confidence >= 0.8);

@@ -58,7 +58,7 @@ describe('riaf CLI (in-process)', () => {
 });
 
 describe('riaf binary with a real daemon', () => {
-  it('auto-starts the daemon on jump, then stops it', () => {
+  it('auto-starts the daemon on jump, then stops it', async () => {
     const root = copy('telemetry-py');
     const bin = resolve(__dirname, '../dist/main.js');
     const out = execFileSync(process.execPath, [bin, 'jump', 'Pipeline.flush', '--root', root], { encoding: 'utf8', timeout: 60_000 });
@@ -67,5 +67,16 @@ describe('riaf binary with a real daemon', () => {
     expect(status.symbols).toBeGreaterThan(10);
     const info = JSON.parse(execFileSync('cat', [join(root, '.riaf/daemon.json')], { encoding: 'utf8' }));
     process.kill(info.pid, 'SIGTERM');
-  });
+    // wait for the daemon to finish its shutdown (it persists the index) before the temp dir goes
+    const alive = () => {
+      try {
+        process.kill(info.pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (let i = 0; i < 100 && alive(); i++) await new Promise((r) => setTimeout(r, 100));
+    expect(alive()).toBe(false);
+  }, 60_000);
 });

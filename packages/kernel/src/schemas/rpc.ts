@@ -10,6 +10,21 @@ import { ToolCallSchema, ToolDecisionSchema } from './governance.js';
  * server dispatcher are both derived from this table so they cannot drift.
  */
 
+export interface WikiNodeShape {
+  id: string;
+  level: string;
+  title: string;
+  summary: string;
+  children: WikiNodeShape[];
+}
+export const WikiNodeSchema: z.ZodType<WikiNodeShape> = z.lazy(() => z.object({
+  id: z.string(),
+  level: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  children: z.array(WikiNodeSchema),
+}));
+
 const StageStatusSchema = z.object({
   stage: z.string(),
   pending: z.number().int().nonnegative(),
@@ -19,7 +34,7 @@ const StageStatusSchema = z.object({
 });
 
 /** Protocol version; additive changes (new methods, new optional fields) keep the major (ADR-0004). */
-export const RPC_PROTOCOL_VERSION = '1.1' as const;
+export const RPC_PROTOCOL_VERSION = '1.2' as const;
 
 export const RPC = {
   'daemon.info': {
@@ -75,8 +90,34 @@ export const RPC = {
       request: RouteRequestSchema.optional(),
       budget: z.number().int().positive().optional(),
       target: RenderTargetSchema.default('json'),
+      /** Groups packs and telemetry of one agent session (since 1.2). */
+      sessionId: z.string().min(1).optional(),
+      /** Include the run-book item; defaults to true for targets that do not load CLAUDE.md (since 1.2). */
+      includeRunbook: z.boolean().optional(),
     }).refine((p) => p.route !== undefined || p.request !== undefined, 'route or request is required'),
     result: z.object({ pack: PackSchema, rendered: z.string() }),
+  },
+  'pack.get': {
+    params: z.object({ packId: z.string().optional(), sessionId: z.string().optional(), target: RenderTargetSchema.default('claude') }),
+    result: z.object({ pack: PackSchema.optional(), rendered: z.string().optional() }),
+  },
+  'wiki.structure': {
+    params: z.object({ depth: z.number().int().min(1).max(6).default(3) }),
+    result: z.object({ tree: WikiNodeSchema }),
+  },
+  'wiki.page': {
+    params: z.object({ node: z.string() }),
+    result: z.object({
+      id: z.string(),
+      level: z.string(),
+      summary: z.string(),
+      children: z.array(z.object({ id: z.string(), summary: z.string() })),
+      symbols: z.array(z.object({ id: z.string(), kind: z.string(), signature: z.string(), doc: z.string().optional() })),
+    }),
+  },
+  'runbook.get': {
+    params: z.object({}),
+    result: z.object({ text: z.string(), lines: z.number().int().nonnegative() }),
   },
   'graph.jump': {
     params: z.object({
@@ -125,6 +166,8 @@ export const RPC = {
 
 export type RpcMethod = keyof typeof RPC;
 export type RpcParams<M extends RpcMethod> = z.input<(typeof RPC)[M]['params']>;
+/** Params as a handler receives them: validated, with defaults applied. */
+export type RpcParsedParams<M extends RpcMethod> = z.output<(typeof RPC)[M]['params']>;
 export type RpcResult<M extends RpcMethod> = z.output<(typeof RPC)[M]['result']>;
 
 export const RPC_METHODS = Object.keys(RPC) as RpcMethod[];

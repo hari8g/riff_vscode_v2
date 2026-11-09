@@ -1,0 +1,288 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/disputes/dispute.ts:\n  export type DisputeStatus = 'open' | 'upheld' | 'rejected';\n  export interface Dispute\nsrc/toll/plate.ts:\n  export interface Plate\n  export function validatePlate(plate: Plate): boolean\n  export function plateChecksum(text: string): number\nsrc/toll/session.ts:\n  export class TollSession\n    constructor( readonly id: string, readonly plate: Plate, private readonly ledger: Ledger, private readonly flags: FeatureFlags, )\n    close(amountPaise: number): void\nsrc/disputes/queue.ts:\n  export class DisputeQueue\n    enqueue(d: Dispute): boolean\n    resolve(id: string, upheld: boolean, at: number): Dispute\nsrc/api/handlers.ts:\n  export interface HttpResponse\n  export class ApiHandlers\n    private getSession(id: string): HttpResponse\n    private openDispute(body: Record<string, unknown>, now: number): HttpResponse\nsrc/config/flags.ts:\n  export type FlagName = 'charge-on-close' | 'strict-checksum' | 'dispute-queue';\n  export class FeatureFlags\n    isEnabled(flag: FlagName): boolean\n    set(flag: FlagName, on: boolean): void\nsrc/toll/ledger.ts:\n  export interface LedgerEntry\n  export class Ledger\n    post(sessionId: string, amountPaise: number): void\n    private tryWrite(e: LedgerEntry): boolean\n    total(): number\nsrc/util/clock.ts:\n  export interface Clock\n    now(): number\n  export class FixedClock implements Clock\n    now(): number\nsrc/toll/processor.ts:\n  export class PassageProcessor\n    async process(raw: GantryReading): Promise<TollSession | undefined>\nsrc/gantry/reading.ts:\n  export interface GantryReading\nsrc/toll/store.ts:\n  export class SessionStore\n    get(id: string): TollSession | undefined\nsrc/settlement/settler.ts:\n  export class Settler\n    async settle(): Promise<SettlementReport>\nsrc/util/ids.ts:\n  export function nextId(prefix: string): string",
+      "hash": "082a67473db666af161efd414fa17a396483c75c0d1d201d1a70fbed89d9c050",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 591,
+      "why": {
+        "intent": "feature",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  close(amountPaise: number): void {\n    if (this.state !== 'open') return;\n    if (!validatePlate(this.plate)) {\n      this.state = 'disputed';\n      return;\n    }\n    if (this.flags.isEnabled('charge-on-close')) {\n      this.ledger.post(this.id, amountPaise);\n    }\n    this.closedAt = Date.now();\n    this.state = 'closed';\n  }",
+      "hash": "409d915f145e472ea9b22c03f64739325b8d9161c19cc38d7558fdf3805a6dcf",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 32,
+          "startLine": 21
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 112,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.9342,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export function plateChecksum(text: string): number {\n  let sum = 0;\n  for (const ch of text) sum = (sum * 31 + ch.charCodeAt(0)) % 97;\n  return sum;\n}",
+      "hash": "00231172f740492b53b2c6776dc5946577f11a2e68a0d5599ecc2e95301b7df5",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/plate.ts",
+        "range": {
+          "endLine": 20,
+          "startLine": 16
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 50,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.8252,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export interface Dispute {\n  id: string;\n  sessionId: string;\n  reason: 'wrong-plate' | 'double-charge' | 'wrong-class' | 'other';\n  status: DisputeStatus;\n  openedAt: number;\n  resolvedAt?: number;\n}",
+      "hash": "b2285c7ccbace34b0c8f81a23d2996d6151b2164cebe7c44e4754d2c97efc852",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "src/disputes/dispute.ts",
+        "range": {
+          "endLine": 11,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 67,
+      "why": {
+        "intent": "feature",
+        "rule": "anchor",
+        "score": 0.7692,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  it('charges a valid plate on close', () => {\n    const ledger = new Ledger();\n    const s = new TollSession('s1', { text: 'KA01AB1234', region: 'KA' }, ledger, new FeatureFlags());\n    s.close(5500);\n    expect(s.state).toBe('closed');\n    expect(ledger.total()).toBe(5500);\n  });",
+      "hash": "b53a9952fd6e4e1633b41280dea3b8c951f4aa05265ab37ab35526f24a5eecb1",
+      "id": "i5",
+      "kind": "test",
+      "source": {
+        "path": "test/session.test.ts",
+        "range": {
+          "endLine": 13,
+          "startLine": 7
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 97,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.65,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  it('marks an invalid plate disputed and never charges', () => {\n    const ledger = new Ledger();\n    const s = new TollSession('s2', { text: 'BAD', region: 'KA' }, ledger, new FeatureFlags());\n    s.close(5500);\n    expect(s.state).toBe('disputed');\n    expect(ledger.total()).toBe(0);\n  });",
+      "hash": "bb0cfc98f30d3b1302bc79773f487251551f66e1a90c80252bd541796730bfd4",
+      "id": "i6",
+      "kind": "test",
+      "source": {
+        "path": "test/session.test.ts",
+        "range": {
+          "endLine": 21,
+          "startLine": 15
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 100,
+      "why": {
+        "intent": "feature",
+        "rule": "exercising_test",
+        "score": 0.5,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export function normalizePlate(raw: string): string {\n  return raw.replace(/[\\s-]/g, '').toUpperCase();\n}",
+      "hash": "b7da0862b4bcb180d719ce6dd492be790cc046dc791067950a00ab6551fbb581",
+      "id": "i7",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/plate.ts",
+        "range": {
+          "endLine": 24,
+          "startLine": 22
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 36,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4471,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export function validatePlate(plate: Plate): boolean {\n  if (!PLATE_RE.test(plate.text)) return false;\n  if (plate.checksum === undefined) return true;\n  return plateChecksum(plate.text) === plate.checksum;\n}",
+      "hash": "50a57436655469ba4ad83d989d4d20ebc46456182bbae177d1d91f88716c9ba4",
+      "id": "i8",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/plate.ts",
+        "range": {
+          "endLine": 14,
+          "startLine": 10
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 69,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4471,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  constructor(\n    readonly id: string,\n    readonly plate: Plate,\n    private readonly ledger: Ledger,\n    private readonly flags: FeatureFlags,\n  ) {}",
+      "hash": "5d3edaa54f5bf01e28b6094c1b7076aba06ddafa05f46ec3b376c352866e509c",
+      "id": "i9",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 18,
+          "startLine": 13
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 49,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  durationMs(): number {\n    return (this.closedAt ?? Date.now()) - this.openedAt;\n  }",
+      "hash": "b2f945a82769a7e6e9b85fec59e2b0a64496517e2394e822d3d3abccdaa65213",
+      "id": "i10",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/session.ts",
+        "range": {
+          "endLine": 36,
+          "startLine": 34
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 29,
+      "why": {
+        "intent": "feature",
+        "rule": "sibling_template",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "errors are signalled with `throw new Error(...)` (no Result type) (confidence 1.00, 9 observations)",
+      "hash": "b6ef136f2a7d419b08fc27d14f6de13b794821bb7eeb5c4cbd8b39d1a969f11e",
+      "id": "i11",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:errors:throw"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 33,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    },
+    {
+      "content": "typescript tests are `*.test.ts` files under `test/` (confidence 1.00, 6 observations)",
+      "hash": "2d2b0062382e4921af3384c8b924e621c25dbcd159a9a60b80cd939760aa8b09",
+      "id": "i12",
+      "kind": "convention",
+      "source": {
+        "virtual": "convention:tests:typescript"
+      },
+      "stage": 0,
+      "tier": 3,
+      "tokens": 29,
+      "why": {
+        "intent": "feature",
+        "rule": "conventions",
+        "score": 0.4,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/toll/session.ts#TollSession.close@method"
+      },
+      "reason": "history scope origin_commits_of_sibling requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "toll-ts",
+  "route": {
+    "H": 0.097441,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.005522,
+      "feature": 0.968128,
+      "merge": 0.002835,
+      "onboarding": 0.002835,
+      "refactor": 0.002835,
+      "review": 0.002835,
+      "unknown": 0.01501
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1262
+}

@@ -1,0 +1,164 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/disputes/dispute.ts:\n  export type DisputeStatus = 'open' | 'upheld' | 'rejected';\n  export interface Dispute\nsrc/toll/plate.ts:\n  export interface Plate\n  export function validatePlate(plate: Plate): boolean\n  export function plateChecksum(text: string): number\n  export function normalizePlate(raw: string): string\nsrc/toll/processor.ts:\n  export class PassageProcessor\n    async process(raw: GantryReading): Promise<TollSession | undefined>\nsrc/disputes/queue.ts:\n  export class DisputeQueue\n    enqueue(d: Dispute): boolean\n    resolve(id: string, upheld: boolean, at: number): Dispute\nsrc/api/handlers.ts:\n  export interface HttpResponse\n  export class ApiHandlers\n    private getSession(id: string): HttpResponse\n    private openDispute(body: Record<string, unknown>, now: number): HttpResponse\nsrc/config/flags.ts:\n  export type FlagName = 'charge-on-close' | 'strict-checksum' | 'dispute-queue';\n  export class FeatureFlags\n    isEnabled(flag: FlagName): boolean\nsrc/gantry/reading.ts:\n  export interface GantryReading\n  export function isTrusted(r: GantryReading): boolean\nsrc/util/ids.ts:\n  export function nextId(prefix: string): string\nsrc/toll/session.ts:\n  export class TollSession\n    close(amountPaise: number): void\nsrc/pricing/engine.ts:\n  export class PricingEngine\n    quote(r: GantryReading, plazaId: string): number\nsrc/toll/store.ts:\n  export class SessionStore\n    put(s: TollSession): void\n    get(id: string): TollSession | undefined\nsrc/gantry/dedupe.ts:\n  export class ReadingDeduper\n    accept(r: GantryReading): GantryReading | undefined\nsrc/notify/templates.ts:\n  export function chargeMessage(plate: string, paise: number, plaza: string): string\nsrc/toll/ledger.ts:\n  export class Ledger\nsrc/notify/notifier.ts:\n  export interface Notifier\n    send(to: string, message: string): Promise<void>",
+      "hash": "87d688ba6f8983674ff85c616b399d5feb532183148c7509884ac23995428ac2",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 598,
+      "why": {
+        "intent": "bugfix",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export function normalizePlate(raw: string): string {\n  return raw.replace(/[\\s-]/g, '');\n}",
+      "hash": "58016a6aaa434c5834e9f8f82aebc8b7cfc739098f0a4cd92b319a28a572693e",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/plate.ts",
+        "range": {
+          "endLine": 24,
+          "startLine": 22
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 31,
+      "why": {
+        "intent": "bugfix",
+        "rule": "anchor",
+        "score": 0.8816,
+        "weight": 1
+      }
+    },
+    {
+      "content": "export interface Dispute {\n  id: string;\n  sessionId: string;\n  reason: 'wrong-plate' | 'double-charge' | 'wrong-class' | 'other';\n  status: DisputeStatus;\n  openedAt: number;\n  resolvedAt?: number;\n}",
+      "hash": "b2285c7ccbace34b0c8f81a23d2996d6151b2164cebe7c44e4754d2c97efc852",
+      "id": "i3",
+      "kind": "body",
+      "source": {
+        "path": "src/disputes/dispute.ts",
+        "range": {
+          "endLine": 11,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 67,
+      "why": {
+        "intent": "bugfix",
+        "rule": "anchor",
+        "score": 0.8696,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  async process(raw: GantryReading): Promise<TollSession | undefined> {\n    const r = this.deduper.accept({ ...raw, plate: { ...raw.plate, text: normalizePlate(raw.plate.text) } });\n    if (!r) return undefined;\n    if (!isTrusted(r)) {\n      this.manualReview.push(r);\n      return undefined;\n    }\n    const session = new TollSession(nextId('ses'), r.plate, this.ledger, this.flags);\n    this.store.put(session);\n    const amount = this.pricing.quote(r, this.plazaId);\n    session.close(amount);\n    if (session.state === 'closed') await this.notifier.send(r.plate.text, chargeMessage(r.plate.text, amount, this.plazaId));\n    return session;\n  }",
+      "hash": "afe57d20c505eebd66225407114643ef3232cd693abfd8e31d5223dedd28b8b7",
+      "id": "i4",
+      "kind": "body",
+      "source": {
+        "path": "src/toll/processor.ts",
+        "range": {
+          "endLine": 40,
+          "startLine": 27
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 218,
+      "why": {
+        "intent": "bugfix",
+        "rule": "callers",
+        "score": 0.5076,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  it('charges and notifies a trusted reading', async () => {\n    const { p, ledger, notifier } = make();\n    const s = await p.process({ gantryId: 'g', laneId: 1, plate: { text: 'ka 01 ab 1234', region: 'KA' }, confidence: 0.97, at: Date.UTC(2026, 0, 1, 3), vehicleClass: 'car' });\n    expect(s?.state).toBe('closed');\n    expect(ledger.total()).toBe(9500);\n    expect(notifier.sent[0]?.message).toContain('₹95.00');\n  });",
+      "hash": "c95094f92597a555c22a3f2a4f411d8bcfc826a046cb76da5492573140864416",
+      "id": "i5",
+      "kind": "test",
+      "source": {
+        "path": "test/processor.test.ts",
+        "range": {
+          "endLine": 23,
+          "startLine": 17
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 146,
+      "why": {
+        "intent": "bugfix",
+        "rule": "callers",
+        "score": 0.1924,
+        "weight": 1
+      }
+    },
+    {
+      "content": "  it('sends low-confidence reads to manual review', async () => {\n    const { p } = make();\n    expect(await p.process({ gantryId: 'g', laneId: 1, plate: { text: 'KA01AB1234', region: 'KA' }, confidence: 0.5, at: 0, vehicleClass: 'car' })).toBeUndefined();\n    expect(p.manualReview).toHaveLength(1);\n  });",
+      "hash": "4822621e58e736047ed498bf51bb5893e05c01b885921345759ed8aac1f55d79",
+      "id": "i6",
+      "kind": "test",
+      "source": {
+        "path": "test/processor.test.ts",
+        "range": {
+          "endLine": 29,
+          "startLine": 25
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 105,
+      "why": {
+        "intent": "bugfix",
+        "rule": "callers",
+        "score": 0.1918,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/toll/plate.ts#normalizePlate@function"
+      },
+      "reason": "history scope blame_on_anchors, reverts_touching_anchors requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "toll-ts",
+  "route": {
+    "H": 0.004422,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.999092,
+      "feature": 0.000088,
+      "merge": 0.000088,
+      "onboarding": 0.000088,
+      "refactor": 0.000088,
+      "review": 0.000088,
+      "unknown": 0.000468
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 1165
+}

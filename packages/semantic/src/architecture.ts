@@ -103,7 +103,8 @@ export function deriveArchitecture(store: Store, graph: Graph): Architecture {
     const importedBy = view.in[i]!.some((e) => e.kind === 'imports');
     const imports = view.out[i]!.filter((e) => e.kind === 'imports').length;
     const base = s.path.slice(s.path.lastIndexOf('/') + 1);
-    if ((!importedBy && imports >= 2) || /^(main|index|app|server|cli)\.[a-z]+$/.test(base) || /Controller\.java$|Application\.java$/.test(base)) entry.add(s.path);
+    // binaries and servers; a barrel index.ts is not an entry point unless nothing imports it
+    if (/^(main|app|server|cli|bin)\.[a-z]+$/.test(base) || /Controller\.java$|Application\.java$|^__main__\.py$/.test(base) || (!importedBy && imports >= 2 && !/^index\.[a-z]+$/.test(base))) entry.add(s.path);
   }
   const testDirs = new Set<string>();
   for (const p of paths) {
@@ -111,7 +112,17 @@ export function deriveArchitecture(store: Store, graph: Graph): Architecture {
     if (m) testDirs.add(m[1]!);
     else if (/\.test\.[jt]sx?$|_test\.(go|py)$|Test\.java$/.test(p)) testDirs.add(`${p.slice(0, p.lastIndexOf('/'))} (colocated)`);
   }
-  const clusters = graph.clusters().filter((c) => c.files.length > 1).slice(0, 8).map((c) => ({ name: c.name || '.', files: c.files.length, sample: c.files.slice(0, 3) }));
+  // describe each cluster by the directories its files live in (two levels deep), largest first
+  const dirOf = (f: string) => {
+    const parts = f.split('/').slice(0, -1);
+    return parts.slice(0, Math.min(2, parts.length)).join('/') || '.';
+  };
+  const clusters = graph.clusters().filter((c) => c.files.length > 1).slice(0, 8).map((c) => {
+    const counts = new Map<string, number>();
+    for (const f of c.files) counts.set(dirOf(f), (counts.get(dirOf(f)) ?? 0) + 1);
+    const dirs = [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([d]) => d);
+    return { name: dirs[0]!, files: c.files.length, sample: dirs.slice(0, 4) };
+  });
   return {
     packages, languages, frameworks: detectFrameworks(store, paths), commands: detectCommands(store, paths),
     entryPoints: [...entry].sort().slice(0, 10), generated: ['dist/', 'build/', 'target/', 'node_modules/'].filter((g) => paths.some((p) => p.startsWith(g))),

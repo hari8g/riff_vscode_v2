@@ -1,0 +1,6 @@
+# Paths RIAF does not index in this repository (gitignore syntax).
+# The fixture repositories are test data: indexing them would duplicate their symbols into ours.
+fixtures/repos/
+fixtures/golden-packs/
+docs/contracts/
+pnpm-lock.yaml

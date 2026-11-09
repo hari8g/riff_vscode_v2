@@ -1,0 +1,142 @@
+{
+  "budget": 16000,
+  "items": [
+    {
+      "content": "src/telemetry/buffer.py:\n  class RingBuffer\n    def __init__(self, capacity)\n    def __len__(self)\n    @property def capacity(self)\n    def push(self, item)\n    def drain(self)\nsrc/telemetry/pipeline.py:\n  class Pipeline\n    def __init__(self, config: Config, sink=None)\n    def submit(self, frame)\n    def flush(self)\nsrc/telemetry/config.py:\n  @dataclass(frozen=True) class Config\n    @classmethod def from_env(cls, env=None)\nsrc/telemetry/codec.py:\n  @dataclass(frozen=True) class Frame\n  def checksum(payload: bytes) -> int\n  def encode(frame: Frame) -> bytes\n  def decode(data: bytes) -> Frame\nsrc/telemetry/sinks.py:\n  class Sink\n    def write(self, batch)\n  class MemorySink(Sink)\n    def __init__(self)\n    def write(self, batch)\n  class FailingSink(Sink)\n    def write(self, batch)\n  def make_sink(url)\nsrc/telemetry/sampler.py:\n  class Sampler\n    def __init__(self, every=1)\n    def accept(self, frame: Frame) -> bool\n    def reset(self)",
+      "hash": "369f4d930cd3a2798b1f5cb06d700082097018541834ba332c806388110ee2c7",
+      "id": "i1",
+      "kind": "summary",
+      "source": {
+        "virtual": "repo-map"
+      },
+      "stage": 0,
+      "tier": 1,
+      "tokens": 312,
+      "why": {
+        "intent": "bugfix",
+        "rule": "repo_map",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "class RingBuffer:\n    def __init__(self, capacity):\n        if capacity <= 0:\n            raise ValueError(\"capacity must be positive\")\n        self._items = [None] * capacity\n        self._start = 0\n        self._size = 0\n        self.dropped = 0\n\n    def __len__(self):\n        return self._size\n\n    @property\n    def capacity(self):\n        return len(self._items)\n\n    def push(self, item):\n        \"\"\"Appends an item, overwriting the oldest one when the buffer is full.\"\"\"\n        end = (self._start + self._size) % self.capacity\n        self._items[end] = item\n        if self._size > self.capacity:\n            self._start = (self._start + 1) % self.capacity\n            self.dropped += 1\n        else:\n            self._size += 1\n\n    def drain(self):\n        \"\"\"Returns all items oldest first and empties the buffer.\"\"\"\n        out = [self._items[(self._start + i) % self.capacity] for i in range(self._size)]\n        self._start = 0\n        self._size = 0\n        return out",
+      "hash": "02be50e7dd124e580cb41aaa8c5712e3447b8fb9ca2a67a0ae45a96a8f970d95",
+      "id": "i2",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/buffer.py",
+        "range": {
+          "endLine": 35,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 324,
+      "why": {
+        "intent": "bugfix",
+        "rule": "anchor",
+        "score": 1,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def test_drain_empties():\n    b = RingBuffer(3)\n    b.push(\"a\")\n    b.drain()\n    assert len(b) == 0",
+      "hash": "0cbb9159b92476dc96d793ea9e928eeaee2b672e79fc56906ca93e34054db98d",
+      "id": "i3",
+      "kind": "test",
+      "source": {
+        "path": "tests/test_buffer.py",
+        "range": {
+          "endLine": 16,
+          "startLine": 12
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 34,
+      "why": {
+        "intent": "bugfix",
+        "rule": "exercising_test",
+        "score": 0.65,
+        "weight": 1
+      }
+    },
+    {
+      "content": "def test_drops_oldest_when_full():\n    b = RingBuffer(2)\n    for i in range(3):\n        b.push(i)\n    assert b.drain() == [1, 2]\n    assert b.dropped == 1",
+      "hash": "136e66cd8d6d82ea2f3098807d7234d194ede75e60bec1cecb66dff00e770b2b",
+      "id": "i4",
+      "kind": "test",
+      "source": {
+        "path": "tests/test_buffer.py",
+        "range": {
+          "endLine": 9,
+          "startLine": 4
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 52,
+      "why": {
+        "intent": "bugfix",
+        "rule": "callers",
+        "score": 0.5036,
+        "weight": 1
+      }
+    },
+    {
+      "content": "    def __init__(self, config: Config, sink=None):\n        self.config = config\n        self.sampler = Sampler(config.sample_every)\n        self.buffer = RingBuffer(config.buffer_size)\n        self.sink = sink if sink is not None else make_sink(config.sink_url)",
+      "hash": "4022217675cde81101e267e0952b80af417ca794f76931737eca343c7218ebf9",
+      "id": "i5",
+      "kind": "body",
+      "source": {
+        "path": "src/telemetry/pipeline.py",
+        "range": {
+          "endLine": 15,
+          "startLine": 11
+        }
+      },
+      "stage": 0,
+      "tier": 2,
+      "tokens": 85,
+      "why": {
+        "intent": "bugfix",
+        "rule": "callers",
+        "score": 0.4398,
+        "weight": 1
+      }
+    }
+  ],
+  "openLookups": [
+    {
+      "args": {
+        "symbol": "src/telemetry/buffer.py#RingBuffer@class"
+      },
+      "reason": "history scope blame_on_anchors, reverts_touching_anchors requested but the history layer is not indexed",
+      "tool": "riaf_history"
+    }
+  ],
+  "policyVersion": "builtin@1",
+  "repo": "telemetry-py",
+  "route": {
+    "H": 0.090101,
+    "branch": "single",
+    "stages": [
+      [
+        "u1"
+      ]
+    ],
+    "w": {
+      "bugfix": 0.970735,
+      "feature": 0.002843,
+      "merge": 0.002843,
+      "onboarding": 0.002843,
+      "refactor": 0.002843,
+      "review": 0.002843,
+      "unknown": 0.01505
+    }
+  },
+  "schemaVersion": 1,
+  "tokensUsed": 807
+}
