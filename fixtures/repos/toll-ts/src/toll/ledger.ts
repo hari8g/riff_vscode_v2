@@ -22,6 +22,11 @@ export class Ledger {
     return true;
   }
 
+  /** Removes and returns every entry (settlement takes ownership). */
+  drain(): LedgerEntry[] {
+    return this.entries.splice(0, this.entries.length);
+  }
+
   total(): number {
     return this.entries.reduce((a, e) => a + e.amountPaise, 0);
   }

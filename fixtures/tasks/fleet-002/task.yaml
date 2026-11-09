@@ -1,0 +1,33 @@
+id: fleet-002
+repo: fleet-java
+intent: bugfix
+request: After a trip is completed the vehicle stays ASSIGNED and is never offered again.
+ide: {}
+gold_files: [dispatch/src/main/java/com/fleet/dispatch/DispatchService.java]
+gold_symbols: ["dispatch/src/main/java/com/fleet/dispatch/DispatchService.java#DispatchService.complete@method"]
+setup:
+  - path: dispatch/src/main/java/com/fleet/dispatch/DispatchService.java
+    find: "            v.release();\n"
+    replace: ""
+gold:
+  - path: dispatch/src/main/java/com/fleet/dispatch/DispatchService.java
+    find: "        repository.find(trip.getVehicleId()).ifPresent(v -> {\n"
+    replace: "        repository.find(trip.getVehicleId()).ifPresent(v -> {\n            v.release();\n"
+hidden:
+  - path: hidden/com/fleet/dispatch/HiddenFleet002.java
+    content: |
+      package com.fleet.dispatch;
+      import com.fleet.model.*;
+      public class HiddenFleet002 {
+          public static void main(String[] a) {
+              InMemoryVehicleRepository repo = new InMemoryVehicleRepository();
+              Vehicle v = new Vehicle("v", new GeoPoint(1, 1), 4);
+              repo.save(v);
+              DispatchService s = new DispatchService(repo, new NearestVehiclePolicy(50));
+              Trip t = new Trip("t", new GeoPoint(1, 1), new GeoPoint(2, 2), 1);
+              s.assign(t);
+              s.complete(t);
+              if (v.getStatus() != VehicleStatus.AVAILABLE) throw new AssertionError("vehicle not released");
+          }
+      }
+test: { kind: javac, files: [hidden/com/fleet/dispatch/HiddenFleet002.java], main: com.fleet.dispatch.HiddenFleet002 }

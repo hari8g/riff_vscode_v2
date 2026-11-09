@@ -1,0 +1,10 @@
+id: toll-012
+repo: toll-ts
+intent: onboarding
+request: How does a gantry camera reading end up as a charge in the ledger? Walk me through the flow.
+ide: {}
+gold_files: [src/toll/processor.ts, src/gantry/dedupe.ts, src/gantry/reading.ts, src/pricing/engine.ts, src/toll/session.ts, src/toll/ledger.ts]
+gold_symbols: ["src/toll/processor.ts#PassageProcessor.process@method"]
+setup: []
+gold: []
+hidden: []

@@ -1,8 +1,16 @@
 /**
- * @riaf/eval — Evaluation harness: task set, runners, metrics, golden-pack diff, reports.
- *
- * Placeholder until milestone M2; the package exists so the dependency graph, project references and
- * boundaries lint are complete from the first commit. See docs/implementation-plan.md.
+ * @riaf/eval — the harness: fixture histories, the task set, workspaces, hidden-test execution,
+ * runners (scripted no-RIAF baseline, Claude Code headless, and the compiler from M3), metrics,
+ * reports and golden-pack diffs.
  */
-export const PACKAGE = '@riaf/eval' as const;
-export const MILESTONE = 'M2' as const;
+export * from './fixtureHistory.js';
+export * from './tasks.js';
+export * from './workspace.js';
+export * from './testrun.js';
+export * from './metrics.js';
+export * from './report.js';
+export * from './golden.js';
+export * from './harness.js';
+export * from './runners/types.js';
+export * from './runners/scripted.js';
+export * from './runners/claude.js';

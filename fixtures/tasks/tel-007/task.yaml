@@ -1,0 +1,10 @@
+id: tel-007
+repo: telemetry-py
+intent: onboarding
+request: Explain how a telemetry frame travels from Pipeline.submit to a sink.
+ide: {}
+gold_files: [src/telemetry/pipeline.py, src/telemetry/sampler.py, src/telemetry/codec.py, src/telemetry/buffer.py, src/telemetry/sinks.py]
+gold_symbols: ["src/telemetry/pipeline.py#Pipeline.submit@method"]
+setup: []
+gold: []
+hidden: []

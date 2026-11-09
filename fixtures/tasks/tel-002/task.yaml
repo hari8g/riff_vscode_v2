@@ -1,0 +1,31 @@
+id: tel-002
+repo: telemetry-py
+intent: bugfix
+request: With sample_every=1 the pipeline drops every frame. Sampling should keep the first reading per vehicle and then every n-th.
+ide: {}
+gold_files: [src/telemetry/sampler.py]
+gold_symbols: ["src/telemetry/sampler.py#Sampler.accept@method"]
+setup:
+  - path: src/telemetry/sampler.py
+    find: "return count % self.every == 0"
+    replace: "return count % self.every == 1"
+gold:
+  - path: src/telemetry/sampler.py
+    find: "return count % self.every == 1"
+    replace: "return count % self.every == 0"
+hidden:
+  - path: tests/hidden/test_sampling.py
+    content: |
+      from telemetry.codec import Frame
+      from telemetry.sampler import Sampler
+
+
+      def test_every_one_keeps_all():
+          s = Sampler(1)
+          assert all(s.accept(Frame(1, i, 1.0)) for i in range(4))
+
+
+      def test_every_two_keeps_first_and_third():
+          s = Sampler(2)
+          assert [s.accept(Frame(1, i, 1.0)) for i in range(4)] == [True, False, True, False]
+test: { kind: pytest, files: [tests/hidden/test_sampling.py] }

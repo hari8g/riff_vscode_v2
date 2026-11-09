@@ -1,0 +1,37 @@
+id: toll-009
+repo: toll-ts
+intent: feature
+request: Ops need to see failing cameras. Add Lane.faultCount() and Gantry.faultyLanes() returning the ids of lanes with at least one open fault.
+ide: {}
+gold_files: [src/gantry/lane.ts, src/gantry/gantry.ts]
+gold_symbols: ["src/gantry/lane.ts#Lane@class", "src/gantry/gantry.ts#Gantry@class"]
+setup: []
+gold:
+  - path: src/gantry/lane.ts
+    find: "  clearFaults(): void {"
+    replace: |-
+        faultCount(): number {
+          return this.faults;
+        }
+
+        clearFaults(): void {
+  - path: src/gantry/gantry.ts
+    find: "  healthyLanes(now: number): number[] {"
+    replace: |-
+        faultyLanes(): number[] {
+          return [...this.lanes.values()].filter((l) => l.faultCount() > 0).map((l) => l.id);
+        }
+
+        healthyLanes(now: number): number[] {
+hidden:
+  - path: test/hidden/faults.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { Gantry } from '../../src/gantry/gantry.js';
+      it('reports lanes with faults', () => {
+        const g = new Gantry('g1', 'p1', 3);
+        g.lane(2).reportFault();
+        expect(g.lane(2).faultCount()).toBe(1);
+        expect(g.faultyLanes()).toEqual([2]);
+      });
+test: { kind: vitest, files: [test/hidden/faults.test.ts] }

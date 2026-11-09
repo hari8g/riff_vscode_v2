@@ -1,0 +1,30 @@
+id: tel-006
+repo: telemetry-py
+intent: bugfix
+request: decode() crashes with struct.error on truncated frames. It should raise ValueError("truncated frame") instead.
+ide:
+  stackTrace: |
+    Traceback (most recent call last):
+      File "src/telemetry/codec.py", line 33, in decode
+        magic, vehicle_id, ts, speed = struct.unpack(_FMT, payload)
+    struct.error: unpack requires a buffer of 17 bytes
+gold_files: [src/telemetry/codec.py]
+gold_symbols: ["src/telemetry/codec.py#decode@function"]
+setup: []
+gold:
+  - path: src/telemetry/codec.py
+    find: "    payload, check = data[:-1], data[-1]\n"
+    replace: "    if len(data) != struct.calcsize(_FMT) + 1:\n        raise ValueError(\"truncated frame\")\n    payload, check = data[:-1], data[-1]\n"
+hidden:
+  - path: tests/hidden/test_truncated.py
+    content: |
+      import pytest
+
+      from telemetry.codec import Frame, decode, encode
+
+
+      def test_truncated_frame_is_value_error():
+          data = encode(Frame(1, 2, 3.0))
+          with pytest.raises(ValueError, match="truncated"):
+              decode(data[:5])
+test: { kind: pytest, files: [tests/hidden/test_truncated.py] }

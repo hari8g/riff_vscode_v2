@@ -1,0 +1,29 @@
+id: tel-001
+repo: telemetry-py
+intent: bugfix
+request: RingBuffer returns stale frames after it overflows. It should drop the oldest frame when it is full.
+ide: {}
+gold_files: [src/telemetry/buffer.py]
+gold_symbols: ["src/telemetry/buffer.py#RingBuffer.push@method"]
+setup:
+  - path: src/telemetry/buffer.py
+    find: "        if self._size == self.capacity:"
+    replace: "        if self._size > self.capacity:"
+gold:
+  - path: src/telemetry/buffer.py
+    find: "        if self._size > self.capacity:"
+    replace: "        if self._size == self.capacity:"
+hidden:
+  - path: tests/hidden/test_overflow.py
+    content: |
+      from telemetry.buffer import RingBuffer
+
+
+      def test_overflow_drops_oldest():
+          b = RingBuffer(3)
+          for i in range(5):
+              b.push(i)
+          assert len(b) == 3
+          assert b.drain() == [2, 3, 4]
+          assert b.dropped == 2
+test: { kind: pytest, files: [tests/hidden/test_overflow.py] }

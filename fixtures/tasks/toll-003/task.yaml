@@ -1,0 +1,26 @@
+id: toll-003
+repo: toll-ts
+intent: bugfix
+request: The return-trip discount is being given to vehicles that come back two days later. It should only apply within 24 hours of the previous passage.
+ide: {}
+gold_files: [src/pricing/engine.ts]
+gold_symbols: ["src/pricing/engine.ts#PricingEngine.quote@method"]
+setup:
+  - path: src/pricing/engine.ts
+    find: "r.at - last <= DAY_MS)"
+    replace: "r.at - last <= DAY_MS * 2)"
+gold:
+  - path: src/pricing/engine.ts
+    find: "r.at - last <= DAY_MS * 2)"
+    replace: "r.at - last <= DAY_MS)"
+hidden:
+  - path: test/hidden/return.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { PricingEngine } from '../../src/pricing/engine.js';
+      it('no return discount after 24 hours', () => {
+        const at = Date.UTC(2026, 0, 3, 3);
+        const engine = new PricingEngine({ lastPassageAt: () => at - 36 * 3600_000 });
+        expect(engine.quote({ gantryId: 'g', laneId: 1, plate: { text: 'KA01AB1234', region: 'KA' }, confidence: 1, at, vehicleClass: 'car' }, 'p')).toBe(9500);
+      });
+test: { kind: vitest, files: [test/hidden/return.test.ts] }

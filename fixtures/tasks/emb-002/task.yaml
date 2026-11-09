@@ -1,0 +1,27 @@
+id: emb-002
+repo: embedded-c
+intent: bugfix
+request: crc16("123456789") returns 0x31C3 but CRC-16/CCITT-FALSE should give 0x29B1.
+ide:
+  failingTests: [test/test_crc.c]
+gold_files: [src/crc.c]
+gold_symbols: ["src/crc.c#crc16@function"]
+setup:
+  - path: src/crc.c
+    find: "    uint16_t crc = 0xFFFF;"
+    replace: "    uint16_t crc = 0x0000;"
+gold:
+  - path: src/crc.c
+    find: "    uint16_t crc = 0x0000;"
+    replace: "    uint16_t crc = 0xFFFF;"
+hidden:
+  - path: test/hidden_crc.c
+    content: |
+      #include <assert.h>
+      #include "crc.h"
+      int main(void) {
+          const uint8_t msg[] = "123456789";
+          assert(crc16(msg, 9) == 0x29B1);
+          return 0;
+      }
+test: { kind: cc, files: [test/hidden_crc.c], sources: [src/crc.c] }

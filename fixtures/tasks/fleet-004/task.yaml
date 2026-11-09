@@ -1,0 +1,30 @@
+id: fleet-004
+repo: fleet-java
+intent: refactor
+request: Give GeoPoint a distanceKm(GeoPoint other) method with the haversine formula and make GeoUtil.distanceKm delegate to it.
+ide: {}
+gold_files: [model/src/main/java/com/fleet/model/GeoPoint.java, dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java]
+gold_symbols: ["dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java#GeoUtil.distanceKm@method", "model/src/main/java/com/fleet/model/GeoPoint.java#GeoPoint@class"]
+setup: []
+gold:
+  - path: model/src/main/java/com/fleet/model/GeoPoint.java
+    find: "        if (lon < -180 || lon > 180) throw new IllegalArgumentException(\"lon out of range\");\n    }\n"
+    replace: "        if (lon < -180 || lon > 180) throw new IllegalArgumentException(\"lon out of range\");\n    }\n\n    /** Haversine distance in kilometres. */\n    public double distanceKm(GeoPoint other) {\n        double dLat = Math.toRadians(other.lat() - lat);\n        double dLon = Math.toRadians(other.lon() - lon);\n        double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)\n                + Math.cos(Math.toRadians(lat)) * Math.cos(Math.toRadians(other.lat()))\n                * Math.sin(dLon / 2) * Math.sin(dLon / 2);\n        return 2 * 6371.0 * Math.asin(Math.sqrt(h));\n    }\n"
+  - path: dispatch/src/main/java/com/fleet/dispatch/GeoUtil.java
+    find: "        double dLat = Math.toRadians(b.lat() - a.lat());\n        double dLon = Math.toRadians(b.lon() - a.lon());\n        double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)\n                + Math.cos(Math.toRadians(a.lat())) * Math.cos(Math.toRadians(b.lat()))\n                * Math.sin(dLon / 2) * Math.sin(dLon / 2);\n        return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));"
+    replace: "        return a.distanceKm(b);"
+hidden:
+  - path: hidden/com/fleet/dispatch/HiddenFleet004.java
+    content: |
+      package com.fleet.dispatch;
+      import com.fleet.model.*;
+      public class HiddenFleet004 {
+          public static void main(String[] a) {
+              GeoPoint x = new GeoPoint(12.97, 77.59);
+              GeoPoint y = new GeoPoint(13.08, 80.27);
+              double d = x.distanceKm(y);
+              if (Math.abs(d - 290.2) > 2) throw new AssertionError("distance " + d);
+              if (Math.abs(GeoUtil.distanceKm(x, y) - d) > 1e-9) throw new AssertionError("GeoUtil must delegate");
+          }
+      }
+test: { kind: javac, files: [hidden/com/fleet/dispatch/HiddenFleet004.java], main: com.fleet.dispatch.HiddenFleet004 }

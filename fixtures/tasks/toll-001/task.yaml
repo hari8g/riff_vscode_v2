@@ -1,0 +1,25 @@
+id: toll-001
+repo: toll-ts
+intent: bugfix
+request: Plates read as "ka 01 ab 1234" are sent to dispute instead of being charged. Fix the plate normalisation.
+ide: {}
+gold_files: [src/toll/plate.ts]
+gold_symbols: ["src/toll/plate.ts#normalizePlate@function"]
+setup:
+  - path: src/toll/plate.ts
+    find: "return raw.replace(/[\\s-]/g, '').toUpperCase();"
+    replace: "return raw.replace(/[\\s-]/g, '');"
+gold:
+  - path: src/toll/plate.ts
+    find: "return raw.replace(/[\\s-]/g, '');"
+    replace: "return raw.replace(/[\\s-]/g, '').toUpperCase();"
+hidden:
+  - path: test/hidden/normalize.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { normalizePlate, validatePlate } from '../../src/toll/plate.js';
+      it('normalises case, spaces and dashes', () => {
+        expect(normalizePlate('ka 01-ab 1234')).toBe('KA01AB1234');
+        expect(validatePlate({ text: normalizePlate('ka01ab1234'), region: 'KA' })).toBe(true);
+      });
+test: { kind: vitest, files: [test/hidden/normalize.test.ts] }

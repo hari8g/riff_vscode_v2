@@ -1,11 +1,12 @@
 import { RiafError } from '@riaf/kernel';
 import { parseArgs } from './args.js';
 import { cmdDoctor, cmdImpact, cmdIndex, cmdJump, cmdServe, cmdStatus } from './commands/index.js';
+import { cmdEval } from './commands/eval.js';
 import type { Io } from './io.js';
 
 export const CLI_VERSION = '0.2.0';
 
-const BOOLEANS = new Set(['json', 'full', 'in-process', 'lsp', 'detached', 'watch', 'poll', 'help', 'version']);
+const BOOLEANS = new Set(['json', 'full', 'in-process', 'lsp', 'detached', 'watch', 'poll', 'help', 'version', 'quiet']);
 
 export const USAGE = `riaf ${CLI_VERSION} — repository intelligence for frontier models
 
@@ -18,6 +19,7 @@ commands:
   impact <symbol>... [--hops N]     dependents, tests and co-change partners
   doctor                            check environment, grammars, index, policies, LSP servers
   serve [--detached] [--lsp]        run the repository daemon in the foreground
+  eval [--runner scripted,claude]   run the eval task set and write reports/eval/report.{md,json}
 
 global options:
   --root <dir>      repository root (default: nearest ancestor with .git or .riaf)
@@ -26,7 +28,7 @@ global options:
 `;
 
 type Command = (p: ReturnType<typeof parseArgs>, io: Io) => Promise<number>;
-const COMMANDS: Record<string, Command> = { index: cmdIndex, status: cmdStatus, jump: cmdJump, impact: cmdImpact, doctor: cmdDoctor, serve: cmdServe };
+const COMMANDS: Record<string, Command> = { index: cmdIndex, status: cmdStatus, jump: cmdJump, impact: cmdImpact, doctor: cmdDoctor, serve: cmdServe, eval: cmdEval };
 
 /** Runs the CLI with `argv` (without node and script) and returns the exit code. */
 export async function runCli(argv: readonly string[], io: Io): Promise<number> {

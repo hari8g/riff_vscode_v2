@@ -1,0 +1,36 @@
+id: tel-003
+repo: telemetry-py
+intent: bugfix
+request: A failed sink write loses the buffered frames. They must stay buffered so the next flush retries them.
+ide:
+  failingTests: [tests/test_pipeline.py::test_failed_flush_keeps_frames]
+gold_files: [src/telemetry/pipeline.py]
+gold_symbols: ["src/telemetry/pipeline.py#Pipeline.flush@method"]
+setup:
+  - path: src/telemetry/pipeline.py
+    find: "            for item in batch:\n                self.buffer.push(item)\n"
+    replace: "            pass\n"
+gold:
+  - path: src/telemetry/pipeline.py
+    find: "        except IOError:\n            pass\n"
+    replace: "        except IOError:\n            for item in batch:\n                self.buffer.push(item)\n"
+hidden:
+  - path: tests/hidden/test_retry.py
+    content: |
+      import pytest
+
+      from telemetry.codec import Frame
+      from telemetry.config import Config
+      from telemetry.pipeline import Pipeline
+      from telemetry.sinks import FailingSink, MemorySink
+
+
+      def test_frames_survive_failure_and_flush_later():
+          p = Pipeline(Config(buffer_size=8), sink=FailingSink())
+          p.submit(Frame(1, 1, 10.0))
+          p.submit(Frame(2, 1, 10.0))
+          with pytest.raises(IOError):
+              p.flush()
+          p.sink = MemorySink()
+          assert p.flush() == 2
+test: { kind: pytest, files: [tests/hidden/test_retry.py, tests/test_pipeline.py] }

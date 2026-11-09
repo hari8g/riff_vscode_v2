@@ -1,0 +1,29 @@
+id: toll-010
+repo: toll-ts
+intent: refactor
+request: Rename Ledger.post to Ledger.record everywhere, including callers and tests.
+ide: {}
+gold_files: [src/toll/ledger.ts, src/toll/session.ts, test/settlement.test.ts]
+gold_symbols: ["src/toll/ledger.ts#Ledger.post@method"]
+setup: []
+gold:
+  - path: src/toll/ledger.ts
+    find: "  post(sessionId: string, amountPaise: number): void {"
+    replace: "  record(sessionId: string, amountPaise: number): void {"
+  - path: src/toll/session.ts
+    find: "this.ledger.post(this.id, amountPaise);"
+    replace: "this.ledger.record(this.id, amountPaise);"
+  - path: test/settlement.test.ts
+    find: "    ledger.post('s1', 100);\n    ledger.post('s2', 200);"
+    replace: "    ledger.record('s1', 100);\n    ledger.record('s2', 200);"
+hidden:
+  - path: test/hidden/rename.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { Ledger } from '../../src/toll/ledger.js';
+      it('Ledger.record replaces post', () => {
+        const l = new Ledger() as unknown as Record<string, unknown>;
+        expect(typeof l['record']).toBe('function');
+        expect(l['post']).toBeUndefined();
+      });
+test: { kind: vitest, files: [test/hidden/rename.test.ts, test/settlement.test.ts, test/session.test.ts, test/processor.test.ts] }

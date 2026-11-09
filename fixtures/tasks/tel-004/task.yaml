@@ -1,0 +1,41 @@
+id: tel-004
+repo: telemetry-py
+intent: feature
+request: Add a FileSink that appends each encoded frame of a batch as a hex line to a file, and make make_sink accept file:// URLs.
+ide: {}
+gold_files: [src/telemetry/sinks.py]
+gold_symbols: ["src/telemetry/sinks.py#make_sink@function", "src/telemetry/sinks.py#MemorySink@class"]
+setup: []
+gold:
+  - path: src/telemetry/sinks.py
+    find: "def make_sink(url):"
+    replace: |-
+      class FileSink(Sink):
+          """Appends each frame of a batch as one hex line."""
+
+          def __init__(self, path):
+              self.path = path
+
+          def write(self, batch):
+              with open(self.path, "a", encoding="ascii") as f:
+                  for frame in batch:
+                      f.write(frame.hex() + "\n")
+
+
+      def make_sink(url):
+  - path: src/telemetry/sinks.py
+    find: "        return MemorySink()\n"
+    replace: "        return MemorySink()\n    if url.startswith(\"file://\"):\n        return FileSink(url[len(\"file://\"):])\n"
+hidden:
+  - path: tests/hidden/test_file_sink.py
+    content: |
+      from telemetry.sinks import make_sink
+
+
+      def test_file_sink_appends_hex_lines(tmp_path):
+          target = tmp_path / "out.txt"
+          sink = make_sink(f"file://{target}")
+          sink.write([b"\x01\x02", b"\xff"])
+          sink.write([b"\x10"])
+          assert target.read_text().splitlines() == ["0102", "ff", "10"]
+test: { kind: pytest, files: [tests/hidden/test_file_sink.py] }

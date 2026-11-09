@@ -1,0 +1,25 @@
+id: toll-005
+repo: toll-ts
+intent: bugfix
+request: Settlement batch totals are larger than the sum of the entries in each batch, so the bank rejects them.
+ide: {}
+gold_files: [src/settlement/batch.ts]
+gold_symbols: ["src/settlement/batch.ts#makeBatches@function"]
+setup:
+  - path: src/settlement/batch.ts
+    find: "totalPaise: slice.reduce((a, e) => a + e.amountPaise, 0)"
+    replace: "totalPaise: entries.reduce((a, e) => a + e.amountPaise, 0)"
+gold:
+  - path: src/settlement/batch.ts
+    find: "totalPaise: entries.reduce((a, e) => a + e.amountPaise, 0)"
+    replace: "totalPaise: slice.reduce((a, e) => a + e.amountPaise, 0)"
+hidden:
+  - path: test/hidden/batch-total.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { makeBatches } from '../../src/settlement/batch.js';
+      it('each batch total is the sum of its own entries', () => {
+        const entries = [100, 200, 300].map((amountPaise, i) => ({ sessionId: `s${i}`, amountPaise, at: i }));
+        expect(makeBatches('b', entries, 2, 0).map((b) => b.totalPaise)).toEqual([300, 300]);
+      });
+test: { kind: vitest, files: [test/hidden/batch-total.test.ts] }

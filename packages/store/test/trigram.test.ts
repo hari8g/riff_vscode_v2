@@ -22,7 +22,7 @@ describe('TrigramIndex on the toll-ts fixture', () => {
     const store = await Store.open();
     for (const f of readFixture()) store.replaceChunksForPath(f.path, lineChunks(f));
     const hits = store.trigram.search('isEnabled(');
-    expect(hits.map((h) => h.path).sort()).toEqual(['src/config/flags.ts', 'src/toll/session.ts']);
+    expect(hits.map((h) => h.path).sort()).toEqual(['src/config/flags.ts', 'src/disputes/queue.ts', 'src/toll/session.ts']);
     const sessionHit = hits.find((h) => h.path === 'src/toll/session.ts')!;
     expect(sessionHit.text).toContain("this.flags.isEnabled('charge-on-close')");
     expect(sessionHit.line).toBeGreaterThan(20);

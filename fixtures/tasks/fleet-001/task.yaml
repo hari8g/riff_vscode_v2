@@ -1,0 +1,29 @@
+id: fleet-001
+repo: fleet-java
+intent: bugfix
+request: Dispatch assigns vehicles that are far outside the configured radius of the nearest-vehicle policy.
+ide: {}
+gold_files: [dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java]
+gold_symbols: ["dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java#NearestVehiclePolicy.choose@method"]
+setup:
+  - path: dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java
+    find: "if (km <= maxRadiusKm && km < bestKm) {"
+    replace: "if (km < bestKm) {"
+gold:
+  - path: dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java
+    find: "if (km < bestKm) {"
+    replace: "if (km <= maxRadiusKm && km < bestKm) {"
+hidden:
+  - path: hidden/com/fleet/dispatch/HiddenFleet001.java
+    content: |
+      package com.fleet.dispatch;
+      import com.fleet.model.*;
+      import java.util.List;
+      public class HiddenFleet001 {
+          public static void main(String[] a) {
+              NearestVehiclePolicy p = new NearestVehiclePolicy(5);
+              Trip t = new Trip("t", new GeoPoint(12.97, 77.59), new GeoPoint(12.9, 77.5), 1);
+              if (p.choose(t, List.of(new Vehicle("far", new GeoPoint(13.5, 78.0), 4))).isPresent()) throw new AssertionError("vehicle outside radius was chosen");
+          }
+      }
+test: { kind: javac, files: [hidden/com/fleet/dispatch/HiddenFleet001.java], main: com.fleet.dispatch.HiddenFleet001 }

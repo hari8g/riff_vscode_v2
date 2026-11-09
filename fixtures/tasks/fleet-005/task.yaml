@@ -1,0 +1,10 @@
+id: fleet-005
+repo: fleet-java
+intent: onboarding
+request: Explain how a trip request is assigned to a vehicle, from the controller down to the repository.
+ide: {}
+gold_files: [dispatch/src/main/java/com/fleet/dispatch/DispatchController.java, dispatch/src/main/java/com/fleet/dispatch/DispatchService.java, dispatch/src/main/java/com/fleet/dispatch/NearestVehiclePolicy.java, dispatch/src/main/java/com/fleet/dispatch/AssignmentPolicy.java, dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java]
+gold_symbols: ["dispatch/src/main/java/com/fleet/dispatch/DispatchService.java#DispatchService.assign@method"]
+setup: []
+gold: []
+hidden: []

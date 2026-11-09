@@ -1,0 +1,35 @@
+id: toll-008
+repo: toll-ts
+intent: feature
+request: Add a GET /disputes/next endpoint to the operator API that returns the oldest open dispute, or 404 when there is none.
+ide: { activeFile: src/api/handlers.ts }
+gold_files: [src/api/handlers.ts]
+gold_symbols: ["src/api/handlers.ts#ApiHandlers.handle@method", "src/disputes/queue.ts#DisputeQueue.next@method"]
+setup: []
+gold:
+  - path: src/api/handlers.ts
+    find: "    if (req.method === 'POST' && req.path === '/disputes') return this.openDispute(req.body ?? {}, now);"
+    replace: |-
+          if (req.method === 'GET' && req.path === '/disputes/next') {
+            const d = this.disputes.next();
+            return d ? { status: 200, body: d } : { status: 404, body: { error: 'no open disputes' } };
+          }
+          if (req.method === 'POST' && req.path === '/disputes') return this.openDispute(req.body ?? {}, now);
+hidden:
+  - path: test/hidden/api-next.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { ApiHandlers } from '../../src/api/handlers.js';
+      import { FeatureFlags } from '../../src/config/flags.js';
+      import { DisputeQueue } from '../../src/disputes/queue.js';
+      import { SessionStore } from '../../src/toll/store.js';
+      it('serves the oldest open dispute and 404 when empty', () => {
+        const q = new DisputeQueue(new FeatureFlags(['dispute-queue']));
+        const api = new ApiHandlers(new SessionStore(), q);
+        expect(api.handle({ method: 'GET', path: '/disputes/next' }, 0).status).toBe(404);
+        q.enqueue({ id: 'd1', sessionId: 's', reason: 'other', status: 'open', openedAt: 1 });
+        const res = api.handle({ method: 'GET', path: '/disputes/next' }, 0);
+        expect(res.status).toBe(200);
+        expect((res.body as { id: string }).id).toBe('d1');
+      });
+test: { kind: vitest, files: [test/hidden/api-next.test.ts] }

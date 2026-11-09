@@ -1,0 +1,30 @@
+id: emb-001
+repo: embedded-c
+intent: bugfix
+request: The UART ring buffer overwrites old bytes when it is full instead of rejecting the push.
+ide: {}
+gold_files: [src/ring.c]
+gold_symbols: ["src/ring.c#ring_push@function"]
+setup:
+  - path: src/ring.c
+    find: "    if (r->count == RING_CAPACITY) {"
+    replace: "    if (r->count > RING_CAPACITY) {"
+gold:
+  - path: src/ring.c
+    find: "    if (r->count > RING_CAPACITY) {"
+    replace: "    if (r->count == RING_CAPACITY) {"
+hidden:
+  - path: test/hidden_ring_full.c
+    content: |
+      #include <assert.h>
+      #include "ring.h"
+      int main(void) {
+          ring_t r;
+          ring_init(&r);
+          for (int i = 0; i < RING_CAPACITY; i++) assert(ring_push(&r, (uint8_t)i) == 0);
+          assert(ring_push(&r, 99) == -1);
+          uint8_t b;
+          assert(ring_pop(&r, &b) == 0 && b == 0);
+          return 0;
+      }
+test: { kind: cc, files: [test/hidden_ring_full.c], sources: [src/ring.c] }

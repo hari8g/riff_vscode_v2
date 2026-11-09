@@ -1,0 +1,29 @@
+id: fleet-003
+repo: fleet-java
+intent: feature
+request: Add InMemoryVehicleRepository.countByStatus(VehicleStatus) so the ops dashboard can show how many vehicles are in each state.
+ide: {}
+gold_files: [dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java]
+gold_symbols: ["dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java#InMemoryVehicleRepository@class", "model/src/main/java/com/fleet/model/VehicleStatus.java#VehicleStatus@enum"]
+setup: []
+gold:
+  - path: dispatch/src/main/java/com/fleet/dispatch/InMemoryVehicleRepository.java
+    find: "    @Override\n    public void save(Vehicle vehicle) {"
+    replace: "    /** Number of stored vehicles in the given status. */\n    public long countByStatus(com.fleet.model.VehicleStatus status) {\n        return vehicles.values().stream().filter(v -> v.getStatus() == status).count();\n    }\n\n    @Override\n    public void save(Vehicle vehicle) {"
+hidden:
+  - path: hidden/com/fleet/dispatch/HiddenFleet003.java
+    content: |
+      package com.fleet.dispatch;
+      import com.fleet.model.*;
+      public class HiddenFleet003 {
+          public static void main(String[] a) {
+              InMemoryVehicleRepository repo = new InMemoryVehicleRepository();
+              Vehicle m = new Vehicle("m", new GeoPoint(1, 1), 4);
+              m.sendToMaintenance();
+              repo.save(m);
+              repo.save(new Vehicle("a", new GeoPoint(1, 1), 4));
+              if (repo.countByStatus(VehicleStatus.MAINTENANCE) != 1) throw new AssertionError("maintenance count");
+              if (repo.countByStatus(VehicleStatus.AVAILABLE) != 1) throw new AssertionError("available count");
+          }
+      }
+test: { kind: javac, files: [hidden/com/fleet/dispatch/HiddenFleet003.java], main: com.fleet.dispatch.HiddenFleet003 }

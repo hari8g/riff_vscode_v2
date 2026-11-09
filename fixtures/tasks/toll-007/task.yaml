@@ -1,0 +1,30 @@
+id: toll-007
+repo: toll-ts
+intent: feature
+request: Add an SMS template disputeResolvedMessage(plate, sessionId, status) that names the session id, next to the other notification templates, and keep it within one SMS.
+ide: {}
+gold_files: [src/notify/templates.ts]
+gold_symbols: ["src/notify/templates.ts#disputeMessage@function"]
+setup: []
+gold:
+  - path: src/notify/templates.ts
+    find: "export function fitsOneSms"
+    replace: |-
+      export function disputeResolvedMessage(plate: string, sessionId: string, status: string): string {
+        return `Dispute on ${plate} (session ${sessionId}) is ${status}.`;
+      }
+
+      export function fitsOneSms
+hidden:
+  - path: test/hidden/templates.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import * as t from '../../src/notify/templates.js';
+      it('dispute resolution template names the session and fits one SMS', () => {
+        const fn = (t as Record<string, unknown>)['disputeResolvedMessage'] as (p: string, s: string, st: string) => string;
+        const msg = fn('KA01AB1234', 'ses-42', 'upheld');
+        expect(msg).toContain('ses-42');
+        expect(msg).toContain('upheld');
+        expect(t.fitsOneSms(msg)).toBe(true);
+      });
+test: { kind: vitest, files: [test/hidden/templates.test.ts] }

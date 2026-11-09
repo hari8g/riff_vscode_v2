@@ -1,0 +1,31 @@
+id: toll-011
+repo: toll-ts
+intent: bugfix
+request: Readings from the last lane of every gantry fail with "gantry g1 has no lane 4".
+ide:
+  stackTrace: |
+    Error: gantry g1 has no lane 4
+        at Gantry.lane (src/gantry/gantry.ts:14:22)
+        at Gantry.ingest (src/gantry/gantry.ts:19:10)
+        at PassageProcessor.process (src/toll/processor.ts:31:5)
+gold_files: [src/gantry/gantry.ts]
+gold_symbols: ["src/gantry/gantry.ts#Gantry@class"]
+setup:
+  - path: src/gantry/gantry.ts
+    find: "for (let i = 1; i <= laneCount; i++)"
+    replace: "for (let i = 1; i < laneCount; i++)"
+gold:
+  - path: src/gantry/gantry.ts
+    find: "for (let i = 1; i < laneCount; i++)"
+    replace: "for (let i = 1; i <= laneCount; i++)"
+hidden:
+  - path: test/hidden/lanes.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { Gantry } from '../../src/gantry/gantry.js';
+      it('creates every lane, including the last', () => {
+        const g = new Gantry('g1', 'p', 4);
+        expect(() => g.lane(4)).not.toThrow();
+        expect(() => g.lane(5)).toThrow();
+      });
+test: { kind: vitest, files: [test/hidden/lanes.test.ts] }

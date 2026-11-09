@@ -1,0 +1,28 @@
+id: toll-004
+repo: toll-ts
+intent: bugfix
+request: When two adjacent lanes read the same car, we keep the blurrier read instead of the more confident one.
+ide: { activeFile: src/gantry/dedupe.ts }
+gold_files: [src/gantry/dedupe.ts]
+gold_symbols: ["src/gantry/dedupe.ts#ReadingDeduper.accept@method"]
+setup:
+  - path: src/gantry/dedupe.ts
+    find: "if (r.confidence > prev.confidence) {"
+    replace: "if (r.confidence < prev.confidence) {"
+gold:
+  - path: src/gantry/dedupe.ts
+    find: "if (r.confidence < prev.confidence) {"
+    replace: "if (r.confidence > prev.confidence) {"
+hidden:
+  - path: test/hidden/dedupe-best.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { ReadingDeduper } from '../../src/gantry/dedupe.js';
+      const r = (laneId: number, at: number, confidence: number) => ({ gantryId: 'g', laneId, plate: { text: 'KA01AB1234', region: 'KA' }, confidence, at, vehicleClass: 'car' as const });
+      it('replaces a duplicate with a more confident read and drops a worse one', () => {
+        const d = new ReadingDeduper(2000);
+        d.accept(r(1, 0, 0.9));
+        expect(d.accept(r(2, 100, 0.97))?.laneId).toBe(2);
+        expect(d.accept(r(3, 200, 0.5))).toBeUndefined();
+      });
+test: { kind: vitest, files: [test/hidden/dedupe-best.test.ts] }

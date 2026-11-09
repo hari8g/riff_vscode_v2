@@ -1,0 +1,33 @@
+id: emb-005
+repo: embedded-c
+intent: feature
+request: uart_t should count successfully transmitted bytes in a new tx_bytes field, incremented by uart_write.
+ide: { activeFile: src/uart.c }
+gold_files: [include/uart.h, src/uart.c]
+gold_symbols: ["src/uart.c#uart_write@function", "include/uart.h#uart@struct"]
+setup: []
+gold:
+  - path: include/uart.h
+    find: "    uint32_t errors;\n} uart_t;"
+    replace: "    uint32_t errors;\n    uint32_t tx_bytes;\n} uart_t;"
+  - path: src/uart.c
+    find: "    u->errors = 0;\n"
+    replace: "    u->errors = 0;\n    u->tx_bytes = 0;\n"
+  - path: src/uart.c
+    find: "            u->errors++;\n            return -1;\n        }\n    }\n    return (int)len;"
+    replace: "            u->errors++;\n            return -1;\n        }\n        u->tx_bytes++;\n    }\n    return (int)len;"
+hidden:
+  - path: test/hidden_tx.c
+    content: |
+      #include <assert.h>
+      #include "uart.h"
+      int main(void) {
+          uart_t u;
+          uart_init(&u, 0);
+          const uint8_t d[] = {1, 2, 3};
+          uart_write(&u, d, 3);
+          uart_send_frame(&u, d, 3);
+          assert(u.tx_bytes == 3 + 3 + 2);
+          return 0;
+      }
+test: { kind: cc, files: [test/hidden_tx.c], sources: [src/uart.c, src/ring.c, src/crc.c, src/hal_stub.c] }

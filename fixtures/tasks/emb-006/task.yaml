@@ -1,0 +1,31 @@
+id: emb-006
+repo: embedded-c
+intent: refactor
+request: Rename crc16_update to crc16_step everywhere (header, implementation and callers).
+ide: {}
+gold_files: [include/crc.h, src/crc.c]
+gold_symbols: ["src/crc.c#crc16_update@function", "include/crc.h#crc16_update@function"]
+setup: []
+gold:
+  - path: include/crc.h
+    find: "uint16_t crc16_update(uint16_t crc, uint8_t byte);"
+    replace: "uint16_t crc16_step(uint16_t crc, uint8_t byte);"
+  - path: src/crc.c
+    find: "uint16_t crc16_update(uint16_t crc, uint8_t byte) {"
+    replace: "uint16_t crc16_step(uint16_t crc, uint8_t byte) {"
+  - path: src/crc.c
+    find: "        crc = crc16_update(crc, data[i]);"
+    replace: "        crc = crc16_step(crc, data[i]);"
+hidden:
+  - path: test/hidden_step.c
+    content: |
+      #include <assert.h>
+      #include "crc.h"
+      int main(void) {
+          uint16_t c = crc16_step(0xFFFF, '1');
+          assert(c != 0xFFFF);
+          const uint8_t m[] = "123456789";
+          assert(crc16(m, 9) == 0x29B1);
+          return 0;
+      }
+test: { kind: cc, files: [test/hidden_step.c], sources: [src/crc.c] }

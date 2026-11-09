@@ -1,0 +1,33 @@
+id: toll-006
+repo: toll-ts
+intent: feature
+request: When the strict-checksum flag is on, a plate without a checksum must not be charged; TollSession.close should mark it disputed instead.
+ide: {}
+gold_files: [src/toll/session.ts]
+gold_symbols: ["src/toll/session.ts#TollSession.close@method"]
+setup: []
+gold:
+  - path: src/toll/session.ts
+    find: "    if (!validatePlate(this.plate)) {"
+    replace: "    if (!validatePlate(this.plate) || (this.flags.isEnabled('strict-checksum') && this.plate.checksum === undefined)) {"
+hidden:
+  - path: test/hidden/strict.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { FeatureFlags } from '../../src/config/flags.js';
+      import { Ledger } from '../../src/toll/ledger.js';
+      import { TollSession } from '../../src/toll/session.js';
+      it('strict-checksum disputes plates without a checksum', () => {
+        const ledger = new Ledger();
+        const s = new TollSession('s', { text: 'KA01AB1234', region: 'KA' }, ledger, new FeatureFlags(['charge-on-close', 'strict-checksum']));
+        s.close(100);
+        expect(s.state).toBe('disputed');
+        expect(ledger.total()).toBe(0);
+      });
+      it('without the flag the same plate is charged', () => {
+        const ledger = new Ledger();
+        const s = new TollSession('s', { text: 'KA01AB1234', region: 'KA' }, ledger, new FeatureFlags(['charge-on-close']));
+        s.close(100);
+        expect(s.state).toBe('closed');
+      });
+test: { kind: vitest, files: [test/hidden/strict.test.ts] }

@@ -1,0 +1,26 @@
+id: toll-002
+repo: toll-ts
+intent: bugfix
+request: Drivers passing at exactly 11:00 are charged the peak surcharge. The morning peak should end at 11.
+ide: {}
+gold_files: [src/pricing/peak.ts]
+gold_symbols: ["src/pricing/peak.ts#isPeak@function"]
+setup:
+  - path: src/pricing/peak.ts
+    find: "hour >= w.startHour && hour < w.endHour"
+    replace: "hour >= w.startHour && hour <= w.endHour"
+gold:
+  - path: src/pricing/peak.ts
+    find: "hour >= w.startHour && hour <= w.endHour"
+    replace: "hour >= w.startHour && hour < w.endHour"
+hidden:
+  - path: test/hidden/peak.test.ts
+    content: |
+      import { expect, it } from 'vitest';
+      import { isPeak } from '../../src/pricing/peak.js';
+      it('peak windows exclude their end hour', () => {
+        expect(isPeak(10)).toBeDefined();
+        expect(isPeak(11)).toBeUndefined();
+        expect(isPeak(20)).toBeUndefined();
+      });
+test: { kind: vitest, files: [test/hidden/peak.test.ts] }
