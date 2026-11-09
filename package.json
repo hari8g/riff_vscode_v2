@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "schemas": "node tooling/scripts/gen-schemas.mjs",
     "schemas:check": "node tooling/scripts/gen-schemas.mjs --check",
+    "bench:index": "node tooling/scripts/bench-index.mjs",
     "verify": "pnpm build && pnpm lint && pnpm test && pnpm schemas:check"
   },
   "devDependencies": {

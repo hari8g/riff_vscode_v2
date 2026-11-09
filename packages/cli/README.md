@@ -1,5 +1,5 @@
-# riaf
+# riaf — command-line client
 
-riaf CLI: index | pack | jump | impact | history | wiki | eval | doctor | serve | init.
+`riaf index | status | jump | impact | doctor | serve` (pack, history, wiki, eval and init arrive with later milestones). Allowed imports: `@riaf/kernel`, `@riaf/daemon` (client), `@riaf/serve-mcp`, `@riaf/eval`, compiler render types.
 
-Arrives in milestone **M1**. Allowed imports: @riaf/kernel, @riaf/daemon, @riaf/serve-mcp, @riaf/eval, @riaf/compiler (enforced by `pnpm lint`).
+By default commands talk to the repository's daemon and auto-start it (`riaf serve --detached`). `--in-process` (or `RIAF_IN_PROCESS=1`) opens the index in the CLI process instead, for CI and benchmarks. `--json` gives machine-readable output on every command.
