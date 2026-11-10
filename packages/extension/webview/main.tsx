@@ -2,33 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ask, brand, repoName, repoRoot, save, saved } from './api.js';
 import { DetailProvider, Drawer, Icon, Palette, symName, ToastHost, useTheme, type PaletteItem } from './kit.js';
-import { Adapters } from './pages/adapters.js';
-import { Ask } from './pages/ask.js';
-import { Governance } from './pages/governance.js';
-import { Health } from './pages/health.js';
-import { PromptPage } from './pages/prompt.js';
-import { Live } from './pages/live.js';
+import { ClaudePage } from './pages/claude.js';
+import { GovernanceHub, RepositoryHub } from './pages/hubs.js';
 import { Overview } from './pages/overview.js';
-import { PoliciesPage } from './pages/policies.js';
+import { PromptPage } from './pages/prompt.js';
 import { RepoPicker } from './pages/repos.js';
-import { Repository } from './pages/repository.js';
 import { Savings } from './pages/savings.js';
-import { Studio } from './pages/studio.js';
 
-/** The RIAF console: a rail, a top bar with search, and its pages. One developer view; governance pages are grouped last. */
+/** The RIAF console: six pages from reading the repository to running Claude Code, with savings and governance. */
 
 const PAGES = [
   { id: 'overview', label: 'Home', key: 'h', admin: false },
-  { id: 'studio', label: 'Prepare a task', key: 't', admin: false },
-  { id: 'repository', label: 'Explore the code', key: 'e', admin: false },
-  { id: 'ask', label: 'Ask a question', key: 'q', admin: false },
-  { id: 'prompt', label: 'AI prompt', key: 'p', admin: false },
-  { id: 'health', label: 'Code health', key: 'c', admin: false },
-  { id: 'live', label: 'Claude Code live', key: 'l', admin: false },
+  { id: 'repository', label: 'Repository', key: 'r', admin: false },
+  { id: 'prompt', label: 'Prompt', key: 'p', admin: false },
+  { id: 'claude', label: 'Claude Code', key: 'c', admin: false },
   { id: 'savings', label: 'Savings', key: 's', admin: false },
-  { id: 'governance', label: 'AI activity', key: 'g', admin: true },
-  { id: 'policies', label: 'Rules', key: 'r', admin: true },
-  { id: 'adapters', label: 'Setup', key: 'u', admin: true },
+  { id: 'governance', label: 'Governance', key: 'g', admin: false },
 ] as const;
 type Page = (typeof PAGES)[number]['id'];
 
@@ -43,7 +32,7 @@ function App() {
   const go = (p: string, arg?: string) => {
     setPage(p as Page);
     save('page', p);
-    if (p === 'repository') setFocus(arg);
+    if (p === 'repository' || p === 'claude') setFocus(arg);
   };
   useEffect(() => {
     if (!repoRoot) return;
@@ -59,7 +48,7 @@ function App() {
       const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPal((v) => !v); return; }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === '/') { e.preventDefault(); go('studio'); setTimeout(() => (document.querySelector('.taskline textarea') as HTMLTextAreaElement | null)?.focus(), 40); return; }
+      if (e.key === '/') { e.preventDefault(); go('prompt'); setTimeout(() => (document.querySelector('.composer textarea') as HTMLTextAreaElement | null)?.focus(), 40); return; }
       if (chord && Date.now() - chord < 1200) {
         const hit = PAGES.find((p) => p.key === e.key.toLowerCase());
         chord = 0;
@@ -96,15 +85,9 @@ function App() {
         </div>
         <button className="repo-pill" title={repoRoot ? `${repoRoot} (click to open another repository)` : 'Open a repository'} onClick={() => setRepos(true)}><Icon name="folder" size={14} /><span>{repoRoot ? repoName : 'Open a repository…'}</span><Icon name="chevron" size={12} /></button>
         <div className="navs">
-          {pages.filter((p) => !p.admin).map((p) => (
+          {pages.map((p) => (
             <button key={p.id} className={`nav ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>
-              <Icon name={p.id} /><span>{p.label}</span>
-            </button>
-          ))}
-          <div className="nav-sep">Governance</div>
-          {pages.filter((p) => p.admin).map((p) => (
-            <button key={p.id} className={`nav ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>
-              <Icon name={p.id} /><span>{p.label}</span>
+              <Icon name={p.id === 'claude' ? 'live' : p.id} /><span>{p.label}</span>
             </button>
           ))}
         </div>
@@ -123,17 +106,12 @@ function App() {
         </header>
         <main className="main" key={page}>
           {!repoRoot ? <NoRepo /> : <>
-          {page === 'live' && <Live />}
           {page === 'overview' && <Overview go={go} />}
-          {page === 'ask' && <Ask go={go} />}
+          {page === 'repository' && <RepositoryHub go={go} onOpenRepo={() => setRepos(true)} {...(focus ? { focus } : {})} />}
           {page === 'prompt' && <PromptPage go={go} />}
-          {page === 'health' && <Health go={go} />}
-          {page === 'studio' && <Studio go={go} />}
-          {page === 'repository' && <Repository {...(focus ? { focus } : {})} />}
-          {page === 'policies' && <PoliciesPage />}
-          {page === 'governance' && <Governance />}
+          {page === 'claude' && <ClaudePage {...(focus ? { focus } : {})} />}
           {page === 'savings' && <Savings />}
-          {page === 'adapters' && <Adapters />}
+          {page === 'governance' && <GovernanceHub />}
           </>}
         </main>
       </div>

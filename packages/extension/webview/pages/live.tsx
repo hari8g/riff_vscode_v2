@@ -12,6 +12,9 @@ interface LiveEvent { id: string; session: string; at: string; kind: 'prompt' | 
 interface LiveSession { id: string; title: string; updatedAt: string; active: boolean; events: number }
 
 const KEEP = 4000;
+/** A session title without RIAF's prompt marker, and whether it ran a RIAF prompt. */
+const plainTitle = (t: string) => t.replace(/^\[RIAF pr_\w+\]\s*/, '').replace(/ — RIAF compiled.*$/, '');
+const fromRiaf = (t: string) => /^\[RIAF pr_\w+\]/.test(t);
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const ago = (iso: string) => {
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
@@ -91,7 +94,7 @@ export function Live() {
               {sessions.map((s) => (
                 <button key={s.id} className={pick === s.id ? 'on' : ''} onClick={() => setPick(s.id)} title={s.id}>
                   <span className={`live-state ${s.active ? 'on' : ''}`} />
-                  <span><b>{s.title}</b><small className="muted">{s.active ? 'Running' : ago(s.updatedAt)} · {s.events} events</small></span>
+                  <span><b>{fromRiaf(s.title) ? <i className="riaf-b">RIAF prompt</i> : null}{plainTitle(s.title)}</b><small className="muted">{s.active ? 'Running' : ago(s.updatedAt)} · {s.events} events</small></span>
                 </button>
               ))}
             </div>
@@ -102,7 +105,7 @@ export function Live() {
               <div className="wf-title">
                 <div>
                   <span className="eyebrow">Session {pick?.slice(0, 8)}</span>
-                  <h2>{session?.title ?? 'Session'}</h2>
+                  <h2>{session ? plainTitle(session.title) : 'Session'}</h2>
                 </div>
                 <span className={`status ${session?.active ? 'run' : 'idle'}`}>{session?.active ? 'Running' : 'Idle'}</span>
               </div>

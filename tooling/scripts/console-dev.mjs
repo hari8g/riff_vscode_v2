@@ -41,7 +41,7 @@ const streams = new Set();
 let live;
 const follow = () => {
   live?.stop();
-  live = new ClaudeLive(repo);
+  live = new ClaudeLive(repo, process.env.RIAF_CLAUDE_DIR || undefined);
   live.on((events) => { for (const res of streams) res.write(`data: ${JSON.stringify({ type: 'push', channel: 'live', events })}\n\n`); });
   live.start();
 };
@@ -118,7 +118,7 @@ const server = createServer(async (req, res) => {
         rpc: core,
         writeRiafFile: async (name, text) => writeFileSync(join(repo, '.riaf', name), text),
         modelSettings: () => ({ summarize: { provider: 'ollama', model: 'qwen2.5:7b' }, classify: { provider: 'openai', model: 'gpt-4o-mini', baseUrl: 'https://gateway.internal/v1', apiKeyEnv: 'GATEWAY_TOKEN' } }),
-        runCommand: async (cmd) => console.log(`(dev) would run VS Code command ${cmd}`),
+        runCommand: async (cmd) => { if (cmd === 'riaf.runClaude') throw new Error('no terminal in the dev server'); console.log(`(dev) would run VS Code command ${cmd}`); },
         repo: { current: () => repo, recent: () => recent, open: openRepo, reloadOnSwitch: true },
         live: () => live.snapshot(),
         liveSession: (id) => live.sessionEvents(id),

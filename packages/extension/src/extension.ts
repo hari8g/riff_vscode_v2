@@ -157,6 +157,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     term.show();
     term.sendText(`claude ${JSON.stringify(file ? handoffPrompt(task, vscode.workspace.asRelativePath(file)) : task)}`);
   });
+  /** Starts Claude Code in a terminal with an exported RIAF prompt (the console's "Export to Claude Code"). */
+  reg('riaf.runClaude', async (command: string) => {
+    const root = workspaceRoot();
+    if (!root || typeof command !== 'string' || !command.startsWith("claude '")) return;
+    const term = vscode.window.createTerminal({ name: 'Claude Code (RIAF)', cwd: root });
+    term.show();
+    term.sendText(command);
+  });
   reg('riaf.init', async () => {
     const root = workspaceRoot();
     if (!root) return;

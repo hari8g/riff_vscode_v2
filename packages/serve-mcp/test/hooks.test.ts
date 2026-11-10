@@ -39,6 +39,10 @@ describe('Claude Code hook script against a live daemon', () => {
     const first = await hook('prompt', { prompt: 'Fix ReadingDeduper.accept: it keeps the blurrier read' });
     expect(first.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
     expect(first.hookSpecificOutput.additionalContext).toMatch(/^# RIAF agent prompt · pack pk-/);
+    const index = readFileSync(join(root, '.riaf/prompts/index.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(index[0]).toMatchObject({ source: 'hook', task: 'Fix ReadingDeduper.accept: it keeps the blurrier read', host: 'claude' });
+    expect(index[0].sessionId).toBeTruthy();
+    expect(readFileSync(join(root, '.riaf/prompts', `${index[0].promptId}.md`), 'utf8')).toBe(first.hookSpecificOutput.additionalContext);
     const again = await hook('prompt', { prompt: 'also fix the dedupe window bug please' });
     expect(again.hookSpecificOutput.additionalContext).toMatch(/^RIAF: same task \(bugfix\)/);
   });

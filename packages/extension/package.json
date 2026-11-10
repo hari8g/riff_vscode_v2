@@ -64,6 +64,10 @@
         "command": "riaf.handoffClaude",
         "title": "RIAF: Open in Claude Code",
         "enablement": "false"
+      },
+      {
+        "command": "riaf.runClaude",
+        "title": "RIAF: Run a compiled prompt in Claude Code"
       }
     ],
     "configuration": {

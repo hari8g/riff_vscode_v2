@@ -21,6 +21,32 @@ export interface LiveEvent {
   ref?: string;
   /** True for steps a sub-agent took on the main session's behalf. */
   sidechain?: boolean;
+  /** For Edit / MultiEdit / Write / NotebookEdit: the code Claude Code wrote (clipped). */
+  edits?: CodeEdit[];
+}
+
+/** One change Claude Code made to a file: the text it replaced (absent for a new file) and the new text. */
+export interface CodeEdit {
+  path: string;
+  before?: string;
+  after: string;
+}
+
+const EDIT_CLIP = 6000;
+/** The code changes inside an editing tool call's input. */
+export function editsOf(name: string, input: Record<string, unknown> | undefined, root?: string): CodeEdit[] {
+  const i = input ?? {};
+  const raw = typeof i['file_path'] === 'string' ? (i['file_path'] as string) : typeof i['notebook_path'] === 'string' ? (i['notebook_path'] as string) : '';
+  if (!raw) return [];
+  const path = root && raw.startsWith(root) ? relative(root, raw) || raw : raw;
+  const str = (v: unknown) => (typeof v === 'string' ? clip(v, EDIT_CLIP) : '');
+  switch (name) {
+    case 'Write': return [{ path, after: str(i['content']) }];
+    case 'Edit': return [{ path, before: str(i['old_string']), after: str(i['new_string']) }];
+    case 'MultiEdit': return (Array.isArray(i['edits']) ? i['edits'] as Record<string, unknown>[] : []).slice(0, 20).map((e) => ({ path, before: str(e['old_string']), after: str(e['new_string']) }));
+    case 'NotebookEdit': return [{ path, after: str(i['new_source']) }];
+    default: return [];
+  }
 }
 
 /** One transcript file: a Claude Code session in this repository. */
@@ -84,7 +110,9 @@ export function parseTranscriptLine(line: string, root?: string): LiveEvent[] {
       if (text) out.push({ id, ...base, kind: o['type'] === 'user' ? 'prompt' : 'text', text: clip(text, 2000) });
     } else if (blk['type'] === 'tool_use') {
       const tool = String(blk['name'] ?? 'tool');
-      out.push({ id, ...base, kind: 'tool', tool, text: describeTool(tool, blk['input'] as Record<string, unknown> | undefined, root), ...(blk['id'] ? { ref: String(blk['id']) } : {}) });
+      const input = blk['input'] as Record<string, unknown> | undefined;
+      const edits = editsOf(tool, input, root);
+      out.push({ id, ...base, kind: 'tool', tool, text: describeTool(tool, input, root), ...(blk['id'] ? { ref: String(blk['id']) } : {}), ...(edits.length ? { edits } : {}) });
     } else if (blk['type'] === 'tool_result') {
       const text = clip(resultText(blk['content']).trim(), 600);
       out.push({ id, ...base, kind: 'result', text, ...(blk['is_error'] ? { error: true } : {}), ...(blk['tool_use_id'] ? { ref: String(blk['tool_use_id']) } : {}) });

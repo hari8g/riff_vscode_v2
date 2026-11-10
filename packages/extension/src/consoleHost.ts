@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { answerQuestion, isLens, resetAskCache, understand } from './askHost.js';
 import type { LiveEvent, LiveSession } from './claudeLive.js';
+import { launchCommand, linkRuns, listPrompts, markExported, readPrompt, recordPrompt, runResult, statusOf, type PromptRun } from './runs.js';
 import { suggestTasks } from './suggest.js';
 import { BENCHMARKS, live } from './savings.js';
 import { TOKEN_PRESETS } from '@riaf/kernel';
@@ -15,6 +16,9 @@ export type ConsoleRequest =
   | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' | 'savings' | 'health' }
   | { type: 'prompt'; text: string; host?: 'claude' | 'copilot' | 'generic'; budget?: number }
   | { type: 'tokens' }
+  | { type: 'exportPrompt'; promptId: string }
+  | { type: 'runs' }
+  | { type: 'run'; promptId: string }
   | { type: 'validateTokens'; text?: string; settings?: unknown }
   | { type: 'saveTokens'; text?: string; settings?: unknown }
   | { type: 'validatePolicies'; policies: string; governance: string }
@@ -129,7 +133,44 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       break;
     case 'prompt': {
       const r = await rpc.call('prompt.build', { request: { text: req.text, ide: { interactive: true } }, host: req.host ?? 'claude', sessionId: 'console', ...(req.budget ? { budget: req.budget } : {}) });
-      return { type: 'prompt', pack: r.pack, prompt: r.prompt };
+      const root = deps.repo?.current();
+      if (root) recordPrompt(root, { promptId: r.prompt.promptId, packId: r.pack.packId, task: req.text, host: r.prompt.host, tokens: r.prompt.plan.prompt, createdAt: new Date().toISOString(), source: 'console' }, r.prompt.text);
+      return { type: 'prompt', pack: r.pack, prompt: r.prompt, route: { w: r.pack.route.w, branch: r.pack.route.branch, H: r.pack.route.H } };
+    }
+    case 'exportPrompt': {
+      const root = deps.repo?.current();
+      const rec = root ? listPrompts(root).find((x) => x.promptId === req.promptId) : undefined;
+      if (!root || !rec) return { type: 'error', message: 'compile the prompt first' };
+      markExported(root, rec.promptId);
+      if (deps.runCommand) {
+        // where no terminal can be opened (the browser dev server) the command is shown to copy instead
+        const launched = await deps.runCommand('riaf.runClaude', launchCommand(rec)).then(() => true, () => false);
+        return { type: 'exported', promptId: rec.promptId, launched, command: launchCommand(rec) };
+      }
+      return { type: 'exported', promptId: rec.promptId, launched: false, command: launchCommand(rec) };
+    }
+    case 'runs': {
+      const root = deps.repo?.current();
+      const records = root ? listPrompts(root) : [];
+      const sessions = deps.live?.().sessions ?? [];
+      const prompts = (id: string) => (deps.liveSession?.(id) ?? []).filter((e) => e.kind === 'prompt').map((e) => e.text);
+      const links = linkRuns(records, sessions, prompts);
+      const runs: PromptRun[] = records.map((r) => {
+        const s = links.get(r.promptId);
+        return { ...r, status: statusOf(r, s), ...(s ? { session: { id: s.id, title: s.title, active: s.active, updatedAt: s.updatedAt } } : {}) };
+      });
+      return { type: 'runs', runs };
+    }
+    case 'run': {
+      const root = deps.repo?.current();
+      const rec = root ? listPrompts(root).find((x) => x.promptId === req.promptId) : undefined;
+      if (!root || !rec) return { type: 'error', message: 'no such prompt' };
+      const sessions = deps.live?.().sessions ?? [];
+      const prompts = (id: string) => (deps.liveSession?.(id) ?? []).filter((e) => e.kind === 'prompt').map((e) => e.text);
+      const s = linkRuns([rec], sessions, prompts).get(rec.promptId);
+      const run: PromptRun = { ...rec, status: statusOf(rec, s), ...(s ? { session: { id: s.id, title: s.title, active: s.active, updatedAt: s.updatedAt } } : {}) };
+      const events = s ? deps.liveSession?.(s.id) ?? [] : [];
+      return { type: 'run', ...runResult(run, readPrompt(root, rec.promptId) ?? '', events), command: launchCommand(rec) };
     }
     case 'tokens': {
       const t = await rpc.call('tokens.get', {});

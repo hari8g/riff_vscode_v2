@@ -67,9 +67,9 @@ RIAF solves this once, locally, for everyone:
 | Role | What they use | What they get |
 | --- | --- | --- |
 | **Developer** | VS Code with Copilot, Claude Code, the CLI | A context pack before starting a task, jump-to-definition across the index, impact analysis, "why is this line like this?" |
-| **Product owner / analyst** | Console → *Ask a question* | Plain-language answers about how features work, what a change would affect, who knows an area, and a first-cut size for a new request with a ticket brief |
+| **Product owner / analyst** | Console → *Repository* → *Ask* | Plain-language answers about how features work, what a change would affect, who knows an area, and a first-cut size for a new request with a ticket brief |
 | **Engineering manager** | Console → *Savings*, *Home* | Measured savings against working without RIAF, a team cost calculator, live usage counts |
-| **Platform / tooling team** | `.riaf/policies.yaml`, `.riaf/governance.yaml`, Console (Detailed) → *Rules*, *AI activity* | Versioned retrieval rules, tool-call budgets and loop guards for AI sessions, utilisation data for tuning |
+| **Platform / tooling team** | `.riaf/policies.yaml`, `.riaf/governance.yaml`, `.riaf/tokens.yaml`, Console → *Governance* | Versioned retrieval rules, tool-call budgets and loop guards for AI sessions, utilisation data for tuning |
 | **AI assistant** | MCP tools, Copilot language-model tools, hooks | The right files, history and conventions in one call; answers to searches straight from the index; a nudge when it starts going in circles |
 
 ---
@@ -125,7 +125,7 @@ RIAF needs **Node.js 20+** for the CLI. The VS Code extension uses VS Code's own
    ```
 
 3. Open your repository folder. The status bar shows **RIAF n files** once the first index has finished (seconds for most repositories).
-4. Run **RIAF: Open console** from the command palette. Start on *Home* or go straight to *Ask a question*.
+4. Run **RIAF: Open console** from the command palette. Describe a task on *Home*, or open *Repository* to read the code.
 
 ### 4.2 Claude Code
 
@@ -164,81 +164,63 @@ This opens the console at <http://127.0.0.1:5199> against a real RIAF service. T
 
 The console is the visual home of RIAF. Open it with **RIAF: Open console** in VS Code, or in a browser with `pnpm console:dev`. It follows the Bosch design language: the supergraphic band, Bosch blue for actions, red only for warnings, square 4 px corners, and light and dark themes that follow VS Code.
 
-### 5.1 Simple and Detailed views
+### 5.1 Six pages, one flow
 
-A switch in the top bar sets how much detail you see. The console remembers your choice.
+The menu follows the path from code to change:
 
-| View | For | What you see |
-| --- | --- | --- |
-| **Simple** (default) | Everyone | Plain words only. Five pages: *Home, Ask a question, Prepare a task, Explore the code, Savings*. No scores, token counts or internal names. |
-| **Detailed** | Engineers, platform team | Everything in Simple, plus the engineering view of each page (intent distributions, entropy, token budgets, rule names, timings, raw lookups) and three extra pages under **For engineers**: *AI activity, Rules, Setup*. |
+| Page | What it is for |
+| --- | --- |
+| **Home** | Starting point: the repository and its status, one box to describe a task, the four steps (read → compile → run → measure) with live numbers, and the latest runs |
+| **Repository** | Read the code: **Browse** (areas, summaries, any part's dependants, tests and history), **Ask** (plain-language questions, [§6](#6-ask-a-question-the-plain-language-layer)) and **Health** (load-bearing parts, missing tests, hotspots, owners, domain words). *Open another repository* switches the folder RIAF reads. |
+| **Prompt** | Compile a task into the agent prompt and export it to Claude Code |
+| **Claude Code** | What Claude Code did for each prompt, plus the live console |
+| **Savings** | Measured savings and an adjustable estimate ([§3](#3-results-so-far)) |
+| **Governance** | **AI activity** (tool-call decisions, priors, utilisation), **Rules** (`policies.yaml`, `governance.yaml`) and **Setup** (service, models) |
 
-### 5.2 Pages
+### 5.2 Compile a prompt and export it to Claude Code
 
-**Home.** The repository name, whether RIAF is *Up to date* or *Updating*, and four numbers: files, parts of the code, AI steps checked and tasks prepared. Below that, **What would you like to do?** offers four shortcuts: ask a question, prepare a task, explore the code, see the savings. *Refresh* re-reads the code. In Detailed you also see how each indexing stage is doing, how past requests were read, and what RIAF has learned from AI sessions.
+On **Prompt** (or straight from the box on Home), describe the change and press **Compile**. Four steps light up with real values:
 
-**Ask a question.** The plain-language question layer. It has its own section: [§6](#6-ask-a-question-the-plain-language-layer).
+1. **Read the task:** the kind of work and its mix (*Bug fix 51 % · Feature 49 %*).
+2. **Gather the context:** pieces of code and history, and tokens used against the budget.
+3. **Build the prompt:** sections, total tokens, and whether Claude Code must show its plan first.
+4. **Run in Claude Code:** **Export to Claude Code**. In VS Code this opens a terminal running `claude` with the prompt. In a browser the console shows the exact command to copy.
 
-**Prepare a task.** Describe a change you need, for example *"Fix the null check in TollSession.close() and then add a config flag so ops can disable it"*:
+The compiled prompt has three tabs:
 
-- **While you type**, RIAF says what kind of work it looks like (*"This looks like bug fix and feature work"*). It lists the related parts of the code and anything that does not exist in the code yet. If the request is unclear, it asks one question back.
-- **Press Prepare** (or <kbd>⌘</kbd><kbd>↵</kbd>). RIAF gathers the context in four groups: *Overview of the product*, *Code to look at*, *Past changes and team rules*, and *How to build and test*. Each item has a plain reason, such as *"Included because: it uses the part you named"*. Click an item to read the code.
-- **Hand it off** with *Send to Claude Code*, *Send to Copilot* or *Copy*.
-- **In Detailed** the page becomes the original compiler studio: a token-budget slider, the entropy gauge, the intent distribution, task units and stages, the budget meter with tiers, per-item scores, and the rendered pack for Claude, Copilot, any model or JSON.
+- **Prompt:** a table of contents with token counts per section (cached sections marked) and the full text.
+- **Context:** the gathered pieces by group, each openable.
+- **Token budget:** the context-window bar, the budget by kind of work, the plan gate and the token-settings editor ([§11.5](#115-riaftokensyaml-the-agent-prompts-token-settings)).
 
-**Explore the code.** Browse the product area by area, each with a short summary. Search for a part by name. The view for a part shows:
+Every compiled prompt is stored in `.riaf/prompts/<promptId>.md`, which is runtime state and not committed. The text Claude Code receives starts with a marker, `[RIAF pr_…]`, followed by the task and a pointer to that file.
 
-- a plain label (*component*, *action*, *data shape*),
-- what it does,
-- **What depends on it**, as a radial graph: what uses it directly or indirectly, the automated checks around it, and what usually changes with it,
-- **Where it is used**,
-- **Changes over time**, with dates, authors and the type of each change.
+### 5.3 Claude Code: runs keyed to prompts, and the live console
 
-Detailed adds code signatures, line ranges, reference kinds and the generated run-book.
+**Runs** lists every prompt, newest first, with its status: *Compiled*, *Sent*, *Running*, *Done* or *Needs a look*. RIAF links a Claude Code session to its prompt in two ways:
 
-**AI prompt.** Exactly what the AI assistant receives after RIAF has read the task and gathered the context ([§10.6](#106-the-agent-prompt-and-its-token-plan)):
+- **Exported from the console:** the session's first message carries the `[RIAF pr_…]` marker.
+- **Typed straight into Claude Code:** the RIAF prompt hook injects the agent prompt and records the session it went into.
 
-- Pick Claude Code, Copilot or any model, describe a task, and press **Build prompt**. Three steps light up: read the task, gather the context, build the prompt.
-- **How the context window is spent:** one bar for the whole model window. It shows cached instructions, instructions for this task, code and history, the reply reserve, the reasoning reserve, the room left for the AI's own reading, and the safety margin.
-- **What kind of work it is:** the intent mix with each kind's share of code and reply budget, and whether the AI must show its plan and wait for approval first.
-- **What is in the prompt:** every section with its size, the cacheable ones marked. Click one to jump to it in the full preview.
-- **Send to Claude Code**, **Send to Copilot** or **Copy**.
-- **Token settings:** start from *Economy*, *Balanced* or *Thorough*, or set the model window, the share of it to use, and the code and reply budget per kind of work. Settings that cannot fit are flagged. Save writes `.riaf/tokens.yaml` after validation. Detailed adds the reasoning reserve, the summarise point, cache ordering and a YAML editor.
+Selecting a run shows:
 
-**Code health.** What the three knowledge layers know about the code:
+- **Summary numbers:** files changed, commands, steps, failed steps and time.
+- **Claude Code's reply.**
+- **The code it wrote:** every Edit, MultiEdit and Write as a diff per file, with removed lines red and added lines green.
+- **The commands it ran,** with OK or FAIL.
+- **The prompt that was sent,** on request.
 
-- **Load-bearing parts:** most depended on, with whether a test reaches them.
-- **Needs a test:** important parts no automated check reaches, plus files that import each other in a circle.
-- **Changing fast:** files changed most often recently, the share of fixes, who made the changes, and a warning when only one person knows a busy file.
-- **Busiest areas.**
-- **Domain words:** the business vocabulary with meanings. Click one to open its definition.
-- Detailed adds tangled code and possibly unused definitions.
+A run that hasn't started yet shows the command to start it. The view updates live while Claude Code works.
 
-**Savings.** Measured results and an estimate, kept clearly apart:
+**Live console** follows every Claude Code session in the repository as it happens: turns, stages (context, explore, plan, edit, verify, run, delegate), files, commands, failures and the raw activity stream. Sessions started from a RIAF prompt carry a *RIAF prompt* badge. The console only reads Claude Code's own session logs and never writes to them.
 
-- **Measured (30 test tasks):** less text sent to the AI, fewer steps for the AI, more of the right files found, and the measured cost of Claude Code on its own.
-- **Side by side:** the three approaches compared on steps per task, right files found, and text sent.
-- **Estimate:** a calculator with sliders for search steps saved, developers, AI tasks per day and working days. It shows estimated monthly AI cost with and without RIAF. It is labelled as an estimate until a measured run replaces it.
-- **In this repository:** live counts of tasks prepared, AI searches answered instantly by RIAF, loops stopped, and an estimate of search steps saved.
-
-Detailed adds the input price of context per model (Claude Opus, Sonnet, Haiku and GPT-4o) and the source files of each figure.
-
-**AI activity** *(Detailed)*. Every tool call an AI assistant makes in a governed Claude Code session is checked first. This page shows the decisions (allowed, answered from the index, answered from cache, checkpoint, blocked), what RIAF has learned about which intents are common here, and **utilisation**: the share of delivered context the assistant actually read or edited, per rule. Utilisation is the evidence for tuning rules.
-
-**Rules** *(Detailed)*. A visual and text editor for `.riaf/policies.yaml` and `.riaf/governance.yaml`. Changes are validated before they are saved and take effect on the next request, with no release needed.
-
-**Setup** *(Detailed)*. The local RIAF service (root, protocol, uptime), configured AI models (optional), and the surfaces that consume the same pack.
-
-### 5.3 Keyboard
+### 5.4 Keyboard
 
 | Keys | Action |
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> | Search: jump to a page or to any part of the code |
-| <kbd>g</kbd> then <kbd>o</kbd> / <kbd>q</kbd> / <kbd>s</kbd> / <kbd>r</kbd> / <kbd>v</kbd> | Home / Ask / Prepare / Explore / Savings |
-| <kbd>g</kbd> then <kbd>g</kbd> / <kbd>p</kbd> / <kbd>a</kbd> | AI activity / Rules / Setup (Detailed view only) |
-| <kbd>/</kbd> | Start a new task |
-| <kbd>Enter</kbd> on *Ask* | Ask the question (<kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line) |
-| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>↵</kbd> on *Prepare* | Prepare the task |
+| <kbd>g</kbd> then <kbd>h</kbd> / <kbd>r</kbd> / <kbd>p</kbd> / <kbd>c</kbd> / <kbd>s</kbd> / <kbd>g</kbd> | Home / Repository / Prompt / Claude Code / Savings / Governance |
+| <kbd>/</kbd> | Start a new prompt |
+| <kbd>Enter</kbd> on Home, <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>↵</kbd> on *Prompt* | Compile |
 
 ---
 
@@ -279,13 +261,13 @@ Each answer shows a strip titled **How RIAF answered**, with the steps it took:
 4. **Prepare context for a developer.** Only for *How it works* and *Plan a request*: build a context pack, so the same question can be handed to a developer or AI assistant.
 5. **Write the answer.** Compose a headline, short paragraphs and the visual views, and list the sources.
 
-In Detailed you can click a step to see the exact lookups and timings, and open **Behind the scenes** for the lens scores, entropy, developer intent and pack size.
+Click a step to see the exact lookups and timings, and open **Behind the scenes** for the lens scores, entropy, developer intent and pack size.
 
 ### 6.4 What you can do with an answer
 
 - **Ask next.** Follow-up questions about the same subject through the other lenses, one click each.
 - **Not what you meant? Show me…** Re-ask the same question through a different lens.
-- **Sources.** Each source opens in *Explore the code*.
+- **Sources.** Each source opens in *Repository → Browse*.
 - **Copy answer.** Copies the whole answer as Markdown for a ticket, wiki page or chat.
 - **Copy ticket brief** *(Plan a request)*. Copies the request, likely areas, parts involved, rough size, open questions and an acceptance-criteria section.
 - **Hand to Claude Code / Copilot.** Sends the question with its prepared context to a developer's AI assistant.
@@ -537,7 +519,7 @@ primitives:
   # feature, merge, review, refactor, onboarding, unknown …
 ```
 
-Edits apply to the next request. Use **Rules** in the console (Detailed view) for a visual editor with validation.
+Edits apply to the next request. Use **Governance → Rules** in the console for a visual editor with validation.
 
 ### 11.2 `.riaf/governance.yaml`: limits for AI sessions
 
@@ -726,7 +708,8 @@ pnpm build && pnpm console:dev
 ```
 
 - Source: `packages/extension/webview/` (`main.tsx` shell, `kit.tsx` components, `pages/*.tsx`, `console.css` Bosch tokens).
-- The Simple/Detailed switch is a React context (`useDetailed()`, `<Detail>`). New engineering-only detail goes inside `<Detail>`. User-facing wording in the Simple view stays in everyday language.
+- Pages: `overview.tsx` (Home), `hubs.tsx` (Repository and Governance tabs), `prompt.tsx` (compile and export), `claude.tsx` (runs and live console), `savings.tsx`. Prompt runs live in `src/runs.ts`; Claude Code transcripts are tailed by `src/claudeLive.ts`.
+- Keep wording in everyday language. `<Detail>` (from `useDetailed()`) still marks engineering-only detail.
 - After changing host code (`packages/extension/src/*`), rebuild and restart `console:dev`. For webview-only changes, rebuild with `node tooling/esbuild/build.mjs webview` and reload.
 
 ---
@@ -747,9 +730,9 @@ pnpm build && pnpm console:dev
 
 **Does RIAF send my code anywhere?** No, unless you configure a model adapter ([§13](#13-privacy-and-security)).
 
-**How do I see the technical details?** Switch the top bar to **Detailed**.
+**Where do I see what Claude Code changed?** On **Claude Code → Runs**: pick the prompt to see Claude Code's reply, the code it wrote as diffs and the commands it ran.
 
-**Can I change how context is chosen?** Yes. Edit `.riaf/policies.yaml` directly or in **Rules** (Detailed view). Changes apply to the next request.
+**Can I change how context is chosen?** Yes. Edit `.riaf/policies.yaml` directly or in **Governance → Rules**. Changes apply to the next request.
 
 ---
 
@@ -777,7 +760,8 @@ pnpm build && pnpm console:dev
 
 | Term | Meaning |
 | --- | --- |
-| **Context pack** | The budgeted bundle of code, history, conventions and run-book that RIAF hands a developer or AI assistant for one task. In the Simple view: *prepared context*. |
+| **Context pack** | The budgeted bundle of code, history, conventions and run-book that RIAF hands a developer or AI assistant for one task. |
+| **Prompt run** | One compiled agent prompt and the Claude Code session that ran it, keyed by the `[RIAF pr_…]` marker or the prompt hook |
 | **Intent / intent vector** | What kind of work a request is (bug fix, feature, …), held as a probability for each kind |
 | **Entropy (H)** | How spread out the intent vector is. Low means clear, high means unclear. |
 | **Branch** | How a request is served: single, blended, probe, clarify or generic |

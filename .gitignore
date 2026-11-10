@@ -15,6 +15,7 @@ packages/extension/dist/
 .riaf/*.sqlite-wal
 .riaf/daemon.json
 .riaf/governor.json
+.riaf/prompts/
 .riaf/daemon.sock
 .riaf/*.log
 fixtures/repos/*/.riaf/
