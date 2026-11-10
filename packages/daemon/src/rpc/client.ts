@@ -33,12 +33,18 @@ export class SocketClient implements RpcCaller {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
 
+  /** True once the connection has closed; calls on it can never succeed again. */
+  closed = false;
+
   private constructor(private readonly socket: Socket, private readonly timeoutMs: number) {
     const decoder = new LineDecoder();
     socket.on('data', (chunk) => {
       for (const line of decoder.push(chunk)) this.onLine(line);
     });
-    socket.on('close', () => this.failAll(new RiafError('rpc_failure', 'daemon connection closed')));
+    socket.on('close', () => {
+      this.closed = true;
+      this.failAll(new RiafError('rpc_failure', 'daemon connection closed'));
+    });
     socket.on('error', (e) => this.failAll(new RiafError('rpc_failure', `daemon connection error: ${e.message}`)));
   }
 
@@ -79,6 +85,8 @@ export class SocketClient implements RpcCaller {
   }
 
   call<M extends RpcMethod>(method: M, params: RpcParams<M>): Promise<RpcResult<M>> {
+    // a closed connection can never answer: fail now rather than after the request timeout
+    if (this.closed || this.socket.destroyed) return Promise.reject(new RiafError('rpc_failure', 'daemon connection closed'));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -219,6 +227,11 @@ export class DaemonClient implements RpcCaller {
       throw new RiafError('rpc_failure', `daemon speaks protocol ${info.protocol}, client ${RPC_PROTOCOL_VERSION}; restart the daemon`);
     }
     return new DaemonClient(conn, root, info);
+  }
+
+  /** True once the connection to the daemon has closed (the daemon stopped or was restarted). */
+  get closed(): boolean {
+    return this.conn.closed;
   }
 
   /** True when the connected daemon serves `method`. */

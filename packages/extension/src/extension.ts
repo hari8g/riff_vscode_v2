@@ -30,23 +30,54 @@ function workspaceRoot(): string | undefined {
   return activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
-async function rpc(context: vscode.ExtensionContext, fresh = false): Promise<DaemonClient> {
-  if (client && !fresh) return client;
+/**
+ * The daemon connection. A fresh restart (opening the console) replaces the cached connection *at once*,
+ * so a request that arrives meanwhile waits for the new daemon instead of taking the connection that is
+ * about to close. A connection that has closed is never handed out again.
+ */
+function rpc(context: vscode.ExtensionContext, fresh = false): Promise<DaemonClient> {
   const root = workspaceRoot();
-  if (!root) throw new Error('open a repository folder to use RIAF');
+  if (!root) return Promise.reject(new Error('open a repository folder to use RIAF'));
   if (fresh) {
-    await connecting?.catch(() => undefined);
     const old = client;
+    const prev = connecting;
     client = undefined;
-    await old?.close().catch(() => undefined);
-    connecting = undefined;
+    const next: Promise<DaemonClient> = (async () => {
+      await prev?.catch(() => undefined);
+      await old?.close().catch(() => undefined);
+      const c = await connectDaemon(root, context.extensionPath, true);
+      client = c;
+      return c;
+    })().finally(() => { if (connecting === next) connecting = undefined; });
+    connecting = next;
+    return next;
   }
-  connecting ??= connectDaemon(root, context.extensionPath, fresh).then((c) => (client = c)).finally(() => (connecting = undefined));
+  if (client && !client.closed) return Promise.resolve(client);
+  if (client?.closed) client = undefined;
+  if (!connecting) {
+    const next: Promise<DaemonClient> = connectDaemon(root, context.extensionPath, false)
+      .then((c) => { client = c; return c; })
+      .finally(() => { if (connecting === next) connecting = undefined; });
+    connecting = next;
+  }
   return connecting;
 }
 
-/** An Rpc that connects on first use, so console requests that need no daemon never wait for one. */
-const lazyRpc = (context: vscode.ExtensionContext) => ({ call: (async (m: never, p: never) => (await rpc(context)).call(m, p)) as DaemonClient['call'] });
+/** Errors that mean the connection, not the request, failed: reconnect and try once more. */
+const CONNECTION_LOST = /daemon connection closed|no RIAF daemon|ECONNREFUSED|ENOENT|EPIPE|socket hang up/i;
+
+/** An Rpc that connects on first use and survives a daemon restart (one reconnect and retry per call). */
+const lazyRpc = (context: vscode.ExtensionContext) => ({
+  call: (async (m: never, p: never) => {
+    try {
+      return await (await rpc(context)).call(m, p);
+    } catch (e) {
+      if (!CONNECTION_LOST.test(e instanceof Error ? e.message : String(e))) throw e;
+      if (client?.closed) client = undefined;
+      return (await rpc(context)).call(m, p);
+    }
+  }) as DaemonClient['call'],
+});
 
 /** Tails Claude Code's transcripts for the active repository and forwards new events to the console. */
 function followClaude(): void {
@@ -130,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(status);
   const refresh = async () => {
     try {
-      const s = await (await rpc(context)).call('index.status', {});
+      const s = await lazyRpc(context).call('index.status', {});
       const pending = s.stages.reduce((a, x) => a + x.pending, 0);
       status.text = pending ? `$(sync~spin) RIAF ${pending} pending` : `$(database) RIAF ${s.blobs} files`;
       status.tooltip = `${s.symbols} symbols · ${s.edges} edges · schema ${s.schemaVersion}${s.head ? ` · ${s.head.slice(0, 8)}` : ''}`;

@@ -72,7 +72,11 @@ describe('daemon over the socket', () => {
     const client = await DaemonClient.connect(root, { fresh: true, spawn: { command: process.execPath, args: [bin, '--root', root, '--no-watch'] }, startTimeoutMs: 20_000 });
     expect(client.info.pid).not.toBe(process.pid);
     expect(readDaemonInfo(root)?.pid).toBe(client.info.pid);
+    expect(client.closed).toBe(false);
     expect(await stopDaemon(root)).toBe(true);
+    // a stopped daemon leaves the client marked closed, so callers reconnect instead of reusing it
+    expect(await until(async () => client.closed)).toBe(true);
+    await expect(client.call('index.status', {})).rejects.toThrow();
     expect(await until(async () => !existsSync(daemonInfoPath(root)))).toBe(true);
     expect(await stopDaemon(root)).toBe(false);
     await client.close().catch(() => undefined);
