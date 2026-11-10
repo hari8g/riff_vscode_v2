@@ -20,6 +20,9 @@ export const LEXICON: Lexicon = {
     [/\b(far outside|outside the|larger than|smaller than|more than|less than|exceeds?|too (many|few|large|small|early|late))\b/i, 1.2],
     [/\brejects? (our|the|them|valid)\b/i, 1.5], [/\b(drops?|loses?) (every|the|all|buffered)\b/i, 1.5], [/\b(we|it) keeps? the\b/i, 1],
     [/\b(even though|although|but (it )?should)\b/i, 1.5], [/\b(stale|blurrier|garbled|corrupt(ed)?|truncated|off)\b/i, 0.8], [/\binstead\b/i, 0.4],
+    // symptoms in everyday words: "not updating", "is broken", "stops working", "an issue with"
+    [/\bnot (updating|loading|showing|rendering|working|saving|refreshing|displaying|appearing|responding|compiling|starting)\b/i, 2.5],
+    [/\b(is|are|was|were|got|seems?) broken\b/i, 2.5], [/\bstops? (working|updating|responding|loading)\b/i, 2.5], [/\b(an |the )?issue with\b/i, 1.5],
   ],
   feature: [
     [/\badd(s|ed|ing)?\b/i, 2.5], [/\bimplement(s|ed|ing)?\b/i, 2.5], [/\bintroduce\b/i, 2], [/\bsupport(s|ing)?\b/i, 1.5],
@@ -28,17 +31,25 @@ export const LEXICON: Lexicon = {
     [/\b(need|want)s? to (see|have|be able)\b/i, 1.5], [/\bso (that )?(ops|users|we|the)\b/i, 1], [/\bgive\b/i, 0.8],
     // new conditional behaviour behind a switch
     [/\bwhen the [\w-]+ (flag|option|setting|mode) is (on|off|enabled|set)\b/i, 2.5], [/\bshould (mark|reject|refuse|warn|log|notify)\b/i, 1],
+    // feature requests in everyday words: "build a new feature", "enhance", "improve", "extend", "I want a …"
+    [/\bnew features?\b/i, 4], [/\bfeatures?\b/i, 1.5],
+    [/^\s*(build|develop|design)\b(?!\s+(is|was|fails?|failed|breaks?|broke|errors?|step|script|output)\b)/i, 1.5],
+    [/\b(build|develop|design|add|create) (an? |the |some )?(new )?(feature|page|view|screen|panel|dashboard|tool|api|endpoint|service|component|widget|integration|report|chart|map)s?\b/i, 2.5],
+    [/\benhance(s|d|ment|ments)?\b/i, 2.5], [/\bimprove(s|d|ment|ments)?\b(?!\s+(the\s+)?(readability|structure|naming|code quality|performance))/i, 2], [/\bextend(s|ed|ing)?\b/i, 2], [/\bcapabilit(y|ies)\b/i, 1.5],
+    [/\bintegrat(e|es|ion) with\b/i, 1.5], [/\binclude\b/i, 1], [/\b(i|we) (want|would like|need) (a|an|to (add|build|have|see))\b/i, 2],
   ],
   refactor: [
     [/\brename\b/i, 3.5], [/\bextract\b/i, 3], [/\bmove\b/i, 2], [/\bclean ?up\b/i, 3], [/\bsimplify\b/i, 2.5], [/\b(restructure|reorgani[sz]e)\b/i, 3],
     [/\bsplit\b/i, 2], [/\binline\b/i, 2], [/\b(deduplicate|dedupe the code)\b/i, 3], [/\bdelegate(s)? to\b/i, 2.5], [/\beverywhere\b/i, 1.5], [/\bwithout changing behaviou?r\b/i, 3],
+    [/\brefactor(s|ed|ing)?\b/i, 4], [/\b(optimi[sz]e|tidy( up)?|modulari[sz]e|decouple)\b/i, 1.5], [/\binto (smaller|separate) (modules|files|functions|classes|components)\b/i, 2], [/\bimprove (the )?(readability|structure|naming|code quality)\b/i, 3],
   ],
   review: [
     [/\breview\b/i, 3.5], [/\blook over\b/i, 3], [/\baudit\b/i, 2.5], [/\b(pull request|\bPR\b|diff|changeset)\b/i, 2], [/\bfeedback\b/i, 2],
     [/\bis (this|it) (correct|safe|ok|right)\b/i, 2.5], [/\bcheck (this|my|the) (change|diff|pr|patch)\b/i, 3],
   ],
   merge: [
-    [/\bmerge\b/i, 3], [/\b(merge )?conflicts?\b/i, 3.5], [/\brebase\b/i, 3], [/\bcherry[- ]pick\b/i, 3], [/\bboth branches\b/i, 2], [/<<<<<<<|>>>>>>>/, 4],
+    // "merge" as the task, not as a time reference ("broken after the last merge")
+    [/\bmerge\b(?<!\b(last|latest|previous|recent|the) merge)/i, 3], [/\b(merge )?conflicts?\b/i, 3.5], [/\brebase\b/i, 3], [/\bcherry[- ]pick\b/i, 3], [/\bboth branches\b/i, 2], [/<<<<<<<|>>>>>>>/, 4],
   ],
   onboarding: [
     [/\bexplain\b/i, 3.5], [/\bhow (does|do|is|are)\b/i, 2.5], [/\bwalk (me )?through\b/i, 3], [/\bwhat (is|does|are)\b/i, 2], [/\boverview\b/i, 3],
