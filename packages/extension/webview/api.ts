@@ -24,10 +24,22 @@ window.addEventListener('message', (e: MessageEvent<Msg>) => {
 /** Sends one request; rejects when the host answers with an error. */
 export function ask(req: Record<string, unknown>): Promise<Msg> {
   const id = nextId++;
-  return new Promise((resolve, reject) => {
+  const quiet = QUIET.has(String(req['type'])) || (req['type'] === 'load' && req['page'] === 'overview');
+  if (!quiet) busy(1);
+  return new Promise<Msg>((resolve, reject) => {
     pending.set(id, (m) => (m.type === 'error' ? reject(new Error(String(m['message']))) : resolve(m)));
     vscode.postMessage({ ...req, id });
-  });
+  }).finally(() => { if (!quiet) busy(-1); });
+}
+
+/** Background polls that should not animate the busy band. */
+const QUIET = new Set(['live', 'liveSession', 'runs', 'run', 'route', 'understand', 'tokens']);
+let inflight = 0;
+/** While RIAF works on a request, the Bosch supergraphic band at the top sweeps (`html[data-busy]`). */
+function busy(delta: number): void {
+  inflight = Math.max(0, inflight + delta);
+  if (inflight) document.documentElement.dataset['busy'] = '1';
+  else delete document.documentElement.dataset['busy'];
 }
 
 /** Listens for messages the host sends unasked (e.g. channel `live`: new Claude Code events). */
@@ -40,7 +52,9 @@ export function onPush(channel: string, fn: (m: Msg) => void): () => void {
 
 export const repoRoot = document.body.dataset['repo'] ?? '';
 /** Brand asset URLs supplied by the host (webview URIs in VS Code, plain paths in the dev server). */
-export const brand = { mps: document.body.dataset['mps'] ?? '' };
+export const brand = { mps: document.body.dataset['mps'] ?? '', mark: document.body.dataset['mark'] ?? '' };
+/** The page (and focus) the host asked the console to open with, e.g. from the VS Code sidebar. */
+export const initialNav = document.body.dataset['navPage'] ? { page: document.body.dataset['navPage'], arg: document.body.dataset['navArg'] } : undefined;
 export const repoName = repoRoot.split(/[\\/]/).filter(Boolean).pop() ?? 'repository';
 
 /** Per-panel UI state that survives the webview being hidden and shown. */

@@ -880,3 +880,87 @@ button.repo-pill span { flex: 1; }
 .pipeline4 li.done .p4-n { background: var(--teal); }
 .flow4 button::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: 6px 6px 0 0; background: var(--supergraphic); opacity: 0; transition: opacity .2s; }
 .flow4 button:hover::before { opacity: 1; }
+
+/* ══ Bosch UI elements and interaction ═══════════════════════════════════ */
+/* Logo: the RIAF mark beside the brand, the Bosch MPS plate after it */
+.brand { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; }
+.riaf-mark { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); transition: transform .35s cubic-bezier(.2, .8, .2, 1.2); }
+.brand:hover .riaf-mark { transform: rotate(-8deg) scale(1.06); }
+.brand .mps-plate { padding: 2px 4px; background: #fff; border-radius: 4px; border: 1px solid var(--line); }
+.brand .mps-plate img { height: 22px; display: block; }
+.hero-mark { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); animation: mark-in .7s cubic-bezier(.2, .8, .2, 1.2) both; margin-bottom: 4px; }
+@keyframes mark-in { from { opacity: 0; transform: translateY(8px) scale(.9) rotate(-10deg); } }
+
+/* Busy: the supergraphic band sweeps while RIAF works on a request */
+html[data-busy] .supergraphic { background: linear-gradient(90deg, #e20015, #9e2896, #007bc0, #18837e, #00884a, #e20015, #9e2896, #007bc0); background-size: 300% 100%; animation: sg-sweep 1.1s linear infinite; height: 7px; }
+@keyframes sg-sweep { from { background-position: 0 0; } to { background-position: -150% 0; } }
+
+/* Buttons: icon + label, Bosch pressed and focus states, ripple */
+.btn { position: relative; overflow: hidden; gap: 7px; transition: background .15s, border-color .15s, box-shadow .15s, transform .08s; }
+.btn .icon { flex: none; }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(.985); }
+.btn.primary:hover:not(:disabled) { box-shadow: 0 4px 14px color-mix(in srgb, var(--teal) 35%, transparent); }
+.btn:focus-visible, .nav:focus-visible, .kchip:focus-visible, .idea-chip:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.nav, .flow4 button, .kchip, .runitem { position: relative; overflow: hidden; }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .18; transform: scale(0); animation: ripple .6s ease-out forwards; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* Navigation: a supergraphic underline grows on hover */
+.nav::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--supergraphic); transform: scaleX(0); transform-origin: left; transition: transform .25s ease; }
+.nav:hover::after { transform: scaleX(1); }
+.nav.active::after { display: none; }
+
+/* Page transitions */
+.main > * { animation: page-in .28s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* Bosch notification banners: coloured edge, icon, plain message */
+.notice { position: relative; border-radius: 6px; padding-left: 20px !important; }
+.notice::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 6px 0 0 6px; background: var(--n, var(--teal)); }
+.notice.success { --n: var(--moss); } .notice.warning { --n: var(--i-merge); } .notice.error { --n: var(--ember); } .notice.info { --n: var(--teal); }
+
+/* Bosch toggle switches */
+input.switch { appearance: none; -webkit-appearance: none; width: 34px; height: 18px; border-radius: 999px; background: var(--line-2); position: relative; cursor: pointer; transition: background .2s; vertical-align: middle; margin: 0; }
+input.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s cubic-bezier(.2, .8, .2, 1.2); }
+input.switch:checked { background: var(--teal); } input.switch:checked::after { transform: translateX(16px); }
+input.switch:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+/* Tooltips: any element with data-tip */
+[data-tip] { position: relative; }
+[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; padding: 5px 9px; border-radius: 4px; background: #1b2229; color: #fff; font-size: 11.5px; font-weight: 500; z-index: 50; pointer-events: none; animation: tip-in .15s ease both; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+@keyframes tip-in { from { opacity: 0; transform: translate(-50%, 3px); } }
+
+/* Home: suggested tasks */
+.ideas-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: min(760px, 100%); margin-top: 4px; }
+.idea-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--paper-2); color: var(--ink-2); font: inherit; font-size: 12.5px; cursor: pointer; transition: border-color .15s, color .15s, transform .12s, box-shadow .15s; }
+.idea-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
+.idea-chip:hover { border-color: var(--c); color: var(--ink); transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--c) 20%, transparent); }
+
+/* Home steps: a gentle lift */
+.flow4 button { transition: border-color .15s, transform .18s cubic-bezier(.2, .8, .2, 1.2), box-shadow .18s; }
+.flow4 button:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0, 0, 0, .08); }
+.flow4 button:hover .f4-i { background: var(--supergraphic); color: #fff; }
+.f4-i { transition: background .25s, color .25s; }
+
+/* A run that finishes while you watch: a supergraphic burst */
+.runview.party { box-shadow: 0 0 0 2px color-mix(in srgb, var(--moss) 45%, transparent), var(--sh-1); }
+.burst { position: absolute; top: 34px; left: 40px; width: 0; height: 0; pointer-events: none; z-index: 5; }
+.burst i { position: absolute; width: 8px; height: 8px; border-radius: 2px; left: -4px; top: -4px; background: var(--supergraphic); transform: rotate(var(--a)) translateX(0); animation: burst 1.2s cubic-bezier(.15, .7, .2, 1) var(--d) forwards; opacity: 0; }
+.burst i:nth-child(3n) { background: #e20015; } .burst i:nth-child(3n+1) { background: #007bc0; } .burst i:nth-child(3n+2) { background: #00884a; }
+@keyframes burst { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(90px) scale(.4); } }
+
+/* Shortcut sheet and its button */
+.sheet-back { position: fixed; inset: 0; background: rgba(9, 14, 19, .45); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 60; animation: fadein .15s both; }
+.sheet { width: min(460px, 92vw); background: var(--paper-2); border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: hidden; animation: rise .2s both; }
+.sheet::before { content: ""; display: block; height: 4px; background: var(--supergraphic); }
+.sheet-h { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px 6px; }
+.sheet dl { margin: 0; padding: 6px 18px 18px; display: grid; gap: 8px; }
+.sheet dl div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; } .sheet dt { display: flex; gap: 4px; } .sheet dd { margin: 0; color: var(--ink-2); }
+.help-fab { position: fixed; right: 18px; bottom: 18px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--ink); color: var(--paper); font: 700 15px var(--sans); cursor: pointer; z-index: 40; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); transition: transform .15s; }
+.help-fab:hover { transform: scale(1.08); background: var(--teal); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  html[data-busy] .supergraphic { animation: none; }
+}
+.cmdbox > .cmd-live:first-child { display: flex; }

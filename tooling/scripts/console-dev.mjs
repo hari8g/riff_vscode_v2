@@ -90,7 +90,7 @@ if (seed) {
 }
 
 const html = () => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RIAF Console</title><link rel="stylesheet" href="/console.css"></head>
-<body data-repo="${repo}" data-mps="/mps-logo.png"><div id="root"></div>
+<body data-repo="${repo}" data-mps="/mps-logo.png" data-mark="/riaf-mark.svg"><div id="root"></div>
 <script>
   // stands in for VS Code's webview API: requests go to the dev server, answers come back as message events
   window.acquireVsCodeApi = () => ({
@@ -130,7 +130,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(out));
       return;
     }
-    const assets = { '/console.js': 'text/javascript', '/console.css': 'text/css', '/mps-logo.png': 'image/png' };
+    const assets = { '/console.js': 'text/javascript', '/console.css': 'text/css', '/mps-logo.png': 'image/png', '/riaf-mark.svg': 'image/svg+xml' };
     const file = assets[req.url] ? join(webview, req.url.slice(1)) : undefined;
     if (file && existsSync(file)) {
       res.writeHead(200, { 'content-type': assets[req.url], 'cache-control': 'no-store' }).end(readFileSync(file));

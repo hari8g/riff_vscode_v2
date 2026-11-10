@@ -15,6 +15,11 @@
     "Programming Languages",
     "Other"
   ],
+  "icon": "media/riaf-icon.png",
+  "galleryBanner": {
+    "color": "#0f1b26",
+    "theme": "dark"
+  },
   "main": "./dist/extension.cjs",
   "activationEvents": [
     "onStartupFinished"
@@ -41,15 +46,17 @@
       },
       {
         "command": "riaf.index",
-        "title": "RIAF: Re-index repository"
+        "title": "RIAF: Re-index repository",
+        "icon": "$(refresh)"
       },
       {
         "command": "riaf.openConsole",
-        "title": "RIAF: Open console"
+        "title": "RIAF: Open console",
+        "icon": "$(home)"
       },
       {
         "command": "riaf.openRepository",
-        "title": "RIAF: Open repository\u2026"
+        "title": "RIAF: Open repository…"
       },
       {
         "command": "riaf.init",
@@ -68,6 +75,11 @@
       {
         "command": "riaf.runClaude",
         "title": "RIAF: Run a compiled prompt in Claude Code"
+      },
+      {
+        "command": "riaf.open",
+        "title": "RIAF: Open a console page",
+        "category": "RIAF"
       }
     ],
     "configuration": {
@@ -98,7 +110,7 @@
           "properties": {
             "request": {
               "type": "string",
-              "description": "The task in the user\u2019s words"
+              "description": "The task in the user’s words"
             },
             "budget": {
               "type": "number",
@@ -195,7 +207,50 @@
         "description": "Compile the context for a task, then hand it to Copilot agent mode or Claude Code",
         "isSticky": false
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "riaf",
+          "title": "RIAF",
+          "icon": "media/riaf-activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "riaf": [
+        {
+          "id": "riaf.home",
+          "name": "RIAF",
+          "icon": "media/riaf-activity.svg",
+          "contextualTitle": "RIAF"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "riaf.open",
+          "when": "false"
+        },
+        {
+          "command": "riaf.runClaude",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "riaf.openConsole",
+          "when": "view == riaf.home",
+          "group": "navigation"
+        },
+        {
+          "command": "riaf.index",
+          "when": "view == riaf.home",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "dependencies": {
     "@riaf/compiler": "workspace:*",

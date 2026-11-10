@@ -107,14 +107,17 @@ describe('console host', () => {
 
 describe('activate (with a mocked vscode API)', () => {
   it('registers the status bar, five LM tools, the participant and the commands', async () => {
-    const registered = { tools: [] as string[], commands: [] as string[], participants: [] as string[] };
+    const registered = { tools: [] as string[], commands: [] as string[], participants: [] as string[], views: [] as string[] };
     vi.doMock('vscode', () => ({
       StatusBarAlignment: { Left: 1 }, ProgressLocation: { Notification: 15 }, ViewColumn: { Active: -1 },
       ThemeIcon: class { constructor(readonly id: string) {} },
       LanguageModelToolResult: class { constructor(readonly content: unknown[]) {} },
       LanguageModelTextPart: class { constructor(readonly value: string) {} },
-      window: { createStatusBarItem: () => ({ show: () => undefined, dispose: () => undefined }), activeTextEditor: undefined },
-      workspace: { workspaceFolders: [], getConfiguration: () => ({ get: () => undefined }) },
+      window: { createStatusBarItem: () => ({ show: () => undefined, dispose: () => undefined }), activeTextEditor: undefined, registerTreeDataProvider: (id: string) => (registered.views.push(id), { dispose: () => undefined }) },
+      workspace: { workspaceFolders: [], getConfiguration: () => ({ get: () => undefined }), createFileSystemWatcher: () => ({ onDidChange: () => undefined, onDidCreate: () => undefined, dispose: () => undefined }) },
+      EventEmitter: class { event = () => ({ dispose: () => undefined }); fire() { /* no listeners in the mock */ } },
+      TreeItem: class { constructor(readonly label: string) {} },
+      TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
       env: { sessionId: 'test' },
       lm: { registerTool: (name: string) => (registered.tools.push(name), { dispose: () => undefined }) },
       chat: { createChatParticipant: (id: string) => (registered.participants.push(id), { dispose: () => undefined }) },
@@ -125,6 +128,7 @@ describe('activate (with a mocked vscode API)', () => {
     await ext.activate(context as never);
     expect(registered.tools).toEqual(TOOL_DEFS.map((t) => t.name));
     expect(registered.participants).toEqual(['riaf.participant']);
+    expect(registered.views).toEqual(['riaf.home']);
     const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
     expect(registered.commands.sort()).toEqual((pkg.contributes.commands as { command: string }[]).map((c) => c.command).sort());
     for (const s of context.subscriptions) s.dispose();

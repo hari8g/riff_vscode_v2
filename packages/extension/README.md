@@ -50,7 +50,7 @@ RIAF does that discovery once, locally, and keeps it current as the code changes
    ```
 
 2. **Open your repository folder.** RIAF starts its local service and indexes the folder. The status bar shows **RIAF *n* files** when it is ready. A first index takes seconds for most repositories; after that only changed files are re-read.
-3. **Open the console:** click **RIAF** in the status bar, or run **RIAF: Open console** from the command palette.
+3. **Open the console:** click the **RIAF** icon in the Activity Bar (or **RIAF** in the status bar, or **RIAF: Open console** from the command palette).
 4. **Describe a task** on *Home* or *Prompt*, for example *"Build a new feature that shows the next ISS pass over my city"*. Watch RIAF read the kind of work, then press **Compile**.
 5. **Press Export to Claude Code.** A terminal opens in the repository and Claude Code starts working on the full prompt. Approve its steps there, and follow along on the console's **Claude Code** page.
 
@@ -71,11 +71,15 @@ The console is a full-page webview in the Bosch MPS design language: the Bosch s
 | **Savings** | What RIAF saves, measured and estimated |
 | **Governance** | AI activity, Rules, Setup |
 
-Search with <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>. Jump to a page with <kbd>g</kbd> followed by <kbd>h</kbd>, <kbd>r</kbd>, <kbd>p</kbd>, <kbd>c</kbd>, <kbd>s</kbd> or <kbd>g</kbd> (Home, Repository, Prompt, Claude Code, Savings, Governance). Press <kbd>/</kbd> to start a new prompt.
+While RIAF works on a request, the supergraphic band at the top sweeps. Press <kbd>?</kbd> (or the **?** button) for the shortcut sheet. Search with <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>. Jump to a page with <kbd>g</kbd> followed by <kbd>h</kbd>, <kbd>r</kbd>, <kbd>p</kbd>, <kbd>c</kbd>, <kbd>s</kbd> or <kbd>g</kbd> (Home, Repository, Prompt, Claude Code, Savings, Governance). Press <kbd>/</kbd> to start a new prompt.
+
+### The RIAF sidebar
+
+The **RIAF** icon in the Activity Bar opens a sidebar with quick actions (Open the console, New prompt, Repository, Savings, Governance, Refresh the index) and your **latest prompt runs** with their live status (compiled, sent, running, done, needs a look). Click a run to open the console on its result, or any action to jump to that page.
 
 ### Home
 
-The repository name and whether RIAF is up to date, one box (*"What should Claude Code do?"*) that compiles straight away, and the four steps with live numbers:
+The repository name and whether RIAF is up to date, one box (*"What should Claude Code do?"*) that compiles straight away, suggested tasks written from what RIAF knows about the repository (one click compiles them), and the four steps with live numbers:
 
 1. **Read the repository:** files and parts indexed.
 2. **Compile a prompt:** prompts compiled.
@@ -135,7 +139,7 @@ The folder RIAF reads (switch with **Open another repository**), with three tabs
   - the commands it ran with OK or FAIL,
   - the prompt that was sent, on request.
 
-  A run that has not started shows how to start it.
+  A run that has not started shows how to start it. A run that finishes while you watch gets a short supergraphic burst and a *Claude Code finished* notice.
 - **Live console.** Every Claude Code session in the repository as it happens: turns, stages (context, explore, plan, edit, verify, run, delegate), files read and changed, commands, failures, and the raw activity stream. Sessions started from a RIAF prompt carry a *RIAF prompt* badge.
 
 ### Savings
@@ -273,6 +277,7 @@ Run **RIAF: Initialise repository** (equivalent to `riaf init --host both`). It 
 | **RIAF: Continue in Copilot agent mode** | Hands the task and pack to Copilot agent mode |
 | **RIAF: Open in Claude Code** | Hands the task and pack to Claude Code |
 | **RIAF: Run a compiled prompt in Claude Code** | Starts Claude Code on a compiled prompt (used by the console's export) |
+| **RIAF: Open a console page** | Opens the console on a page (used by the sidebar) |
 
 ---
 
@@ -390,6 +395,8 @@ Add the runtime paths to your `.gitignore` (RIAF's own repository shows the patt
 | `src/claudeLive.ts` | Tails Claude Code session logs; captures code edits |
 | `src/workflow.ts` | Turns a session into turns and stages |
 | `src/savings.ts`, `src/suggest.ts` | Savings model; suggested tasks |
+| `src/sidebar.ts` | The Activity Bar sidebar: actions and prompt runs (data side, tested) |
+| `media/riaf-mark.svg`, `riaf-icon.png`, `riaf-activity.svg` | The RIAF mark (console), extension icon, Activity Bar icon |
 | `webview/main.tsx`, `kit.tsx`, `api.ts`, `console.css` | Console shell, components, message bridge, Bosch design tokens |
 | `webview/pages/*.tsx` | Pages: `overview` (Home), `hubs` (Repository and Governance tabs), `prompt`, `claude`, `live`, `savings`, `repository`, `ask`, `health`, `governance`, `policies`, `adapters`, `repos` |
 | `test/*.test.ts` | Unit and integration tests (console host, runs, launcher, ask, savings, live, workflow, extension activation with a mocked VS Code API) |
@@ -438,6 +445,7 @@ After changing host code (`src/*.ts`), rebuild and restart `console:dev`. For we
 
 ### 0.4.0
 
+- **RIAF mark and sidebar:** extension icon, an Activity Bar sidebar with actions and live prompt runs, Bosch UI touches (busy sweep, notification banners, toggle switches, tooltips, ripple), suggested tasks on Home, a shortcut sheet, and a finished-run celebration.
 - **Six-page console:** Home, Repository (Browse / Ask / Health), Prompt, Claude Code (Runs / Live console), Savings, Governance, with the Bosch MPS supergraphic.
 - **Live prompt type** while you type, with a one-click override.
 - **Detailed agent prompt** after intent routing and compilation, with explicit, editable token settings (`.riaf/tokens.yaml`).

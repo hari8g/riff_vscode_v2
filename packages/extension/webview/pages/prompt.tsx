@@ -188,13 +188,13 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
       ) : null}
 
       {exported && exported.launched && c && exported.promptId === c.prompt.promptId ? (
-        <section className="cmdbox ok rise">
+        <section className="cmdbox ok notice success rise" role="status">
           <div className="cmd-live"><i className="pulse-dot" /><div><b>Claude Code is starting in {exported.how ?? 'a terminal'}</b><span className="muted small">It opens in the repository with the whole prompt as its first message and starts working; a new terminal window can take up to a minute while your shell starts. Approve Claude Code's steps there; every change it makes shows up here, keyed to prompt <code>{exported.promptId}</code>.</span></div></div>
           <div className="row"><Btn sm kind="primary" icon="live" onClick={() => go('claude', exported.promptId)}>Follow it live</Btn><CopyPair command={exported.command} message={c.prompt ? `[RIAF ${exported.promptId}] ${text.trim().replace(/\s+/g, ' ')}\n\n${c.prompt.text.trim()}\n` : ''} /></div>
         </section>
       ) : null}
       {exported && !exported.launched && c && exported.promptId === c.prompt.promptId ? (
-        <section className="cmdbox rise">
+        <section className="cmdbox notice warning rise" role="status">
           <div><b>{exported.reason ? `Could not open a terminal: ${exported.reason}` : 'Start Claude Code yourself'}</b><span className="muted small">Paste this into a <b>shell</b> (not into Claude Code): it changes into the repository and starts Claude Code with the whole prompt. Already in a Claude Code session? Use <b>Copy the prompt</b> and paste it there instead.</span></div>
           <pre>{exported.command}</pre>
           <div className="row"><CopyPair command={exported.command} message={`[RIAF ${exported.promptId}] ${text.trim().replace(/\s+/g, ' ')}\n\n${c.prompt.text.trim()}\n`} /><Btn sm kind="ghost" icon="live" onClick={() => go('claude', exported.promptId)}>Open Claude Code page</Btn></div>
@@ -368,7 +368,7 @@ function TokenSettingsCard({ onSaved }: { onSaved: () => void }) {
           <label><span>Use up to <b>{pct(s.model.use_ratio)}</b> of it</span><input type="range" min={0.5} max={0.95} step={0.05} value={s.model.use_ratio} onChange={(e) => edit((x) => { x.model.use_ratio = Number(e.target.value); return x; })} /></label>
           <Detail><label><span>Reasoning reserve</span><input type="number" step={1024} min={0} value={s.reasoning} onChange={(e) => edit((x) => { x.reasoning = Number(e.target.value); return x; })} /></label></Detail>
           <Detail><label><span>Summarise at <b>{pct(s.summarize_at)}</b></span><input type="range" min={0.3} max={0.9} step={0.05} value={s.summarize_at} onChange={(e) => edit((x) => { x.summarize_at = Number(e.target.value); return x; })} /></label></Detail>
-          <Detail><label className="check"><input type="checkbox" checked={s.cache.stable_prefix} onChange={(e) => edit((x) => { x.cache.stable_prefix = e.target.checked; return x; })} /><span>Cacheable instructions first</span></label></Detail>
+          <Detail><label className="check"><input className="switch" type="checkbox" checked={s.cache.stable_prefix} onChange={(e) => edit((x) => { x.cache.stable_prefix = e.target.checked; return x; })} /><span>Cacheable instructions first</span></label></Detail>
         </div>
         <table className="ptable tok">
           <thead><tr><th>Kind of work</th><th className="num">Code and history</th><th className="num">Reply</th><th>Plan first</th></tr></thead>
@@ -377,7 +377,7 @@ function TokenSettingsCard({ onSaved }: { onSaved: () => void }) {
               <td><i className="chip-dot" style={{ background: intentVar(i) }} />{INTENT_LABEL[i]}</td>
               <td className="num"><input type="number" step={500} value={s.intents[i]!.pack} onChange={(e) => edit((x) => { x.intents[i]!.pack = Number(e.target.value); return x; })} /></td>
               <td className="num"><input type="number" step={256} value={s.intents[i]!.output} onChange={(e) => edit((x) => { x.intents[i]!.output = Number(e.target.value); return x; })} /></td>
-              <td><input type="checkbox" checked={s.intents[i]!.plan_gate} onChange={(e) => edit((x) => { x.intents[i]!.plan_gate = e.target.checked; return x; })} aria-label={`Plan first for ${INTENT_LABEL[i]}`} /></td>
+              <td><input className="switch" type="checkbox" checked={s.intents[i]!.plan_gate} onChange={(e) => edit((x) => { x.intents[i]!.plan_gate = e.target.checked; return x; })} aria-label={`Plan first for ${INTENT_LABEL[i]}`} /></td>
             </tr>))}</tbody>
         </table>
         {fits.length ? <p className="ember small">{fits.map((i) => INTENT_LABEL[i]).join(', ')}: code + reply + reasoning no longer fit in the usable window.</p> : null}

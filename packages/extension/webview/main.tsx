@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ask, brand, repoName, repoRoot, save, saved } from './api.js';
+import { ask, brand, initialNav, onPush, repoName, repoRoot, save, saved } from './api.js';
 import { DetailProvider, Drawer, Icon, Palette, symName, ToastHost, useTheme, type PaletteItem } from './kit.js';
 import { ClaudePage } from './pages/claude.js';
 import { GovernanceHub, RepositoryHub } from './pages/hubs.js';
@@ -22,6 +22,7 @@ const PAGES = [
 type Page = (typeof PAGES)[number]['id'];
 
 function App() {
+  const [help, setHelp] = useState(false);
   const [page, setPage] = useState<Page>(() => { const p = saved<Page>('page', 'overview'); return PAGES.some((x) => x.id === p) ? p : 'overview'; });
   const [focus, setFocus] = useState<string | undefined>();
   const [pal, setPal] = useState(false);
@@ -34,6 +35,28 @@ function App() {
     save('page', p);
     if (p === 'repository' || p === 'claude') setFocus(arg);
   };
+  // opened on a page by the host (VS Code sidebar), or told to go there later
+  useEffect(() => {
+    const nav = initialNav;
+    if (nav && PAGES.some((x) => x.id === nav.page)) go(nav.page, nav.arg);
+    return onPush('navigate', (m) => { if (PAGES.some((x) => x.id === m['page'])) go(String(m['page']), m['arg'] ? String(m['arg']) : undefined); });
+  }, []);
+  // Bosch-style press feedback: a ripple from the point of the click on every button
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      const b = (e.target as HTMLElement | null)?.closest?.('.btn, .nav, .flow4 button, .kchip, .runitem') as HTMLElement | null;
+      if (!b || (b as HTMLButtonElement).disabled) return;
+      const r = b.getBoundingClientRect();
+      const span = document.createElement('span');
+      span.className = 'ripple';
+      const d = Math.max(r.width, r.height) * 2;
+      span.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+      b.appendChild(span);
+      setTimeout(() => span.remove(), 600);
+    };
+    addEventListener('pointerdown', down);
+    return () => removeEventListener('pointerdown', down);
+  }, []);
   useEffect(() => {
     if (!repoRoot) return;
     const poll = () => void ask({ type: 'load', page: 'overview' }).then((r) => setLive({ ok: true, files: r['status'].blobs, pending: (r['status'].stages as { pending: number }[]).reduce((a, s) => a + s.pending, 0) })).catch(() => setLive({ ok: false }));
@@ -47,7 +70,9 @@ function App() {
       const el = e.target as HTMLElement;
       const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPal((v) => !v); return; }
+      if (e.key === 'Escape') setHelp(false);
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === '?') { e.preventDefault(); setHelp((v) => !v); return; }
       if (e.key === '/') { e.preventDefault(); go('prompt'); setTimeout(() => (document.querySelector('.composer textarea') as HTMLTextAreaElement | null)?.focus(), 40); return; }
       if (chord && Date.now() - chord < 1200) {
         const hit = PAGES.find((p) => p.key === e.key.toLowerCase());
@@ -80,8 +105,9 @@ function App() {
       <div className="supergraphic" aria-hidden="true" />
       <nav className="rail" aria-label="Pages">
         <div className="brand">
-          {brand.mps ? <span className="mps-plate"><img src={brand.mps} alt="Bosch MPS — Mobility Platform and Services" /></span> : null}
+          {brand.mark ? <img className="riaf-mark" src={brand.mark} alt="" /> : null}
           <div className="brand-t"><b>RIAF</b><small>Repository intelligence</small></div>
+          {brand.mps ? <span className="mps-plate" title="Bosch MPS — Mobility Platform and Services"><img src={brand.mps} alt="Bosch MPS — Mobility Platform and Services" /></span> : null}
         </div>
         <button className="repo-pill" title={repoRoot ? `${repoRoot} (click to open another repository)` : 'Open a repository'} onClick={() => setRepos(true)}><Icon name="folder" size={14} /><span>{repoRoot ? repoName : 'Open a repository…'}</span><Icon name="chevron" size={12} /></button>
         <div className="navs">
@@ -117,8 +143,26 @@ function App() {
       </div>
       <Drawer open={repos} onClose={() => setRepos(false)} title="Repository"><RepoPicker onOpened={() => setRepos(false)} /></Drawer>
       <Palette open={pal} onClose={() => setPal(false)} items={items} search={search} />
+      {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
+      <button className="help-fab" onClick={() => setHelp((v) => !v)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
     </div>
     </DetailProvider>
+  );
+}
+
+/** The keyboard shortcut sheet (press ?). */
+function Shortcuts({ onClose }: { onClose: () => void }) {
+  const rows: [string, string][] = [
+    ['⌘ K', 'Search: pages and any part of the code'], ['/', 'Start a new prompt'], ['g h', 'Home'], ['g r', 'Repository'], ['g p', 'Prompt'],
+    ['g c', 'Claude Code'], ['g s', 'Savings'], ['g g', 'Governance'], ['⌘ ↵', 'Compile (on Prompt)'], ['?', 'This sheet'], ['Esc', 'Close'],
+  ];
+  return (
+    <div className="sheet-back" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-h"><b>Keyboard shortcuts</b><button className="iconbtn" onClick={onClose} aria-label="Close">✕</button></div>
+        <dl>{rows.map(([k, v]) => <div key={k}><dt>{k.split(' ').map((x) => <kbd key={x}>{x}</kbd>)}</dt><dd>{v}</dd></div>)}</dl>
+      </div>
+    </div>
   );
 }
 

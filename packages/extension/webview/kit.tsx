@@ -127,7 +127,7 @@ export function ToastHost({ children }: { children: ReactNode }) {
 /* ───────────── primitives ───────────── */
 export const Btn = ({ children, onClick, kind, sm, disabled, title, icon }: { children?: ReactNode; onClick?: () => void; kind?: 'primary' | 'ghost' | 'soft'; sm?: boolean; disabled?: boolean; title?: string; icon?: string }) => (
   <button type="button" className={`btn ${kind ?? ''} ${sm ? 'sm' : ''}`} onClick={onClick} disabled={disabled} title={title}>
-    {children}
+    {icon ? <Icon name={icon} size={sm ? 14 : 16} /> : null}{children ? <span>{children}</span> : null}
   </button>
 );
 export const Chip = ({ children, tone, mono, onClick, title, dot }: { children: ReactNode; tone?: string; mono?: boolean; onClick?: () => void; title?: string; dot?: string }) => (

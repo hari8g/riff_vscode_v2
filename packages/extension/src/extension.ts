@@ -7,6 +7,8 @@ import { bundledCli, connectDaemon } from './client.js';
 import { handleConsole, type ConsoleRequest, type RepoHost } from './consoleHost.js';
 import { handleChat, handoffPrompt } from './participant.js';
 import { resolveClaude, shellCommand, vscodeTerminal, type LaunchResult, type LaunchSpec } from './terminal.js';
+import { linkRuns, statusOf } from './runs.js';
+import { sidebarItems, type SidebarItem } from './sidebar.js';
 import { invokeTool, TOOL_DEFS, type ToolName } from './tools.js';
 
 /**
@@ -54,6 +56,7 @@ function followClaude(): void {
   live = root ? new ClaudeLive(root) : undefined;
   if (!live) return;
   live.on((events) => void panel?.webview.postMessage({ type: 'push', channel: 'live', events }));
+  live.on(() => refreshTree?.());
   live.start();
 }
 
@@ -83,6 +86,40 @@ function startClaude(spec: LaunchSpec): LaunchResult {
   const term = vscode.window.createTerminal(vscodeTerminal(spec, resolveClaude()));
   term.show();
   return { launched: true, how: 'a VS Code terminal', command: shellCommand(spec) };
+}
+
+let refreshTree: (() => void) | undefined;
+
+/** The sidebar tree (Activity Bar → RIAF): actions and prompt runs, built by `sidebarItems`. */
+class RiafTree implements vscode.TreeDataProvider<SidebarItem> {
+  private readonly changed = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.changed.event;
+  private pending: NodeJS.Timeout | undefined;
+  /** Coalesces bursts (a Claude Code session writes many events) into one redraw. */
+  refresh = (): void => {
+    if (this.pending) return;
+    this.pending = setTimeout(() => { this.pending = undefined; this.changed.fire(); }, 800);
+  };
+  getTreeItem(item: SidebarItem): vscode.TreeItem {
+    const t = new vscode.TreeItem(item.label, item.children ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None);
+    t.id = item.id;
+    t.iconPath = new vscode.ThemeIcon(item.icon);
+    if (item.description) t.description = item.description;
+    if (item.tooltip) t.tooltip = item.tooltip;
+    if (item.open) t.command = { command: 'riaf.open', title: item.label, arguments: [item.open.page, item.open.arg] };
+    else if (item.command) t.command = { command: item.command, title: item.label };
+    return t;
+  }
+  getChildren(item?: SidebarItem): SidebarItem[] {
+    if (item) return item.children ?? [];
+    const root = workspaceRoot();
+    const snap = live?.snapshot();
+    const prompts = (id: string) => (live?.sessionEvents(id) ?? []).filter((e) => e.kind === 'prompt').map((e) => e.text);
+    return sidebarItems(root, (r) => {
+      const links = snap ? linkRuns([r], snap.sessions, prompts) : new Map();
+      return statusOf(r, links.get(r.promptId));
+    });
+  }
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -182,6 +219,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     term.sendText(`"${process.execPath}" "${bundledCli(context.extensionPath)}" init --host both --root "${root}"`);
   });
   reg('riaf.openConsole', () => openConsole(context));
+  reg('riaf.open', (page: string, arg?: string) => openConsole(context, { page: typeof page === 'string' ? page : 'overview', ...(typeof arg === 'string' ? { arg } : {}) }));
+
+  // Activity Bar → RIAF: quick actions and the latest prompt runs, with their live status
+  const tree = new RiafTree();
+  context.subscriptions.push(vscode.window.registerTreeDataProvider('riaf.home', tree));
+  refreshTree = tree.refresh;
+  const watcher = vscode.workspace.createFileSystemWatcher('**/.riaf/prompts/index.jsonl');
+  watcher.onDidChange(tree.refresh); watcher.onDidCreate(tree.refresh);
+  context.subscriptions.push(watcher);
+  if (workspaceRoot()) followClaude();
   reg('riaf.openRepository', async () => {
     const root = await browseRepo();
     if (root) await switchRepo(context, root);
@@ -205,20 +252,27 @@ async function switchRepo(context: vscode.ExtensionContext, root: string): Promi
   followClaude();
   if (panel) renderConsole(context, panel);
   void refreshStatus?.();
+  refreshTree?.();
 }
 
 /**
  * Opens the console. Every open starts clean: an earlier console panel is closed and the repository's
  * daemon is restarted, so nothing from an older build or an earlier session is still answering.
  */
-function openConsole(context: vscode.ExtensionContext): void {
+function openConsole(context: vscode.ExtensionContext, nav?: { page: string; arg?: string }): void {
+  // from the sidebar: an open console just jumps to the page; otherwise every open starts clean
+  if (panel && nav) {
+    panel.reveal();
+    void panel.webview.postMessage({ type: 'push', channel: 'navigate', ...nav });
+    return;
+  }
   panel?.dispose();
   const p = vscode.window.createWebviewPanel('riaf.console', 'RIAF Console', vscode.ViewColumn.Active, {
     enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview')],
   });
   panel = p;
   p.onDidDispose(() => { if (panel === p) panel = undefined; });
-  renderConsole(context, p);
+  renderConsole(context, p, nav);
   if (workspaceRoot()) void rpc(context, true).then(() => refreshStatus?.(), (e: Error) => vscode.window.showErrorMessage(`RIAF: could not start the daemon: ${e.message}`));
   followClaude();
   const repoHost: RepoHost = {
@@ -252,11 +306,12 @@ function openConsole(context: vscode.ExtensionContext): void {
   });
 }
 
-function renderConsole(context: vscode.ExtensionContext, p: vscode.WebviewPanel): void {
+function renderConsole(context: vscode.ExtensionContext, p: vscode.WebviewPanel, nav?: { page: string; arg?: string }): void {
   const asset = (f: string) => p.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', f));
   const nonce = Math.random().toString(36).slice(2);
   const root = workspaceRoot() ?? '';
-  p.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${p.webview.cspSource} data:; style-src ${p.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-mps="${asset('mps-logo.png')}"><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  p.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${p.webview.cspSource} data:; style-src ${p.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-mps="${asset('mps-logo.png')}" data-mark="${asset('riaf-mark.svg')}"${nav ? ` data-nav-page="${esc(nav.page)}"${nav.arg ? ` data-nav-arg="${esc(nav.arg)}"` : ''}` : ''}><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
 }
 
 export async function deactivate(): Promise<void> {

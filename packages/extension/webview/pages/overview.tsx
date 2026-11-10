@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ask, repoName, save, type Msg } from '../api.js';
-import { Btn, fmtK, Icon, pct } from '../kit.js';
+import { ask, brand, repoName, save, type Msg } from '../api.js';
+import { Btn, fmtK, Icon, INTENT_LABEL, intentVar, pct } from '../kit.js';
 import { bench, reduction } from '../../src/savings.js';
 
 /** Home: one place to start a task, the four steps from code to change, and the latest runs. */
@@ -16,6 +16,8 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
   const [d, setD] = useState<Msg | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [text, setText] = useState('');
+  const [ideas, setIdeas] = useState<{ text: string; intent: string; why: string }[]>([]);
+  useEffect(() => void ask({ type: 'suggestTasks' }).then((r) => setIdeas((r['tasks'] as typeof ideas).slice(0, 4))).catch(() => undefined), []);
   useEffect(() => {
     const load = () => {
       void ask({ type: 'load', page: 'overview' }).then(setD).catch(() => undefined);
@@ -25,9 +27,9 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
     const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, []);
-  const start = () => {
-    if (!text.trim()) return;
-    save('prompt.text', text.trim());
+  const start = (task = text) => {
+    if (!task.trim()) return;
+    save('prompt.text', task.trim());
     save('prompt.auto', true);
     go('prompt');
   };
@@ -46,14 +48,25 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
   return (
     <div className="home">
       <section className="home-hero">
+        {brand.mark ? <img className="hero-mark" src={brand.mark} alt="" /> : null}
         <span className="eyebrow">Repository</span>
         <h1>{repoName}</h1>
         <p className="home-status"><i className={pending ? 'busy' : 'ok'} />{!s ? 'Starting RIAF…' : pending ? `Reading the latest changes · ${pending} files left` : 'Up to date with the code'}</p>
         <div className="home-ask">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="What should Claude Code do?"
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); start(); } }} />
-          <Btn kind="primary" icon="bolt" onClick={start} disabled={!text.trim()}>Compile</Btn>
+          <Btn kind="primary" icon="bolt" onClick={() => start()} disabled={!text.trim()}>Compile</Btn>
         </div>
+        {ideas.length ? (
+          <div className="ideas-row" aria-label="Suggested tasks">
+            <span className="muted small">Try one:</span>
+            {ideas.map((i) => (
+              <button key={i.text} className="idea-chip" style={{ ['--c' as string]: intentVar(i.intent) }} onClick={() => start(i.text)} data-tip={`${INTENT_LABEL[i.intent] ?? i.intent} · ${i.why}`}>
+                <i />{i.text.replace(/`/g, '').slice(0, 64)}{i.text.length > 64 ? '…' : ''}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <ol className="flow4">

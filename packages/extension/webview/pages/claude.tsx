@@ -99,8 +99,19 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
   const toast = useToast();
   const [r, setR] = useState<Result | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [party, setParty] = useState(false);
   const status = useRef<Status | null>(null);
-  const load = () => void ask({ type: 'run', promptId }).then((x) => { setR(x as unknown as Result); status.current = (x as unknown as Result).run.status; }).catch((e: Error) => toast(e.message, 'err'));
+  const load = () => void ask({ type: 'run', promptId }).then((x) => {
+    const next = x as unknown as Result;
+    // a run that finishes while you watch gets a rainbow moment
+    if ((status.current === 'running' || status.current === 'exported') && next.run.status === 'done') {
+      setParty(true);
+      toast(`Claude Code finished: ${next.totals.filesChanged} file${next.totals.filesChanged === 1 ? '' : 's'} changed`);
+      setTimeout(() => setParty(false), 2200);
+    }
+    setR(next);
+    status.current = next.run.status;
+  }).catch((e: Error) => toast(e.message, 'err'));
   useEffect(() => {
     load();
     const off = onPush('live', () => { if (status.current !== 'done') load(); });
@@ -117,7 +128,8 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
     load();
   };
   return (
-    <section className="runview rise">
+    <section className={`runview rise ${party ? 'party' : ''}`}>
+      {party ? <div className="burst" aria-hidden="true">{Array.from({ length: 18 }, (_, i) => <i key={i} style={{ ['--a' as string]: `${i * 20}deg`, ['--d' as string]: `${(i % 3) * 60}ms` }} />)}</div> : null}
       <header className="run-h">
         <div>
           <span className={`stp ${STATUS[run.status].cls}`}>{run.status === 'running' ? <i className="pulse-dot" /> : null}{STATUS[run.status].label}</span>
