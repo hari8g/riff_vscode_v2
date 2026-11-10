@@ -2,8 +2,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
 import type { DaemonClient } from '@riaf/daemon/client';
+import { ClaudeLive } from './claudeLive.js';
 import { bundledCli, connectDaemon } from './client.js';
-import { handleConsole, type ConsoleRequest } from './consoleHost.js';
+import { handleConsole, type ConsoleRequest, type RepoHost } from './consoleHost.js';
 import { handleChat, handoffPrompt } from './participant.js';
 import { invokeTool, TOOL_DEFS, type ToolName } from './tools.js';
 
@@ -15,17 +16,44 @@ import { invokeTool, TOOL_DEFS, type ToolName } from './tools.js';
 
 let client: DaemonClient | undefined;
 let connecting: Promise<DaemonClient> | undefined;
+/** The repository RIAF works on: the one picked in the console, else the first workspace folder. */
+let activeRoot: string | undefined;
+let live: ClaudeLive | undefined;
+let panel: vscode.WebviewPanel | undefined;
+const RECENT_KEY = 'riaf.recentRepos';
+let refreshStatus: (() => Promise<void>) | undefined;
 
 function workspaceRoot(): string | undefined {
-  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  return activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
-async function rpc(context: vscode.ExtensionContext): Promise<DaemonClient> {
-  if (client) return client;
+async function rpc(context: vscode.ExtensionContext, fresh = false): Promise<DaemonClient> {
+  if (client && !fresh) return client;
   const root = workspaceRoot();
-  if (!root) throw new Error('open a folder to use RIAF');
-  connecting ??= connectDaemon(root, context.extensionPath).then((c) => (client = c)).finally(() => (connecting = undefined));
+  if (!root) throw new Error('open a repository folder to use RIAF');
+  if (fresh) {
+    await connecting?.catch(() => undefined);
+    const old = client;
+    client = undefined;
+    await old?.close().catch(() => undefined);
+    connecting = undefined;
+  }
+  connecting ??= connectDaemon(root, context.extensionPath, fresh).then((c) => (client = c)).finally(() => (connecting = undefined));
   return connecting;
+}
+
+/** An Rpc that connects on first use, so console requests that need no daemon never wait for one. */
+const lazyRpc = (context: vscode.ExtensionContext) => ({ call: (async (m: never, p: never) => (await rpc(context)).call(m, p)) as DaemonClient['call'] });
+
+/** Tails Claude Code's transcripts for the active repository and forwards new events to the console. */
+function followClaude(): void {
+  const root = workspaceRoot();
+  if (live?.root === root) return;
+  live?.stop();
+  live = root ? new ClaudeLive(root) : undefined;
+  if (!live) return;
+  live.on((events) => void panel?.webview.postMessage({ type: 'push', channel: 'live', events }));
+  live.start();
 }
 
 function relActive(): string | undefined {
@@ -137,37 +165,84 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     term.sendText(`"${process.execPath}" "${bundledCli(context.extensionPath)}" init --host both --root "${root}"`);
   });
   reg('riaf.openConsole', () => openConsole(context));
+  reg('riaf.openRepository', async () => {
+    const root = await browseRepo();
+    if (root) await switchRepo(context, root);
+  });
+  context.subscriptions.push({ dispose: () => live?.stop() });
+  refreshStatus = refresh;
 }
 
+
+async function browseRepo(): Promise<string | undefined> {
+  const pick = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: 'Use this repository', title: 'RIAF: choose a repository folder' });
+  return pick?.[0]?.fsPath;
+}
+
+/** Makes `root` the active repository: remembers it, restarts its daemon and Claude Code feed, redraws the console. */
+async function switchRepo(context: vscode.ExtensionContext, root: string): Promise<void> {
+  activeRoot = root;
+  const recent = [root, ...(context.globalState.get<string[]>(RECENT_KEY) ?? []).filter((r) => r !== root)].slice(0, 8);
+  await context.globalState.update(RECENT_KEY, recent);
+  await rpc(context, true);
+  followClaude();
+  if (panel) renderConsole(context, panel);
+  void refreshStatus?.();
+}
+
+/**
+ * Opens the console. Every open starts clean: an earlier console panel is closed and the repository's
+ * daemon is restarted, so nothing from an older build or an earlier session is still answering.
+ */
 function openConsole(context: vscode.ExtensionContext): void {
-  const panel = vscode.window.createWebviewPanel('riaf.console', 'RIAF Console', vscode.ViewColumn.Active, {
+  panel?.dispose();
+  const p = vscode.window.createWebviewPanel('riaf.console', 'RIAF Console', vscode.ViewColumn.Active, {
     enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview')],
   });
-  const asset = (f: string) => panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', f));
-  const nonce = Math.random().toString(36).slice(2);
-  const root = workspaceRoot() ?? '';
-  panel.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${panel.webview.cspSource} data:; style-src ${panel.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/"/g, '&quot;')}" data-mps="${asset('mps-logo.png')}" data-mlff="${asset('mlff-mark.svg')}"><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
-  panel.webview.onDidReceiveMessage(async (msg: ConsoleRequest & { id: number }) => {
+  panel = p;
+  p.onDidDispose(() => { if (panel === p) panel = undefined; });
+  renderConsole(context, p);
+  if (workspaceRoot()) void rpc(context, true).then(() => refreshStatus?.(), (e: Error) => vscode.window.showErrorMessage(`RIAF: could not start the daemon: ${e.message}`));
+  followClaude();
+  const repoHost: RepoHost = {
+    current: () => workspaceRoot() ?? '',
+    recent: () => context.globalState.get<string[]>(RECENT_KEY) ?? [],
+    browse: browseRepo,
+    open: (root) => switchRepo(context, root),
+    reloadOnSwitch: false,
+  };
+  p.webview.onDidReceiveMessage(async (msg: ConsoleRequest & { id: number }) => {
     try {
       const root = workspaceRoot();
       const res = await handleConsole({
-        rpc: await rpc(context),
+        rpc: lazyRpc(context),
         writeRiafFile: async (name, text) => {
-          if (!root) throw new Error('no workspace');
+          if (!root) throw new Error('no repository open');
           await mkdir(join(root, '.riaf'), { recursive: true });
           await writeFile(join(root, '.riaf', name), text);
         },
         modelSettings: () => vscode.workspace.getConfiguration('riaf').get<Record<string, unknown>>('models') ?? {},
         runCommand: async (command, ...args) => void (await vscode.commands.executeCommand(command, ...args)),
+        repo: repoHost,
+        live: () => live?.snapshot() ?? { dir: '', found: false, sessions: [], events: [] },
+        liveSession: (id) => live?.sessionEvents(id) ?? [],
       }, msg);
-      void panel.webview.postMessage({ id: msg.id, ...res });
+      void p.webview.postMessage({ id: msg.id, ...res });
     } catch (e) {
-      void panel.webview.postMessage({ id: msg.id, type: 'error', message: e instanceof Error ? e.message : String(e) });
+      void p.webview.postMessage({ id: msg.id, type: 'error', message: e instanceof Error ? e.message : String(e) });
     }
   });
 }
 
+function renderConsole(context: vscode.ExtensionContext, p: vscode.WebviewPanel): void {
+  const asset = (f: string) => p.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', f));
+  const nonce = Math.random().toString(36).slice(2);
+  const root = workspaceRoot() ?? '';
+  p.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${p.webview.cspSource} data:; style-src ${p.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><link rel="stylesheet" href="${asset('console.css')}"><title>RIAF Console</title></head><body data-repo="${root.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-mps="${asset('mps-logo.png')}"><div id="root"></div><script nonce="${nonce}" src="${asset('console.js')}"></script></body></html>`;
+}
+
 export async function deactivate(): Promise<void> {
+  live?.stop();
   await client?.close();
   client = undefined;
 }

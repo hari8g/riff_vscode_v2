@@ -96,12 +96,18 @@ export class SocketClient implements RpcCaller {
   }
 }
 
-/** Reads `.riaf/daemon.json`, or undefined when no daemon has registered. */
+/**
+ * Reads `.riaf/daemon.json`, or undefined when no daemon has registered. A file another tool wrote
+ * there (the RIAF v1 extension uses the same name with a port and token) is ignored, so its pid is
+ * never waited on or signalled.
+ */
 export function readDaemonInfo(root: string): DaemonInfoFile | undefined {
   const p = daemonInfoPath(root);
   if (!existsSync(p)) return undefined;
   try {
-    return JSON.parse(readFileSync(p, 'utf8')) as DaemonInfoFile;
+    const o = JSON.parse(readFileSync(p, 'utf8')) as Partial<DaemonInfoFile>;
+    const ok = typeof o.pid === 'number' && typeof o.socket === 'string' && typeof o.protocol === 'string' && typeof o.version === 'string';
+    return ok ? (o as DaemonInfoFile) : undefined;
   } catch {
     return undefined;
   }
@@ -123,6 +129,43 @@ export interface ConnectOptions {
   spawn?: { command: string; args: string[]; env?: NodeJS.ProcessEnv };
   startTimeoutMs?: number;
   requestTimeoutMs?: number;
+  /**
+   * Stop whatever daemon serves this repository and start a new one, so a client never attaches to a
+   * stale process left by an older build. Default false.
+   */
+  fresh?: boolean;
+}
+
+/** Asks the repository's running daemon to stop and waits until its socket is gone; false when none ran. */
+export async function stopDaemon(root: string, timeoutMs = 5_000): Promise<boolean> {
+  const info = readDaemonInfo(root);
+  const path = info?.socket ?? socketPathFor(root);
+  let conn: SocketClient | undefined;
+  try {
+    conn = await SocketClient.connect(path, timeoutMs);
+  } catch {
+    conn = undefined;
+  }
+  if (conn) {
+    await conn.call('daemon.shutdown', {}).catch(() => undefined);
+    await conn.close();
+  } else if (info && info.root === root && pidAlive(info.pid) && info.pid !== process.pid) {
+    // registered by a RIAF daemon for this repository but not answering: stop it so a new one can start
+    try {
+      process.kill(info.pid, 'SIGTERM');
+    } catch { /* already gone */ }
+  } else {
+    return false;
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const still = await SocketClient.connect(path, 1_000).then((c) => (void c.close(), true), () => false);
+    const cur = readDaemonInfo(root); // removed by the daemon as its last step
+    const alive = cur && cur.root === root ? cur.pid === process.pid || pidAlive(cur.pid) : false;
+    if (!still && !alive) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return true;
 }
 
 /** The default daemon launcher: this package's own bin. */
@@ -151,6 +194,7 @@ export class DaemonClient implements RpcCaller {
         return undefined;
       }
     };
+    if (opts.fresh) await stopDaemon(root);
     let conn = await tryConnect();
     if (!conn && (opts.autoStart ?? true)) {
       const stale = readDaemonInfo(root);

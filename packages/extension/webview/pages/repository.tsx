@@ -40,7 +40,7 @@ export function Repository({ focus }: { focus?: string }) {
         </Card>
         <div className="stack">
           {sym ? <SymbolView query={sym} onClose={() => setSym(null)} onPick={setSym} /> : (
-            <Card title={<span className="row"><Icon name={page?.['level'] === 'file' ? 'file' : 'folder'} />{page?.['id'] || 'repository'}</span>} {...(detailed ? { sub: page?.['level'] } : {})}>
+            <Card title={<span className="row">{page?.['id'] || 'repository'}</span>} {...(detailed ? { sub: page?.['level'] } : {})}>
               {page ? <>
                 <p className="summary">{String(page['summary'] ?? '').split('\n')[0]}</p>
                 {(page['symbols'] as Msg[]).length > 0 && <div className="symlist">{(page['symbols'] as Msg[]).map((s) => (
@@ -52,7 +52,7 @@ export function Repository({ focus }: { focus?: string }) {
               </> : <Skeleton h={160} />}
             </Card>
           )}
-          <Detail><details className="card runbook"><summary><Icon name="rule" /> Run-book <span className="muted small">generated, ≤ 60 lines</span></summary><pre className="render-pre">{runbook}</pre></details></Detail>
+          <Detail><details className="card runbook"><summary>Run-book <span className="muted small">generated, ≤ 60 lines</span></summary><pre className="render-pre">{runbook}</pre></details></Detail>
         </div>
       </div>
     </div>

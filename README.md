@@ -196,6 +196,24 @@ A switch in the top bar sets how much detail you see. The console remembers your
 
 Detailed adds code signatures, line ranges, reference kinds and the generated run-book.
 
+**AI prompt.** Exactly what the AI assistant receives after RIAF has read the task and gathered the context ([§10.6](#106-the-agent-prompt-and-its-token-plan)):
+
+- Pick Claude Code, Copilot or any model, describe a task, and press **Build prompt**. Three steps light up: read the task, gather the context, build the prompt.
+- **How the context window is spent:** one bar for the whole model window. It shows cached instructions, instructions for this task, code and history, the reply reserve, the reasoning reserve, the room left for the AI's own reading, and the safety margin.
+- **What kind of work it is:** the intent mix with each kind's share of code and reply budget, and whether the AI must show its plan and wait for approval first.
+- **What is in the prompt:** every section with its size, the cacheable ones marked. Click one to jump to it in the full preview.
+- **Send to Claude Code**, **Send to Copilot** or **Copy**.
+- **Token settings:** start from *Economy*, *Balanced* or *Thorough*, or set the model window, the share of it to use, and the code and reply budget per kind of work. Settings that cannot fit are flagged. Save writes `.riaf/tokens.yaml` after validation. Detailed adds the reasoning reserve, the summarise point, cache ordering and a YAML editor.
+
+**Code health.** What the three knowledge layers know about the code:
+
+- **Load-bearing parts:** most depended on, with whether a test reaches them.
+- **Needs a test:** important parts no automated check reaches, plus files that import each other in a circle.
+- **Changing fast:** files changed most often recently, the share of fixes, who made the changes, and a warning when only one person knows a busy file.
+- **Busiest areas.**
+- **Domain words:** the business vocabulary with meanings. Click one to open its definition.
+- Detailed adds tangled code and possibly unused definitions.
+
 **Savings.** Measured results and an estimate, kept clearly apart:
 
 - **Measured (30 test tasks):** less text sent to the AI, fewer steps for the AI, more of the right files found, and the measured cost of Claude Code on its own.
@@ -295,6 +313,7 @@ This writes:
 | --- | --- |
 | `.riaf/policies.yaml` | Retrieval rules: how requests are read and which context each intent needs |
 | `.riaf/governance.yaml` | Tool-call budgets, loop guard, cache and compaction advice for AI sessions |
+| `.riaf/tokens.yaml` | Token settings for the agent prompt: model window, per-intent pack and reply budgets, plan gate ([§11.5](#115-riaftokensyaml-the-agent-prompts-token-settings)) |
 | `.riaf/constraints.md` | Team rules and the definition of done, written by people |
 | `.riaf/runbook.md` | Generated run-book (commands, layout, conventions), imported from `CLAUDE.md` |
 | `.mcp.json` | Registers the `riaf` MCP server |
@@ -326,7 +345,7 @@ The hooks **fail open**: if RIAF is unavailable, Claude Code carries on as norma
 | Hook | What RIAF does |
 | --- | --- |
 | `SessionStart` | Opens a governed session |
-| `UserPromptSubmit` | Compiles a pack for the prompt and adds it as context. If the prompt continues the same task, it reuses the earlier pack. |
+| `UserPromptSubmit` | Routes the prompt, compiles the pack and injects the **detailed agent prompt** ([§10.6](#106-the-agent-prompt-and-its-token-plan)). If the prompt continues the same task, it keeps the earlier one. |
 | `PreToolUse` | Checks the call against the phase budget. Answers `grep`/`glob` from the index when that is cheaper, and repeated reads of unchanged files from the cache. Asks the assistant to checkpoint at a soft limit, and blocks a loop of identical calls. |
 | `PostToolUse` | Records the result: which delivered items were actually read or edited |
 | `Stop` | Ends the session. Records utilisation, updates the intent priors and distils reusable skills from what worked. |
@@ -373,6 +392,7 @@ riaf <command> [options]          global: --root <dir>  --in-process  --json
 | `pack "<request>" [--budget N] [--render …] [--intent X]` | Compile a context pack (`claude`, `copilot`, `fragment`, `json`, `agentsmd`) | `riaf pack "add GET /disputes/next" --render copilot` |
 | `wiki [node]` | Repository structure, or one directory or file page | `riaf wiki src/pricing/` |
 | `history <name\|path> [--why]` | Commits owning a part's lines, or why it is the way it is | `riaf history Ledger.post --why` |
+| `prompt "<request>" [--host claude\|copilot\|generic] [--budget N] [--plan\|--json]` | The detailed agent prompt RIAF injects, or its token plan (`--plan`) | `riaf prompt "fix Gantry.lane" --plan` |
 | `runbook [--write]` | Print or regenerate `.riaf/runbook.md` | `riaf runbook --write` |
 | `init [--host claude\|copilot\|both]` | Set up a repository ([§7.1](#71-set-up-a-repository)) | `riaf init --host both` |
 | `mcp [--http PORT]` | Serve the MCP tools (stdio for Claude Code) | `riaf mcp` |
@@ -392,11 +412,13 @@ By default the CLI talks to the running RIAF service for the repository and star
 ```
  L0  store      SQLite (wasm): content-addressed blobs, Merkle table, full-text and trigram search, a vector table reserved for embeddings
  L1  parse      tree-sitter tags, chunks, import resolution, optional language-server enrichment
- L1  graph      structural graph of symbols and edges, personalised-PageRank repo map, closure, impact
- L2  history    git mining: blame per symbol, co-change, reverts, incidents, ADRs, commit summaries
- L3  semantic   bottom-up summaries, architecture map, conventions, run-book
+ L1  graph      structural graph of symbols and edges, personalised-PageRank repo map, closure, impact,
+                insights: load-bearing hubs, tangled code, untested hubs, unused definitions, import cycles
+ L2  history    git mining: blame per symbol, co-change, reverts, incidents, ADRs, commit summaries,
+                hotspots (recency-weighted churn, fix share) and ownership with a bus factor
+ L3  semantic   bottom-up summaries, architecture map, conventions, run-book, domain glossary
  L4  intent     decomposer, intent vector, entropy gate, probe, policy composer
- L5  compiler   primitive policies, sufficiency expansion, knapsack, tiers, stages, renders
+ L5  compiler   primitive policies, sufficiency expansion, knapsack, tiers, stages, renders, the agent prompt
  L6  govern     tool-call budgets, cache, loop guard, telemetry, skill distillation
 ```
 
@@ -434,7 +456,54 @@ The compiler expands from the anchors and scores every candidate. It packs them 
 
 Every item records its source, hash, rule, intent, weight and score. The pack also lists **open lookups**: what the model may still need to fetch. Renders exist for Claude, Copilot, any model (a system-prompt fragment), JSON and `AGENTS.md`.
 
-### 10.5 Governance and learning
+### 10.5 What the knowledge layers add
+
+- **L1 graph insights** (`graph.insights`):
+  - **Fan-in and fan-out** per definition, ignoring a member's use of its own class.
+  - **Load-bearing hubs.**
+  - **Tangled code:** high fan-out.
+  - **Untested hubs:** classes, functions and methods with fan-in of 2 or more that no test reaches directly or through their class.
+  - **Unreferenced definitions:** constructors, members of used classes and entry files excluded.
+  - **Import cycles:** Tarjan's strongly connected components over file imports.
+- **L2 hotspots and ownership** (`history.hotspots`):
+  - Files or areas ranked by churn, weighted by recency with a 90-day half-life from the newest commit.
+  - The share of commits that were fixes, the owners by share of commits, and the **bus factor**: the fewest people who made more than half of the changes.
+  - Documentation and lock files are skipped by default.
+- **L3 domain glossary** (`semantic.glossary`):
+  - Business words mined from symbol names, doc comments and directory names, with generic programming words removed.
+  - Each word lists where it is defined, the areas it spans, and a one-line meaning from the best doc comment.
+  - Plain phrases map onto it: *"plate validation"* finds `plate` and `validate`.
+
+These facts feed the console's *Code health* page and the **What to watch** section of every agent prompt.
+
+### 10.6 The agent prompt and its token plan
+
+After the intent router and the context compiler have run, RIAF wraps the pack in a **detailed agent prompt**. The design is ADR-0005, inspired by the v1 console's prompt instruction. Sections, in order:
+
+| # | Section | Contents | Cached |
+| --- | --- | --- | --- |
+| 1 | How to work in this repository | Tool hints for the host (`riaf_jump`… for Claude Code, `#riafJump`… for Copilot) and five working rules | yes |
+| 2 | Repository rules | Commands, hard constraints, conventions and definition of done from the run-book | yes |
+| 3 | Reply format | Summary · files changed · tests run · risks | yes |
+| 4 | Task | The request verbatim; how RIAF read it (intent mix, reading, certainty); its parts; a question to ask first if unclear | |
+| 5 | Plan | Per-intent playbook steps, or stage-by-stage steps for multi-part tasks; a **plan gate** when a plan-first intent weighs ≥ 30 % | |
+| 6 | Token and tool budget | Model window and planned use; prompt, pack, reply reserve, reasoning and headroom; budget mix by intent; when to summarise; the four phase budgets from `governance.yaml` | |
+| 7 | What to watch | Load-bearing anchors, missing tests, hotspots, owners and bus factor, import cycles, and domain-term meanings | |
+| 8 | Context pack | The compiled pack by tier and stage, with suggested lookups | |
+| 9 | Before you finish | Per-intent definition of done, the test command and tests to run, constraints check | |
+
+The stable sections come first, and their hash (`stableHash`) stays the same across tasks, so providers can cache that prefix. Each frame section is capped (`sections` in `tokens.yaml`).
+
+The **token plan** is computed as follows:
+
+- **Pack budget and reply reserve:** the per-intent settings, blended by the route's intent weights.
+- **Usable window:** `context_window × use_ratio`.
+- **Headroom:** `usable − prompt − reply − reasoning`.
+- **Summarise at:** `(usable − reply − reasoning) × summarize_at`.
+
+The Claude Code hook injects this prompt, `riaf prompt` prints it, and the console's *AI prompt* page shows and tunes it.
+
+### 10.7 Governance and learning
 
 During a Claude Code session the hooks ([§7.3](#73-hooks-governing-an-ai-session)) enforce the phase budgets in `.riaf/governance.yaml`. They serve repeated reads and searches from the index or cache, and stop loops. When the session ends, RIAF measures **utilisation**: which delivered items were really used. It feeds that into the intent priors and distils **skills** (short playbooks of what worked), which later packs can include.
 
@@ -507,6 +576,29 @@ Providers: `anthropic`, `openai` (any OpenAI-compatible gateway, including corpo
 
 ---
 
+### 11.5 `.riaf/tokens.yaml`: the agent prompt's token settings
+
+```yaml
+version: 1
+model: { name: claude-sonnet, context_window: 200000, use_ratio: 0.85 }
+reasoning: 0                    # extended-thinking reserve (0 = off)
+sections: { protocol: 800, plan: 900, notes: 700 }   # caps for the prompt frame
+intents:                        # blended by the route's intent weights
+  bugfix:     { pack: 16000, output: 8192,  plan_gate: false }
+  feature:    { pack: 16000, output: 16384, plan_gate: true }
+  merge:      { pack: 16000, output: 8192,  plan_gate: false }
+  review:     { pack: 12000, output: 4096,  plan_gate: false }
+  refactor:   { pack: 20000, output: 16384, plan_gate: true }
+  onboarding: { pack: 8000,  output: 4096,  plan_gate: false }
+  unknown:    { pack: 8000,  output: 4096,  plan_gate: false }
+plan_gate_min_weight: 0.3
+cache: { stable_prefix: true, ttl: 5m }
+summarize_at: 0.6
+```
+
+`riaf init` writes this file. Without it RIAF uses these defaults. A setting where pack + reply + reasoning would not fit the usable window is rejected. The console's *AI prompt* page edits the file with presets: *Economy* halves the budgets and *Thorough* raises them by 50–75 %. `RIAF_HOOK_BUDGET` still pins the pack budget for the Claude Code hook.
+
+
 ## 12. Architecture and packages
 
 ```
@@ -536,7 +628,7 @@ kernel → store → {parse, graph, history, semantic} → intent → compiler �
 
 Nothing imports upward or sideways. Cross-layer needs go through ports in `kernel/src/ports`.
 
-**The service (daemon).** One process per repository owns the index (ADR-0001). VS Code, Claude Code (through MCP and the hooks), the CLI and the console are all clients over a local JSON-RPC protocol. The protocol is currently version 1.4 and evolves additively within a major version (ADR-0004). Every request and response is validated against zod schemas.
+**The service (daemon).** One process per repository owns the index (ADR-0001). VS Code, Claude Code (through MCP and the hooks), the CLI and the console are all clients over a local JSON-RPC protocol. The protocol is currently version 1.5 and evolves additively within a major version (ADR-0004). Every request and response is validated against zod schemas.
 
 **The console.** The console is a React 18 app bundled with esbuild into a VS Code webview. It talks to the extension host via message passing, and the extension forwards requests to the service. The request handling (`packages/extension/src/consoleHost.ts`) is pure and tested. The plain-language layer lives in `src/ask.ts` (question parsing and answer composition, shared with the webview) and `src/askHost.ts` (the lookup plan). The savings model is in `src/savings.ts`.
 
@@ -548,6 +640,7 @@ Nothing imports upward or sideways. Cross-layer needs go through ports in `kerne
 | 0002 | sqlite-wasm by default; a native driver is optional |
 | 0003 | Intent is a distribution; policies are composed, not selected |
 | 0004 | The service RPC evolves additively within a protocol major |
+| 0005 | A detailed agent prompt with explicit token settings |
 
 More detail: `docs/architecture.md`, `docs/contracts/`, `docs/implementation-plan.md`.
 

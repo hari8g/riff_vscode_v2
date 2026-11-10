@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context_window": {
+          "type": "integer",
+          "minimum": 8000,
+          "maximum": 2000000
+        },
+        "use_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0.3,
+          "maximum": 0.98
+        }
+      },
+      "required": [
+        "name",
+        "context_window",
+        "use_ratio"
+      ]
+    },
+    "reasoning": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128000
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 4000
+        },
+        "plan": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 4000
+        },
+        "notes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4000
+        }
+      },
+      "required": [
+        "protocol",
+        "plan",
+        "notes"
+      ]
+    },
+    "intents": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "bugfix",
+          "feature",
+          "merge",
+          "review",
+          "refactor",
+          "onboarding",
+          "unknown"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "pack": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 200000
+          },
+          "output": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 128000
+          },
+          "plan_gate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pack",
+          "output",
+          "plan_gate"
+        ]
+      },
+      "required": [
+        "bugfix",
+        "feature",
+        "merge",
+        "review",
+        "refactor",
+        "onboarding",
+        "unknown"
+      ]
+    },
+    "plan_gate_min_weight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "stable_prefix": {
+          "type": "boolean"
+        },
+        "ttl": {
+          "type": "string",
+          "enum": [
+            "5m",
+            "1h"
+          ]
+        }
+      },
+      "required": [
+        "stable_prefix",
+        "ttl"
+      ]
+    },
+    "summarize_at": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 1
+    }
+  },
+  "required": [
+    "version",
+    "model",
+    "reasoning",
+    "sections",
+    "intents",
+    "plan_gate_min_weight",
+    "cache",
+    "summarize_at"
+  ]
+}

@@ -4,6 +4,7 @@ import { RouteRequestSchema } from './intent.js';
 import { ComposedPolicySchema } from './policy.js';
 import { PackSchema, RenderTargetSchema } from './pack.js';
 import { ToolCallSchema, ToolDecisionSchema } from './governance.js';
+import { TokenSettingsSchema } from './tokens.js';
 
 /**
  * Daemon JSON-RPC surface. Each method is a (params, result) schema pair; the client SDK and the
@@ -46,7 +47,52 @@ const StageStatusSchema = z.object({
 });
 
 /** Protocol version; additive changes (new methods, new optional fields) keep the major (ADR-0004). */
-export const RPC_PROTOCOL_VERSION = '1.4' as const;
+export const RPC_PROTOCOL_VERSION = '1.5' as const;
+
+/** Where the agent prompt will be injected; decides tool hints in the protocol section. */
+export const PromptHostSchema = z.enum(['claude', 'copilot', 'generic']);
+
+/** How the agent prompt spends the model's context window (since 1.5). */
+export const TokenPlanSchema = z.object({
+  model: z.string(),
+  contextWindow: z.number().int(),
+  /** contextWindow × use_ratio. */
+  usable: z.number().int(),
+  reasoning: z.number().int(),
+  /** Output reserve blended across the route's intents. */
+  output: z.number().int(),
+  packBudget: z.number().int(),
+  packUsed: z.number().int(),
+  /** Tokens of the prompt around the pack (protocol, task, plan, settings, notes, checks). */
+  frame: z.number().int(),
+  /** Whole injected prompt (frame + pack). */
+  prompt: z.number().int(),
+  /** Stable, cacheable prefix tokens. */
+  cacheable: z.number().int(),
+  /** What remains for the agent's own reading and tool results. */
+  headroom: z.number().int(),
+  /** Token count at which the agent should summarise its transcript. */
+  summarizeAt: z.number().int(),
+  planGate: z.boolean(),
+  intentMix: z.array(z.object({ intent: z.string(), weight: z.number(), pack: z.number().int(), output: z.number().int(), planGate: z.boolean() })),
+});
+
+/** The detailed prompt injected into the agent after routing and compilation (since 1.5). */
+export const AgentPromptSchema = z.object({
+  promptId: z.string(),
+  host: PromptHostSchema,
+  text: z.string(),
+  /** Hash of the stable prefix: equal across tasks on the same code and settings, so providers can cache it. */
+  stableHash: z.string(),
+  sections: z.array(z.object({ id: z.string(), title: z.string(), tokens: z.number().int(), cacheable: z.boolean() })),
+  plan: TokenPlanSchema,
+});
+
+const SymbolMetricSchema = z.object({ symbol: SymbolIdSchema, path: z.string(), kind: z.string(), fanIn: z.number().int(), fanOut: z.number().int(), tests: z.number().int() });
+const OwnerSchema = z.object({ author: z.string(), commits: z.number().int(), share: z.number(), lastAt: z.string() });
+export const GlossaryTermSchema = z.object({
+  term: z.string(), symbols: z.number().int(), files: z.number().int(), areas: z.array(z.string()), defines: z.array(SymbolIdSchema), meaning: z.string().optional(), score: z.number(),
+});
 
 export const RPC = {
   'daemon.info': {
@@ -194,6 +240,48 @@ export const RPC = {
       skills: z.number().int().nonnegative(),
       packs: z.number().int().nonnegative(),
     }),
+  },
+  'prompt.build': {
+    params: z.object({
+      request: RouteRequestSchema.optional(),
+      /** A route already computed (the Claude Code prompt hook); `text` then carries the task wording. */
+      route: ComposedPolicySchema.optional(),
+      text: z.string().optional(),
+      host: PromptHostSchema.default('claude'),
+      /** Overrides the blended per-intent pack budget. */
+      budget: z.number().int().positive().optional(),
+      sessionId: z.string().min(1).optional(),
+    }).refine((p) => p.request !== undefined || (p.route !== undefined && p.text !== undefined), 'request, or route and text, is required'),
+    result: z.object({ pack: PackSchema, prompt: AgentPromptSchema }),
+  },
+  'tokens.get': {
+    params: z.object({}),
+    result: z.object({ settings: TokenSettingsSchema, text: z.string(), source: z.enum(['file', 'builtin']), errors: z.array(z.string()) }),
+  },
+  'tokens.validate': {
+    params: z.object({ text: z.string() }),
+    result: z.object({ ok: z.boolean(), errors: z.array(z.string()), settings: TokenSettingsSchema.optional() }),
+  },
+  'graph.insights': {
+    params: z.object({ top: z.number().int().min(1).max(100).default(10) }),
+    result: z.object({
+      totals: z.object({ symbols: z.number().int(), files: z.number().int(), edges: z.number().int(), definitions: z.number().int(), testedDefinitions: z.number().int() }),
+      hubs: z.array(SymbolMetricSchema), tangled: z.array(SymbolMetricSchema), untestedHubs: z.array(SymbolMetricSchema), unreferenced: z.array(SymbolMetricSchema),
+      cycles: z.array(z.array(z.string())),
+    }),
+  },
+  'history.hotspots': {
+    params: z.object({ top: z.number().int().min(1).max(200).default(20), under: z.string().optional(), byDirectory: z.boolean().default(false), halfLifeDays: z.number().positive().default(90) }),
+    result: z.object({
+      hotspots: z.array(z.object({
+        path: z.string(), commits: z.number().int(), churn: z.number().int(), heat: z.number(), fixShare: z.number(), authors: z.number().int(), busFactor: z.number().int(),
+        owners: z.array(OwnerSchema), firstAt: z.string(), lastAt: z.string(),
+      })),
+    }),
+  },
+  'semantic.glossary': {
+    params: z.object({ top: z.number().int().min(1).max(200).default(60), phrase: z.string().optional() }),
+    result: z.object({ terms: z.array(GlossaryTermSchema) }),
   },
   'policies.get': {
     params: z.object({}),

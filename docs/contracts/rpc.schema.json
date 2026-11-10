@@ -2916,6 +2916,1824 @@
       "additionalProperties": false
     }
   },
+  "prompt.build": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ide": {
+              "default": {},
+              "type": "object",
+              "properties": {
+                "activeFile": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "selection": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "startLine": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "endLine": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "startLine",
+                    "endLine"
+                  ]
+                },
+                "openFiles": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "branch": {
+                  "type": "string"
+                },
+                "failingTests": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "stackTrace": {
+                  "type": "string"
+                },
+                "diffFiles": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "interactive": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              }
+            },
+            "budget": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "intentHint": {
+              "type": "string",
+              "enum": [
+                "bugfix",
+                "feature",
+                "merge",
+                "review",
+                "refactor",
+                "onboarding",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        "route": {
+          "type": "object",
+          "properties": {
+            "units": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "anchors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+                    }
+                  },
+                  "ungrounded": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "w": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "enum": [
+                        "bugfix",
+                        "feature",
+                        "merge",
+                        "review",
+                        "refactor",
+                        "onboarding",
+                        "unknown"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "H": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "dependsOn": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "text",
+                  "anchors",
+                  "w",
+                  "H"
+                ]
+              }
+            },
+            "branch": {
+              "type": "string",
+              "enum": [
+                "single",
+                "blended",
+                "probe",
+                "clarify",
+                "generic"
+              ]
+            },
+            "w": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "bugfix",
+                  "feature",
+                  "merge",
+                  "review",
+                  "refactor",
+                  "onboarding",
+                  "unknown"
+                ]
+              },
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "H": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "primitives": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "bugfix",
+                      "feature",
+                      "merge",
+                      "review",
+                      "refactor",
+                      "onboarding",
+                      "unknown"
+                    ]
+                  },
+                  "weight": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "intent",
+                  "weight"
+                ]
+              }
+            },
+            "anchors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              }
+            },
+            "expansion": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rule": {
+                    "type": "string",
+                    "enum": [
+                      "callers",
+                      "callees",
+                      "exercising_test",
+                      "sibling_template",
+                      "implemented_interfaces",
+                      "both_branch_touched",
+                      "co_change_partners",
+                      "tests_over",
+                      "invariants_on",
+                      "reference_closure",
+                      "inheritance_tree",
+                      "dynamic_dispatch_sites",
+                      "module_summaries",
+                      "file_skeletons",
+                      "one_hop"
+                    ]
+                  },
+                  "hops": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  },
+                  "cap": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "exclude": {
+                    "type": "string",
+                    "enum": [
+                      "in_diff",
+                      "tests",
+                      "generated"
+                    ]
+                  }
+                },
+                "required": [
+                  "rule"
+                ]
+              }
+            },
+            "historyScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "blame_on_anchors",
+                  "reverts_touching_anchors",
+                  "origin_commits_of_sibling",
+                  "both_branch_summaries",
+                  "recent_incidents_on",
+                  "adrs"
+                ]
+              }
+            },
+            "budget": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "fixed": {
+                  "type": "object",
+                  "properties": {
+                    "map": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "runbook": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "map",
+                    "runbook"
+                  ]
+                },
+                "variable": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              },
+              "required": [
+                "total",
+                "fixed",
+                "variable"
+              ]
+            },
+            "stages": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "question": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "options": {
+                      "minItems": 2,
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "intent": {
+                            "type": "string",
+                            "enum": [
+                              "bugfix",
+                              "feature",
+                              "merge",
+                              "review",
+                              "refactor",
+                              "onboarding",
+                              "unknown"
+                            ]
+                          },
+                          "w": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "enum": [
+                                "bugfix",
+                                "feature",
+                                "merge",
+                                "review",
+                                "refactor",
+                                "onboarding",
+                                "unknown"
+                              ]
+                            },
+                            "additionalProperties": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "intent",
+                          "w"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "options"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "policyVersion": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "units",
+            "branch",
+            "w",
+            "H",
+            "primitives",
+            "anchors",
+            "expansion",
+            "historyScope",
+            "budget",
+            "stages",
+            "question",
+            "policyVersion"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "host": {
+          "default": "claude",
+          "type": "string",
+          "enum": [
+            "claude",
+            "copilot",
+            "generic"
+          ]
+        },
+        "budget": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "pack": {
+          "type": "object",
+          "properties": {
+            "packId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{7,40}$"
+            },
+            "route": {
+              "type": "object",
+              "properties": {
+                "w": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "bugfix",
+                      "feature",
+                      "merge",
+                      "review",
+                      "refactor",
+                      "onboarding",
+                      "unknown"
+                    ]
+                  },
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "H": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "branch": {
+                  "type": "string",
+                  "enum": [
+                    "single",
+                    "blended",
+                    "probe",
+                    "clarify",
+                    "generic"
+                  ]
+                },
+                "stages": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "question": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "w",
+                "H",
+                "branch",
+                "stages"
+              ],
+              "additionalProperties": false
+            },
+            "budget": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "tokensUsed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "openLookups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "args": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "tool",
+                  "args",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tier": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "const": 1
+                      },
+                      {
+                        "type": "number",
+                        "const": 2
+                      },
+                      {
+                        "type": "number",
+                        "const": 3
+                      },
+                      {
+                        "type": "number",
+                        "const": 4
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "signature",
+                      "body",
+                      "summary",
+                      "commit",
+                      "co_change",
+                      "convention",
+                      "skill",
+                      "runbook",
+                      "test",
+                      "diff"
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "range": {
+                                "type": "object",
+                                "properties": {
+                                  "startLine": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "endLine": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "startLine",
+                                  "endLine"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "blobHash": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "commit": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{7,40}$"
+                              }
+                            },
+                            "required": [
+                              "path"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "commit": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{7,40}$"
+                              }
+                            },
+                            "required": [
+                              "commit"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "virtual": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "virtual"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "why": {
+                    "type": "object",
+                    "properties": {
+                      "intent": {
+                        "type": "string",
+                        "enum": [
+                          "bugfix",
+                          "feature",
+                          "merge",
+                          "review",
+                          "refactor",
+                          "onboarding",
+                          "unknown"
+                        ]
+                      },
+                      "rule": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "score": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "intent",
+                      "rule",
+                      "weight",
+                      "score"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "stage": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "tier",
+                  "kind",
+                  "source",
+                  "hash",
+                  "why",
+                  "tokens",
+                  "stage",
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "policyVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "schemaVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          "required": [
+            "packId",
+            "repo",
+            "route",
+            "budget",
+            "tokensUsed",
+            "openLookups",
+            "items",
+            "policyVersion",
+            "schemaVersion",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "prompt": {
+          "type": "object",
+          "properties": {
+            "promptId": {
+              "type": "string"
+            },
+            "host": {
+              "type": "string",
+              "enum": [
+                "claude",
+                "copilot",
+                "generic"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "stableHash": {
+              "type": "string"
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "cacheable": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "tokens",
+                  "cacheable"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "plan": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string"
+                },
+                "contextWindow": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "usable": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "reasoning": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "output": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "packBudget": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "packUsed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "frame": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "prompt": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "cacheable": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "headroom": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "summarizeAt": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "planGate": {
+                  "type": "boolean"
+                },
+                "intentMix": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "intent": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number"
+                      },
+                      "pack": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "output": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "planGate": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "intent",
+                      "weight",
+                      "pack",
+                      "output",
+                      "planGate"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "model",
+                "contextWindow",
+                "usable",
+                "reasoning",
+                "output",
+                "packBudget",
+                "packUsed",
+                "frame",
+                "prompt",
+                "cacheable",
+                "headroom",
+                "summarizeAt",
+                "planGate",
+                "intentMix"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "promptId",
+            "host",
+            "text",
+            "stableHash",
+            "sections",
+            "plan"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "pack",
+        "prompt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "tokens.get": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "number",
+              "const": 1
+            },
+            "model": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context_window": {
+                  "type": "integer",
+                  "minimum": 8000,
+                  "maximum": 2000000
+                },
+                "use_ratio": {
+                  "type": "number",
+                  "exclusiveMinimum": 0.3,
+                  "maximum": 0.98
+                }
+              },
+              "required": [
+                "name",
+                "context_window",
+                "use_ratio"
+              ],
+              "additionalProperties": false
+            },
+            "reasoning": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 128000
+            },
+            "sections": {
+              "type": "object",
+              "properties": {
+                "protocol": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 4000
+                },
+                "plan": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 4000
+                },
+                "notes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4000
+                }
+              },
+              "required": [
+                "protocol",
+                "plan",
+                "notes"
+              ],
+              "additionalProperties": false
+            },
+            "intents": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "bugfix",
+                  "feature",
+                  "merge",
+                  "review",
+                  "refactor",
+                  "onboarding",
+                  "unknown"
+                ]
+              },
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "pack": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 200000
+                  },
+                  "output": {
+                    "type": "integer",
+                    "minimum": 256,
+                    "maximum": 128000
+                  },
+                  "plan_gate": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pack",
+                  "output",
+                  "plan_gate"
+                ],
+                "additionalProperties": false
+              },
+              "required": [
+                "bugfix",
+                "feature",
+                "merge",
+                "review",
+                "refactor",
+                "onboarding",
+                "unknown"
+              ]
+            },
+            "plan_gate_min_weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "cache": {
+              "type": "object",
+              "properties": {
+                "stable_prefix": {
+                  "type": "boolean"
+                },
+                "ttl": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h"
+                  ]
+                }
+              },
+              "required": [
+                "stable_prefix",
+                "ttl"
+              ],
+              "additionalProperties": false
+            },
+            "summarize_at": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            }
+          },
+          "required": [
+            "version",
+            "model",
+            "reasoning",
+            "sections",
+            "intents",
+            "plan_gate_min_weight",
+            "cache",
+            "summarize_at"
+          ],
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "file",
+            "builtin"
+          ]
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "settings",
+        "text",
+        "source",
+        "errors"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "tokens.validate": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "number",
+              "const": 1
+            },
+            "model": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context_window": {
+                  "type": "integer",
+                  "minimum": 8000,
+                  "maximum": 2000000
+                },
+                "use_ratio": {
+                  "type": "number",
+                  "exclusiveMinimum": 0.3,
+                  "maximum": 0.98
+                }
+              },
+              "required": [
+                "name",
+                "context_window",
+                "use_ratio"
+              ],
+              "additionalProperties": false
+            },
+            "reasoning": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 128000
+            },
+            "sections": {
+              "type": "object",
+              "properties": {
+                "protocol": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 4000
+                },
+                "plan": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 4000
+                },
+                "notes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4000
+                }
+              },
+              "required": [
+                "protocol",
+                "plan",
+                "notes"
+              ],
+              "additionalProperties": false
+            },
+            "intents": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "bugfix",
+                  "feature",
+                  "merge",
+                  "review",
+                  "refactor",
+                  "onboarding",
+                  "unknown"
+                ]
+              },
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "pack": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 200000
+                  },
+                  "output": {
+                    "type": "integer",
+                    "minimum": 256,
+                    "maximum": 128000
+                  },
+                  "plan_gate": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pack",
+                  "output",
+                  "plan_gate"
+                ],
+                "additionalProperties": false
+              },
+              "required": [
+                "bugfix",
+                "feature",
+                "merge",
+                "review",
+                "refactor",
+                "onboarding",
+                "unknown"
+              ]
+            },
+            "plan_gate_min_weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "cache": {
+              "type": "object",
+              "properties": {
+                "stable_prefix": {
+                  "type": "boolean"
+                },
+                "ttl": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h"
+                  ]
+                }
+              },
+              "required": [
+                "stable_prefix",
+                "ttl"
+              ],
+              "additionalProperties": false
+            },
+            "summarize_at": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            }
+          },
+          "required": [
+            "version",
+            "model",
+            "reasoning",
+            "sections",
+            "intents",
+            "plan_gate_min_weight",
+            "cache",
+            "summarize_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "ok",
+        "errors"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "graph.insights": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "top": {
+          "default": 10,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "totals": {
+          "type": "object",
+          "properties": {
+            "symbols": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "files": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "edges": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "definitions": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "testedDefinitions": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "symbols",
+            "files",
+            "edges",
+            "definitions",
+            "testedDefinitions"
+          ],
+          "additionalProperties": false
+        },
+        "hubs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "path": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "fanIn": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "fanOut": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "symbol",
+              "path",
+              "kind",
+              "fanIn",
+              "fanOut",
+              "tests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "tangled": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "path": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "fanIn": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "fanOut": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "symbol",
+              "path",
+              "kind",
+              "fanIn",
+              "fanOut",
+              "tests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "untestedHubs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "path": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "fanIn": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "fanOut": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "symbol",
+              "path",
+              "kind",
+              "fanIn",
+              "fanOut",
+              "tests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "unreferenced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+              },
+              "path": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "fanIn": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "fanOut": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "symbol",
+              "path",
+              "kind",
+              "fanIn",
+              "fanOut",
+              "tests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cycles": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "totals",
+        "hubs",
+        "tangled",
+        "untestedHubs",
+        "unreferenced",
+        "cycles"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "history.hotspots": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "top": {
+          "default": 20,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "under": {
+          "type": "string"
+        },
+        "byDirectory": {
+          "default": false,
+          "type": "boolean"
+        },
+        "halfLifeDays": {
+          "default": 90,
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "hotspots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "commits": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "churn": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "heat": {
+                "type": "number"
+              },
+              "fixShare": {
+                "type": "number"
+              },
+              "authors": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "busFactor": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "owners": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "author": {
+                      "type": "string"
+                    },
+                    "commits": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "share": {
+                      "type": "number"
+                    },
+                    "lastAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "author",
+                    "commits",
+                    "share",
+                    "lastAt"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "firstAt": {
+                "type": "string"
+              },
+              "lastAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "commits",
+              "churn",
+              "heat",
+              "fixShare",
+              "authors",
+              "busFactor",
+              "owners",
+              "firstAt",
+              "lastAt"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "hotspots"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "semantic.glossary": {
+    "params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "top": {
+          "default": 60,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "phrase": {
+          "type": "string"
+        }
+      }
+    },
+    "result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "terms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": {
+                "type": "string"
+              },
+              "symbols": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "files": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "areas": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "defines": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^#]*#[^#@]*@[a-z]+$"
+                }
+              },
+              "meaning": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "term",
+              "symbols",
+              "files",
+              "areas",
+              "defines",
+              "score"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "terms"
+      ],
+      "additionalProperties": false
+    }
+  },
   "policies.get": {
     "params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

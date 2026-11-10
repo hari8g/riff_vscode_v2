@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ask, brand, repoName, type Msg } from '../api.js';
+import { ask, repoName, type Msg } from '../api.js';
 import { Btn, Card, Chip, Count, Detail, Donut, Empty, fmtK, Icon, Skeleton, Stat, useDetailed, useToast } from '../kit.js';
 
 const STAGES = ['scan', 'parse', 'graph', 'history', 'summaries', 'lsp'];
 const STAGE_TEXT: Record<string, string> = { scan: 'reads the files', parse: 'finds names in the code', graph: 'links what uses what', history: 'reads the change history', summaries: 'writes short summaries', lsp: 'asks the language tools' };
 const BRANCH_TEXT: Record<string, string> = { single: 'clear', blended: 'two things at once', probe: 'needed a closer look', clarify: 'needed a question back', generic: 'too vague' };
-const DO = [
-  { page: 'ask', icon: 'ask', color: 'var(--teal)', title: 'Ask a question', text: 'How does something work, who knows it, what would a change affect? Ask in your own words.' },
-  { page: 'studio', icon: 'studio', color: 'var(--i-refactor)', title: 'Prepare a task', text: 'Describe a change. RIAF gathers what a developer or AI assistant needs to start.' },
-  { page: 'repository', icon: 'repository', color: 'var(--moss)', title: 'Explore the code', text: 'Browse the product area by area, with a short summary of each part.' },
-  { page: 'savings', icon: 'savings', color: 'var(--i-merge)', title: 'See the savings', text: 'How much AI cost and effort RIAF saves compared with working without it.' },
-];
 const BRANCH_COLORS: Record<string, string> = { single: 'var(--teal)', blended: 'var(--i-refactor)', probe: 'var(--i-review)', clarify: 'var(--ember)', generic: 'var(--slate)' };
 
 export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
@@ -45,11 +39,11 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
     <div className="stack-lg">
       <section className="hero">
         <div className="hero-l">
-          <span className="eyebrow">{brand.mlff && <img src={brand.mlff} alt="" />}MLFF · Multi-Lane Free Flow</span>
+          <span className="eyebrow">Repository</span>
           <h1 className="hero-t">{repoName}</h1>
           <div className="row wrap">
             <Chip tone={pending ? 'ember' : 'moss'} dot={pending ? 'var(--ember)' : 'var(--moss)'}>{pending ? `Updating, ${pending} files left` : 'Up to date'}</Chip>
-            <Detail>{s.head && <Chip mono><Icon name="commit" size={12} />{String(s.head).slice(0, 10)}</Chip>}<Chip>schema {s.schemaVersion}</Chip></Detail>
+            <Detail>{s.head && <Chip mono>{String(s.head).slice(0, 10)}</Chip>}<Chip>schema {s.schemaVersion}</Chip></Detail>
           </div>
           <div className="stats4">
             <Stat v={<Count to={s.blobs} />} l="files" />
@@ -59,19 +53,12 @@ export function Overview({ go }: { go: (page: string, arg?: string) => void }) {
           </div>
         </div>
         <div className="hero-r">
-          <Btn kind="primary" icon="ask" onClick={() => go('ask')}>Ask a question</Btn>
+          <Btn kind="primary" onClick={() => go('studio')}>Prepare a task</Btn>
+          <Btn kind="soft" onClick={() => go('live')}>Claude Code live</Btn>
           <Btn kind="soft" icon="refresh" onClick={() => void reindex()} disabled={busy}>{busy ? 'Updating…' : detailed ? 'Re-index' : 'Refresh'}</Btn>
         </div>
       </section>
 
-      {!detailed ? <>
-        <h2 className="section-t">What would you like to do?</h2>
-        <section className="doit">{DO.map((d, i) => (
-          <button key={d.page} style={{ ['--c' as string]: d.color, animationDelay: `${i * 50}ms` }} onClick={() => go(d.page)}>
-            <span className="doit-i"><Icon name={d.icon} size={18} /></span><b>{d.title}</b><span className="muted">{d.text}</span>
-          </button>))}
-        </section>
-      </> : null}
 
       <Detail>
       <Card title="How RIAF keeps up with the code" sub="Each step only redoes what changed since its last run.">

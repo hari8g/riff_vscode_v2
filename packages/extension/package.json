@@ -48,6 +48,10 @@
         "title": "RIAF: Open console"
       },
       {
+        "command": "riaf.openRepository",
+        "title": "RIAF: Open repository\u2026"
+      },
+      {
         "command": "riaf.init",
         "title": "RIAF: Initialise repository (policies, run-book, MCP, hooks)"
       },
@@ -90,7 +94,7 @@
           "properties": {
             "request": {
               "type": "string",
-              "description": "The task in the user’s words"
+              "description": "The task in the user\u2019s words"
             },
             "budget": {
               "type": "number",

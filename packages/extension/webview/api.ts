@@ -7,7 +7,12 @@ export type Msg = { id?: number; type: string; [k: string]: any }; // eslint-dis
 const vscode = acquireVsCodeApi();
 let nextId = 1;
 const pending = new Map<number, (v: Msg) => void>();
+const subscribers = new Map<string, Set<(m: Msg) => void>>();
 window.addEventListener('message', (e: MessageEvent<Msg>) => {
+  if (e.data?.type === 'push') {
+    for (const fn of subscribers.get(String(e.data['channel'])) ?? []) fn(e.data);
+    return;
+  }
   const id = e.data?.id;
   const r = id !== undefined ? pending.get(id) : undefined;
   if (r && id !== undefined) {
@@ -25,9 +30,17 @@ export function ask(req: Record<string, unknown>): Promise<Msg> {
   });
 }
 
+/** Listens for messages the host sends unasked (e.g. channel `live`: new Claude Code events). */
+export function onPush(channel: string, fn: (m: Msg) => void): () => void {
+  const set = subscribers.get(channel) ?? new Set();
+  set.add(fn);
+  subscribers.set(channel, set);
+  return () => set.delete(fn);
+}
+
 export const repoRoot = document.body.dataset['repo'] ?? '';
 /** Brand asset URLs supplied by the host (webview URIs in VS Code, plain paths in the dev server). */
-export const brand = { mps: document.body.dataset['mps'] ?? '', mlff: document.body.dataset['mlff'] ?? '' };
+export const brand = { mps: document.body.dataset['mps'] ?? '' };
 export const repoName = repoRoot.split(/[\\/]/).filter(Boolean).pop() ?? 'repository';
 
 /** Per-panel UI state that survives the webview being hidden and shown. */

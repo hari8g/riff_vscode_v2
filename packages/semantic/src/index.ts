@@ -7,3 +7,4 @@ export * from './architecture.js';
 export * from './conventions.js';
 export * from './runbook.js';
 export * from './semantic.js';
+export * from './glossary.js';

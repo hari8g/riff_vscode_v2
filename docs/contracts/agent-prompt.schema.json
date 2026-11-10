@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "promptId": {
+      "type": "string"
+    },
+    "host": {
+      "type": "string",
+      "enum": [
+        "claude",
+        "copilot",
+        "generic"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "stableHash": {
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "cacheable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tokens",
+          "cacheable"
+        ]
+      }
+    },
+    "plan": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "contextWindow": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "usable": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "reasoning": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "output": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "packBudget": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "packUsed": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "frame": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "prompt": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "cacheable": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "headroom": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "summarizeAt": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "planGate": {
+          "type": "boolean"
+        },
+        "intentMix": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "pack": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "output": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "planGate": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "intent",
+              "weight",
+              "pack",
+              "output",
+              "planGate"
+            ]
+          }
+        }
+      },
+      "required": [
+        "model",
+        "contextWindow",
+        "usable",
+        "reasoning",
+        "output",
+        "packBudget",
+        "packUsed",
+        "frame",
+        "prompt",
+        "cacheable",
+        "headroom",
+        "summarizeAt",
+        "planGate",
+        "intentMix"
+      ]
+    }
+  },
+  "required": [
+    "promptId",
+    "host",
+    "text",
+    "stableHash",
+    "sections",
+    "plan"
+  ]
+}

@@ -1,9 +1,9 @@
-import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { daemonInfoPath, socketPathFor } from '../src/paths.js';
-import { DaemonClient, readDaemonInfo } from '../src/rpc/client.js';
+import { DaemonClient, readDaemonInfo, stopDaemon } from '../src/rpc/client.js';
 import { startDaemon } from '../src/main.js';
 
 const REPO = resolve(__dirname, '../../..');
@@ -54,6 +54,27 @@ describe('daemon over the socket', () => {
     expect(await until(async () => (await client.call('index.status', {})).symbols > 10)).toBe(true);
     await client.call('daemon.shutdown', {});
     expect(await until(async () => !existsSync(daemonInfoPath(root)))).toBe(true);
+    await client.close().catch(() => undefined);
+  });
+
+  it('ignores a daemon.json written by another tool instead of waiting on its pid', () => {
+    const root = copy();
+    mkdirSync(join(root, '.riaf'), { recursive: true });
+    writeFileSync(daemonInfoPath(root), JSON.stringify({ port: 7421, token: 't', pid: process.pid, root, url: 'http://127.0.0.1:7421/' }));
+    expect(readDaemonInfo(root)).toBeUndefined();
+  });
+
+  it('fresh: stops the running daemon and starts a new one', async () => {
+    const root = copy();
+    const h = await startDaemon({ root, poll: false, watch: false });
+    await h.ready;
+    const bin = resolve(__dirname, '../dist/bin.js');
+    const client = await DaemonClient.connect(root, { fresh: true, spawn: { command: process.execPath, args: [bin, '--root', root, '--no-watch'] }, startTimeoutMs: 20_000 });
+    expect(client.info.pid).not.toBe(process.pid);
+    expect(readDaemonInfo(root)?.pid).toBe(client.info.pid);
+    expect(await stopDaemon(root)).toBe(true);
+    expect(await until(async () => !existsSync(daemonInfoPath(root)))).toBe(true);
+    expect(await stopDaemon(root)).toBe(false);
     await client.close().catch(() => undefined);
   });
 

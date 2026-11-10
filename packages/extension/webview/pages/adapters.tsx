@@ -19,16 +19,16 @@ export function Adapters() {
         </Card>
         <Card title="Model adapters" sub="riaf.models · keys are read from environment variables, never stored">
           {models.length ? <div className="adapters">{models.map(([job, c]) => (
-            <div key={job} className="adapter"><span className="adapter-ic"><Icon name="adapters" /></span><div><b>{job}</b><div className="muted small">{c['provider']} · <span className="mono">{c['model']}</span>{c['baseUrl'] ? ` · ${c['baseUrl']}` : ''}</div></div>{c['apiKeyEnv'] && <Chip mono>${c['apiKeyEnv']}</Chip>}</div>
+            <div key={job} className="adapter"><div><b>{job}</b><div className="muted small">{c['provider']} · <span className="mono">{c['model']}</span>{c['baseUrl'] ? ` · ${c['baseUrl']}` : ''}</div></div>{c['apiKeyEnv'] && <Chip mono>${c['apiKeyEnv']}</Chip>}</div>
           ))}</div> : <Empty icon="adapters" title="No models configured">Optional. Add <code>summarize</code> (commit summaries) or <code>classify</code> (an arbiter for uncertain requests) under <code>riaf.models</code>.</Empty>}
         </Card>
       </div>
       <Card title="Surfaces" sub="Where the same pack goes">
         <div className="surfaces">
-          <div><Icon name="studio" size={20} /><b>Copilot</b><span className="muted small">#riafPack, #riafJump, #riafImpact, #riafHistory, #riafWiki · @riaf</span></div>
-          <div><Icon name="send" size={20} /><b>Claude Code</b><span className="muted small">MCP server riaf_* · governance hooks · /riaf-pack</span></div>
-          <div><Icon name="code" size={20} /><b>CLI</b><span className="muted small">riaf pack · jump · impact · history · eval</span></div>
-          <div><Icon name="sparkle" size={20} /><b>Any model</b><span className="muted small">system-prompt fragment render</span></div>
+          <div><b>Copilot</b><span className="muted small">#riafPack, #riafJump, #riafImpact, #riafHistory, #riafWiki · @riaf</span></div>
+          <div><b>Claude Code</b><span className="muted small">MCP server riaf_* · governance hooks · /riaf-pack</span></div>
+          <div><b>CLI</b><span className="muted small">riaf pack · jump · impact · history · eval</span></div>
+          <div><b>Any model</b><span className="muted small">system-prompt fragment render</span></div>
         </div>
       </Card>
     </div>

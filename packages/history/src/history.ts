@@ -1,5 +1,6 @@
 import type { SymbolId } from '@riaf/kernel';
 import type { CommitRecord, Store } from '@riaf/store';
+import { hotspots, ownership, type Hotspot, type HotspotOptions, type Owner } from './hotspots.js';
 import { runHistoryStage, type HistoryStageOptions, type HistoryStageResult } from './stage.js';
 
 /** One entry of a symbol's or file's timeline. */
@@ -42,6 +43,16 @@ export class History {
 
   update(opts: HistoryStageOptions): Promise<HistoryStageResult> {
     return runHistoryStage(this.store, opts);
+  }
+
+  /** Files or directories ranked by recency-weighted churn, with owners and bus factor. */
+  hotspots(opts?: HotspotOptions): Hotspot[] {
+    return hotspots(this.store, opts);
+  }
+
+  /** Who has changed a file or directory, by share of commits. */
+  ownership(path: string): { owners: Owner[]; busFactor: number; commits: number } {
+    return ownership(this.store, path);
   }
 
   private entry(c: CommitRecord, lines?: number): TimelineEntry {

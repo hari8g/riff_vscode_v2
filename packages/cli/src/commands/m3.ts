@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { INTENTS, RENDER_TARGETS, type Intent, type RenderTarget } from '@riaf/kernel';
 import { formatWikiPage, formatWikiTree, hookScript, hooksConfig, pluginFiles, serveHttp, serveStdio } from '@riaf/serve-mcp';
 import { bool, int, str, type ParsedArgs } from '../args.js';
+import { defaultTokensYaml } from '@riaf/daemon';
 import { findRoot, openSession } from '../connect.js';
 import type { Io } from '../io.js';
 import { CONSTRAINTS_MD, GOVERNANCE_YAML, POLICIES_YAML, SLASH_COMMANDS } from '../templates.js';
@@ -31,6 +32,34 @@ export async function cmdPack(p: ParsedArgs, io: Io): Promise<number> {
     const r = await s.rpc.call('pack.compile', { request: { text, ide, ...(intent ? { intentHint: intent } : {}) }, target, ...(int(p, 'budget') ? { budget: int(p, 'budget')! } : {}) });
     io.out(r.rendered);
     if (!bool(p, 'quiet') && target !== 'json') io.err(`pack ${r.pack.packId}: ${r.pack.items.length} items, ${r.pack.tokensUsed}/${r.pack.budget} tokens, branch ${r.pack.route.branch}`);
+    return 0;
+  } finally {
+    await s.rpc.close();
+  }
+}
+
+/** `riaf prompt "<request>" [--host claude|copilot|generic] [--budget N] [--plan]` — the detailed agent prompt RIAF injects. */
+export async function cmdPrompt(p: ParsedArgs, io: Io): Promise<number> {
+  const text = p.positionals.join(' ').trim();
+  const host = (str(p, 'host') ?? 'claude') as 'claude' | 'copilot' | 'generic';
+  if (!text || !['claude', 'copilot', 'generic'].includes(host)) {
+    io.err('usage: riaf prompt "<request>" [--host claude|copilot|generic] [--budget N] [--plan]');
+    return 2;
+  }
+  const s = await openSession(p, io.cwd);
+  try {
+    await s.ensureIndexed();
+    const r = await s.rpc.call('prompt.build', { request: { text, ide: { interactive: bool(p, 'interactive', false) } }, host, ...(int(p, 'budget') ? { budget: int(p, 'budget')! } : {}) });
+    const t = r.prompt.plan;
+    if (bool(p, 'json')) io.out(JSON.stringify(r.prompt, null, 2));
+    else if (bool(p, 'plan')) {
+      io.out(`model ${t.model}: window ${t.contextWindow}, usable ${t.usable}`);
+      io.out(`prompt ${t.prompt} (instructions ${t.frame}, cacheable ${t.cacheable}) · pack ${t.packUsed}/${t.packBudget} · reply ${t.output} · reasoning ${t.reasoning} · headroom ${t.headroom}`);
+      io.out(`intent mix: ${t.intentMix.map((m) => `${m.intent} ${Math.round(m.weight * 100)}% (pack ${m.pack}, reply ${m.output}${m.planGate ? ', plan gate' : ''})`).join('; ')}`);
+      io.out(`plan gate ${t.planGate ? 'on' : 'off'} · summarise at ${t.summarizeAt}`);
+      for (const sec of r.prompt.sections) io.out(`  ${sec.cacheable ? '[cache]' : '       '} ${sec.title.padEnd(44)} ${String(sec.tokens).padStart(6)}`);
+    } else io.out(r.prompt.text);
+    if (!bool(p, 'quiet') && !bool(p, 'json')) io.err(`prompt ${r.prompt.promptId}: ${t.prompt} tokens, headroom ${t.headroom}, pack ${r.pack.packId}`);
     return 0;
   } finally {
     await s.rpc.close();
@@ -136,6 +165,7 @@ export async function cmdInit(p: ParsedArgs, io: Io): Promise<number> {
   const force = bool(p, 'force');
   writeIfAbsent(join(root, '.riaf/policies.yaml'), POLICIES_YAML, io, force);
   writeIfAbsent(join(root, '.riaf/governance.yaml'), GOVERNANCE_YAML, io, force);
+  writeIfAbsent(join(root, '.riaf/tokens.yaml'), defaultTokensYaml(), io, force);
   writeIfAbsent(join(root, '.riaf/constraints.md'), CONSTRAINTS_MD, io, false);
   const gi = join(root, '.gitignore');
   const ignore = existsSync(gi) ? readFileSync(gi, 'utf8') : '';

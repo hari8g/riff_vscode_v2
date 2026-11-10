@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ask, save, saved, type Pack, type PackItem, type Policy } from '../api.js';
+import { ask, repoName, save, saved, type Pack, type PackItem, type Policy } from '../api.js';
 import { BRANCH_TEXT, Btn, Card, Chip, Code, copy, Empty, EntropyGauge, fmtK, Icon, INTENT_LABEL, INTENTS, IntentBar, IntentRows, intentVar, pct, shortPath, symKind, symName, symPath, useDetailed, useToast } from '../kit.js';
 import { humanize } from '../../src/ask.js';
 
-const EXAMPLES = [
-  'Fix the off-by-one in Gantry.lane: the last lane of every gantry fails',
-  'Add a GET /disputes/next endpoint that returns the oldest open dispute',
-  'Rename Ledger.post to Ledger.record everywhere',
-  'How does a gantry camera reading end up as a charge in the ledger?',
-  'Fix the null check in TollSession.close() and then add a config flag so ops can disable it',
-];
 const TIERS: Record<number, { label: string; cls: string }> = {
   1: { label: 'Orientation', cls: 't1' }, 2: { label: 'Code', cls: 't2' }, 3: { label: 'History & conventions', cls: 't3' }, 4: { label: 'Run-book', cls: 't4' },
 };
@@ -44,11 +37,12 @@ const where = (i: PackItem) => i.source.path ? `${i.source.path}${i.source.range
 export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
   const toast = useToast();
   const { detailed } = useDetailed();
-  const [text, setText] = useState<string>(() => saved('studio.text', ''));
+  const [text, setText] = useState('');
+  const [ideas, setIdeas] = useState<{ text: string; intent: string; why: string }[] | null>(null);
   const [budget, setBudget] = useState<number>(() => saved('studio.budget', 16000));
   const [route, setRoute] = useState<Policy | null>(null);
   const [routing, setRouting] = useState(false);
-  const [pack, setPack] = useState<Pack | null>(() => saved('studio.pack', null));
+  const [pack, setPack] = useState<Pack | null>(null);
   const [busy, setBusy] = useState(false);
   const [hl, setHl] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -57,13 +51,14 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
   const [ph, setPh] = useState(0);
   const ta = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => save('studio.text', text), [text]);
   useEffect(() => save('studio.budget', budget), [budget]);
-  useEffect(() => save('studio.pack', pack), [pack]);
+  // starter tasks written from this repository's index (areas, central symbols, recent commits)
+  useEffect(() => void ask({ type: 'suggestTasks' }).then((r) => setIdeas(r['tasks'])).catch(() => setIdeas([])), []);
   useEffect(() => {
-    const t = setInterval(() => setPh((p) => (p + 1) % EXAMPLES.length), 3800);
+    if (!ideas?.length) return;
+    const t = setInterval(() => setPh((p) => (p + 1) % ideas.length), 4200);
     return () => clearInterval(t);
-  }, []);
+  }, [ideas]);
   // live routing while typing
   useEffect(() => {
     if (text.trim().split(/\s+/).length < 3) {
@@ -128,7 +123,7 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
       </div>
 
       <section className={`taskline ${busy ? 'busy' : ''}`}>
-        <textarea ref={ta} value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLES[ph]} rows={2} spellCheck={false}
+        <textarea ref={ta} value={text} onChange={(e) => setText(e.target.value)} placeholder={ideas?.[ph]?.text ?? 'Describe the change: what should be different, and where'} rows={2} spellCheck={false}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void compile(); } }} />
         <div className="taskline-bar">
           {detailed ? <label className="budget"><span>Budget</span><input type="range" min={2000} max={32000} step={1000} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /><b>{fmtK(budget)}</b></label> : null}
@@ -137,7 +132,18 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
           <Btn kind="primary" icon="bolt" onClick={() => void compile()} disabled={busy}>{busy ? (detailed ? 'Compiling…' : 'Preparing…') : detailed ? 'Compile pack' : 'Prepare'}</Btn>
           <kbd className="hint-kbd">⌘↵</kbd>
         </div>
-        {!text && <div className="examples">{EXAMPLES.slice(0, 4).map((x) => <Chip key={x} onClick={() => setText(x)}>{x.length > 58 ? `${x.slice(0, 56)}…` : x}</Chip>)}</div>}
+        {!text && ideas?.length ? (
+          <div className="ideas">
+            <div className="mini-h">Suggested for {repoName}</div>
+            {ideas.map((x) => (
+              <button key={x.text} className="idea" onClick={() => { setText(x.text); ta.current?.focus(); }}>
+                <span className="idea-k" style={{ ['--c' as string]: intentVar(x.intent) }}>{INTENT_LABEL[x.intent] ?? x.intent}</span>
+                <span className="idea-t">{x.text.split('`').map((part, k) => (k % 2 ? <code key={k}>{part}</code> : part))}</span>
+                <span className="idea-w">{x.why}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       {route && (detailed ? <RouteView route={route} go={go} /> : <RouteSimple route={route} go={go} />)}
@@ -160,7 +166,6 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
                   <div className="plainlist">{items.slice(0, 10).map((i) => (
                     <div key={i.id}>
                       <button className="plainrow" onClick={() => setOpen(open === i.id ? null : i.id)}>
-                        <Icon name={KIND_ICON[i.kind] ?? 'code'} size={15} />
                         <span><b>{itemTitle(i)}</b><span className="muted small">Included because: {PLAIN_RULE(i.why.rule)}</span>{i.source.path ? <> · <code>{i.source.path}</code></> : null}</span>
                         <Icon name="chevron" size={14} />
                       </button>
@@ -209,7 +214,7 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
                     {items.map((i) => (
                       <div key={i.id} id={`it-${i.id}`} className={`item ${hl === i.id ? 'hl' : ''} ${open === i.id ? 'open' : ''}`} onMouseEnter={() => setHl(i.id)}>
                         <button className="item-row" onClick={() => setOpen(open === i.id ? null : i.id)}>
-                          <span className={`item-ic ${TIERS[i.tier]!.cls}`}><Icon name={KIND_ICON[i.kind] ?? 'code'} size={14} /></span>
+                          <span className={`item-ic ${TIERS[i.tier]!.cls}`} />
                           <span className="item-main"><span className="item-path">{where(i)}</span><span className="item-why"><i className="chip-dot" style={{ background: intentVar(i.why.intent) }} />{i.why.rule.replace(/_/g, ' ')} · {i.kind}</span></span>
                           <span className="score" title={`score ${i.why.score}`}><span style={{ width: `${Math.min(1, i.why.score) * 100}%` }} /></span>
                           <span className="item-tok">{fmtK(i.tokens)}</span>
@@ -236,7 +241,7 @@ export function Studio({ go }: { go: (page: string, arg?: string) => void }) {
           )}
         </Card>
       ) : !route && (
-        <Empty icon="studio" title="Nothing prepared yet">Describe a task above and press <b>Prepare</b> (or <kbd>⌘↵</kbd>).</Empty>
+        <Empty icon="studio" title="Nothing prepared yet">Describe a task above or pick a suggestion, then press <b>Compile pack</b> (or <kbd>⌘↵</kbd>).</Empty>
       )}
     </div>
   );
@@ -252,7 +257,7 @@ function RouteSimple({ route, go }: { route: Policy; go: (page: string, arg?: st
   return (
     <section className="looks rise">
       <div className="looks-t">{unclear ? 'This request is not clear yet.' : <>This looks like <b style={{ color: intentVar(top![0]) }}>{INTENT_LABEL[top![0]]!.toLowerCase()}</b>{two ? <> and <b style={{ color: intentVar(second[0]) }}>{INTENT_LABEL[second[0]]!.toLowerCase()}</b> work</> : ' work'}.</>}</div>
-      {route.question && <div className="ask"><Icon name="alert" size={15} /><span>{route.question.question}</span></div>}
+      {route.question && <div className="ask"><span>{route.question.question}</span></div>}
       {route.anchors.length ? <div className="row wrap"><span className="muted small">Related parts of the code:</span>{route.anchors.slice(0, 6).map((a) => <Chip key={a} onClick={() => go('repository', a)} title={a}>{humanize(a)}</Chip>)}</div> : <span className="muted small">No specific part named; RIAF will search the code.</span>}
       {missing.length ? <div className="row wrap"><span className="muted small">Not in the code yet:</span>{missing.map((m) => <Chip key={m} tone="ember">{m}</Chip>)}</div> : null}
     </section>
@@ -272,7 +277,7 @@ function RouteView({ route, go }: { route: Policy; go: (page: string, arg?: stri
         <div className="route-title"><span className="big" style={{ color: intentVar(top[0]) }}>{INTENT_LABEL[top[0]]}</span><span className="muted">{pct(top[1])} · {BRANCH_TEXT[route.branch]}</span></div>
         <IntentBar w={route.w} height={10} />
         <IntentRows w={route.w} />
-        {route.question && <div className="ask"><Icon name="alert" size={15} /><span>{route.question.question}</span></div>}
+        {route.question && <div className="ask"><span>{route.question.question}</span></div>}
       </div>
       <div className="route-side">
         <div className="mini-h">Task units</div>
@@ -290,7 +295,7 @@ function RouteView({ route, go }: { route: Policy; go: (page: string, arg?: stri
         </div>
         <div className="mini-h">Grounded in</div>
         <div className="row wrap">
-          {route.anchors.slice(0, 8).map((a) => <Chip key={a} mono onClick={() => go('repository', a)} title={a}><Icon name={symKind(a) === 'file' ? 'file' : 'target'} size={12} />{symKind(a) === 'file' ? shortPath(symPath(a)) : symName(a)}</Chip>)}
+          {route.anchors.slice(0, 8).map((a) => <Chip key={a} mono onClick={() => go('repository', a)} title={a}>{symKind(a) === 'file' ? shortPath(symPath(a)) : symName(a)}</Chip>)}
           {route.units.flatMap((u) => u.ungrounded).slice(0, 4).map((u) => <Chip key={u} tone="ember" mono title="not in the index — new code, or a different name">{u}?</Chip>)}
           {!route.anchors.length && <span className="muted small">nothing named; the pack will search</span>}
         </div>

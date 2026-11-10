@@ -3,6 +3,7 @@ import { GRAPH_VERSION_KEY, type Graph } from '@riaf/graph';
 import type { Store, SummaryRecord } from '@riaf/store';
 import { deriveArchitecture, type Architecture } from './architecture.js';
 import { mineConventions, type Convention } from './conventions.js';
+import { buildGlossary, lookupTerms, type GlossaryTerm } from './glossary.js';
 import { renderRunbook } from './runbook.js';
 import { runSummaryStage, type SummaryStageResult } from './summaries.js';
 
@@ -25,6 +26,7 @@ export interface WikiPage {
 /** The semantic layer's façade: summaries, architecture, conventions, run-book and wiki pages. */
 export class Semantic {
   private archCache: { version: string; value: Architecture } | undefined;
+  private glossaryCache: { version: string; value: GlossaryTerm[] } | undefined;
   private extraConventions: () => readonly Convention[] = () => [];
 
   constructor(private readonly store: Store, private readonly graph: Graph, private readonly repoName = 'repository') {}
@@ -46,6 +48,18 @@ export class Semantic {
     const version = `${this.store.kv.get(GRAPH_VERSION_KEY) ?? '0'}:${this.store.merkle.getTree('')?.hash ?? ''}`;
     if (!this.archCache || this.archCache.version !== version) this.archCache = { version, value: deriveArchitecture(this.store, this.graph) };
     return this.archCache.value;
+  }
+
+  /** The domain glossary (top 200 terms), cached until the graph changes; `top` trims the result. */
+  glossary(top = 60): GlossaryTerm[] {
+    const version = this.store.kv.get(GRAPH_VERSION_KEY) ?? '0';
+    if (!this.glossaryCache || this.glossaryCache.version !== version) this.glossaryCache = { version, value: buildGlossary(this.store, { top: 200 }) };
+    return this.glossaryCache.value.slice(0, top);
+  }
+
+  /** Glossary terms behind the words of a plain-language phrase. */
+  terms(phrase: string): GlossaryTerm[] {
+    return lookupTerms(this.glossary(200), phrase);
   }
 
   /** Conventions, optionally only those touching `entities` (repo-wide ones always apply). */

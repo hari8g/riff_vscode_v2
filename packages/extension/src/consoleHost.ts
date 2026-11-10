@@ -1,11 +1,22 @@
+import { existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { isAbsolute, resolve } from 'node:path';
 import { answerQuestion, isLens, resetAskCache, understand } from './askHost.js';
+import type { LiveEvent, LiveSession } from './claudeLive.js';
+import { suggestTasks } from './suggest.js';
 import { BENCHMARKS, live } from './savings.js';
+import { TOKEN_PRESETS } from '@riaf/kernel';
+import { tokensYaml } from '@riaf/daemon';
 import type { Rpc } from './tools.js';
 
 /** Messages between the console webview and the extension; the data side is pure and tested. */
 
 export type ConsoleRequest =
-  | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' | 'savings' }
+  | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' | 'savings' | 'health' }
+  | { type: 'prompt'; text: string; host?: 'claude' | 'copilot' | 'generic'; budget?: number }
+  | { type: 'tokens' }
+  | { type: 'validateTokens'; text?: string; settings?: unknown }
+  | { type: 'saveTokens'; text?: string; settings?: unknown }
   | { type: 'validatePolicies'; policies: string; governance: string }
   | { type: 'savePolicies'; policies: string; governance: string }
   | { type: 'wikiPage'; node: string }
@@ -18,7 +29,24 @@ export type ConsoleRequest =
   | { type: 'understand'; text: string; lens?: string }
   | { type: 'ask'; text: string; lens?: string }
   | { type: 'reindex' }
-  | { type: 'handoff'; to: 'copilot' | 'claude'; text: string; packId: string };
+  | { type: 'handoff'; to: 'copilot' | 'claude'; text: string; packId: string }
+  | { type: 'repos' }
+  | { type: 'openRepo'; path?: string; browse?: boolean }
+  | { type: 'live' }
+  | { type: 'liveSession'; session: string }
+  | { type: 'suggestTasks' };
+
+/** Switching repositories: the host keeps the current one, a recent list, and (in VS Code) a folder dialog. */
+export interface RepoHost {
+  current(): string;
+  recent(): string[];
+  /** Shows a folder picker; undefined when cancelled. Absent where no native dialog exists (dev server). */
+  browse?(): Promise<string | undefined>;
+  /** Makes `root` the console's repository with a freshly started daemon. */
+  open(root: string): Promise<void>;
+  /** True when the page must reload itself after a switch (the host does not re-render it). */
+  reloadOnSwitch: boolean;
+}
 
 export interface ConsoleDeps {
   rpc: Rpc;
@@ -28,12 +56,44 @@ export interface ConsoleDeps {
   modelSettings(): Record<string, unknown>;
   /** Runs a VS Code command (hand-off to Copilot or Claude Code); absent outside VS Code. */
   runCommand?(command: string, ...args: unknown[]): Promise<void>;
+  repo?: RepoHost;
+  /** What Claude Code is doing in this repository (its transcripts, tailed). */
+  live?(): { dir: string; found: boolean; sessions: LiveSession[]; events: LiveEvent[] };
+  /** Every event of one Claude Code session (for its workflow). */
+  liveSession?(session: string): LiveEvent[];
+}
+
+/** Resolves a typed repository path (`~` and relative paths allowed) and checks it is a folder. */
+export function normalizeRepoPath(input: string, home = homedir()): string {
+  const t = input.trim().replace(/^["']|["']$/g, '');
+  if (!t) throw new Error('type the path of a repository folder');
+  const p = t === '~' ? home : t.startsWith('~/') ? resolve(home, t.slice(2)) : isAbsolute(t) ? resolve(t) : resolve(home, t);
+  if (!existsSync(p)) throw new Error(`no folder at ${p}`);
+  if (!statSync(p).isDirectory()) throw new Error(`${p} is a file, not a folder`);
+  return p;
 }
 
 /** Answers one console request with the payload the page renders. */
 export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Promise<{ type: string; [k: string]: unknown }> {
   const { rpc } = deps;
   switch (req.type) {
+    case 'repos':
+      return { type: 'repos', current: deps.repo?.current() ?? '', recent: deps.repo?.recent() ?? [], canBrowse: !!deps.repo?.browse };
+    case 'openRepo': {
+      if (!deps.repo) return { type: 'error', message: 'this console cannot switch repositories' };
+      const picked = req.browse ? await deps.repo.browse?.() : req.path;
+      if (picked === undefined) return { type: 'repoOpened', cancelled: true };
+      const root = normalizeRepoPath(picked);
+      resetAskCache();
+      await deps.repo.open(root);
+      return { type: 'repoOpened', root, reload: deps.repo.reloadOnSwitch };
+    }
+    case 'live':
+      return { type: 'live', ...(deps.live?.() ?? { dir: '', found: false, sessions: [], events: [] }) };
+    case 'liveSession':
+      return { type: 'liveSession', session: req.session, events: deps.liveSession?.(req.session) ?? [] };
+    case 'suggestTasks':
+      return { type: 'suggestions', tasks: await suggestTasks(rpc) };
     case 'load':
       switch (req.page) {
         case 'overview': {
@@ -50,6 +110,13 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
           const t = await rpc.call('telemetry.query', {});
           return { type: 'sessions', telemetry: t };
         }
+        case 'health': {
+          const [insights, files, areas, glossary] = await Promise.all([
+            rpc.call('graph.insights', { top: 8 }), rpc.call('history.hotspots', { top: 10 }),
+            rpc.call('history.hotspots', { top: 8, byDirectory: true }), rpc.call('semantic.glossary', { top: 40 }),
+          ]);
+          return { type: 'health', insights, hotspots: files.hotspots, areas: areas.hotspots, glossary: glossary.terms };
+        }
         case 'savings': {
           const t = await rpc.call('telemetry.query', {});
           return { type: 'savings', benchmarks: BENCHMARKS, live: live(t) };
@@ -60,6 +127,23 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
         }
       }
       break;
+    case 'prompt': {
+      const r = await rpc.call('prompt.build', { request: { text: req.text, ide: { interactive: true } }, host: req.host ?? 'claude', sessionId: 'console', ...(req.budget ? { budget: req.budget } : {}) });
+      return { type: 'prompt', pack: r.pack, prompt: r.prompt };
+    }
+    case 'tokens': {
+      const t = await rpc.call('tokens.get', {});
+      const presets = Object.fromEntries(Object.entries(TOKEN_PRESETS).map(([k, f]) => [k, f(t.settings)]));
+      return { type: 'tokens', ...t, presets };
+    }
+    case 'validateTokens':
+    case 'saveTokens': {
+      const text = req.text ?? tokensYaml(req.settings as never);
+      const v = await rpc.call('tokens.validate', { text });
+      if (req.type === 'validateTokens' || !v.ok) return { type: 'tokenValidation', ...v, text };
+      await deps.writeRiafFile('tokens.yaml', text);
+      return { type: 'tokensSaved', ok: true, settings: v.settings, text };
+    }
     case 'validatePolicies':
       return { type: 'validation', ...(await rpc.call('policies.validate', { policies: req.policies, governance: req.governance })) };
     case 'savePolicies': {

@@ -4,6 +4,7 @@ import { runGraphStage, type GraphStageResult } from './build.js';
 import { closure, type ClosureHit, type ClosureOptions } from './closure.js';
 import { clusters, type Cluster } from './clusters.js';
 import { impact, type Impact } from './impact.js';
+import { graphInsights, symbolMetric, type GraphInsights, type InsightOptions, type SymbolMetric } from './insights.js';
 import { jump, type JumpResult } from './jump.js';
 import { repoMap, type RepoMap, type RepoMapOptions } from './repomap.js';
 import { testsFor } from './tests.js';
@@ -54,5 +55,15 @@ export class Graph {
 
   clusters(): Cluster[] {
     return clusters(this.view());
+  }
+
+  /** Hubs, tangled definitions, untested hubs, unreferenced definitions and import cycles. */
+  insights(opts?: InsightOptions): GraphInsights {
+    return graphInsights(this.view(), opts);
+  }
+
+  /** Fan-in, fan-out and tests of one symbol. */
+  metric(symbol: SymbolId): SymbolMetric | undefined {
+    return symbolMetric(this.view(), symbol);
   }
 }

@@ -10,3 +10,4 @@ export * from './knapsack.js';
 export * from './compile.js';
 export * from './render/index.js';
 export { where, routeLine } from './render/common.js';
+export * from './prompt.js';

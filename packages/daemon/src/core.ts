@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { compile, render, type RepoView } from '@riaf/compiler';
-import { createLogger, hashWith, PackSchema, RiafError, shortHash, type Intent, type Logger, type ModelRouter, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, type SymbolId, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
+import { blendTokens, buildAgentPrompt, compile, render, type RepoView } from '@riaf/compiler';
+import { createLogger, hashWith, PackSchema, type ComposedPolicy, RiafError, shortHash, type Intent, type Logger, type ModelRouter, type Pack, type PoliciesFile, type RpcMethod, type RpcParams, type RpcResult, type SymbolId, RPC_PROTOCOL_VERSION } from '@riaf/kernel';
 import { Graph, GRAPH_STAGE } from '@riaf/graph';
 import { History, HISTORY_STAGE, type Rationale, type TimelineEntry } from '@riaf/history';
 import { DEFAULT_GOVERNANCE, Governor } from '@riaf/govern';
@@ -12,6 +12,7 @@ import { clientFor, enrichWithLsp, familyOf, languageOf, PARSE_STAGE, readRepoTe
 import { Store, type StoreOptions } from '@riaf/store';
 import { gitHead } from './git.js';
 import { loadPolicies, validatePolicyTexts } from './policies.js';
+import { loadTokenSettings, validateTokensText } from './tokens.js';
 import { dispatch, type RpcHandlers } from './rpc/server.js';
 import { Scheduler, type PipelineStage, type RunSummary } from './scheduler.js';
 import type { RpcCaller } from './rpc/client.js';
@@ -170,6 +171,50 @@ export class DaemonCore implements RpcCaller {
   }
 
   /** The read view the compiler works on. */
+  /** Logs a compiled pack and tells the governor about it (shared by pack.compile and prompt.build). */
+  private recordPack(pack: Pack, routeId: string | undefined, sessionId: string | undefined, text: string | undefined): void {
+    this.store.compileLog.recordPack({
+      packId: pack.packId, ...(routeId ? { routeId } : {}), ...(sessionId ? { sessionId } : {}), createdAt: pack.createdAt, budget: pack.budget,
+      tokensUsed: pack.tokensUsed, policyVersion: pack.policyVersion, json: JSON.stringify(pack),
+      items: pack.items.map((i) => ({ itemId: i.id, tier: i.tier, kind: i.kind, ...((i.source as { path?: string }).path ? { path: (i.source as { path: string }).path } : {}), intent: i.why.intent, rule: i.why.rule, score: i.why.score, tokens: i.tokens })),
+    });
+    if (sessionId) {
+      this.governor.onPackCompiled(sessionId, pack, text);
+      for (const sk of pack.items.filter((i) => i.kind === 'skill')) this.store.govern.markSkillUsed((sk.source as { virtual: string }).virtual.replace(/^[^:]*:/, ''));
+    }
+  }
+
+  /** Short facts about the task's anchors for the prompt's "What to watch" section (graph, history, glossary). */
+  promptNotes(policy: ComposedPolicy, text: string): string[] {
+    const notes: string[] = [];
+    const name = (id: string) => id.slice(id.indexOf('#') + 1, id.lastIndexOf('@')) || id.slice(0, id.indexOf('#'));
+    const anchors = policy.anchors.filter((a) => !/(^|\/)(test|tests)\/|\.(test|spec)\./.test(a) && !a.endsWith('#@file')).slice(0, 3);
+    const hot = this.store.history.count() ? new Map(this.history.hotspots({ top: 30 }).map((h, i) => [h.path, { ...h, rank: i + 1 }] as const)) : new Map();
+    const cycles = this.graph.insights({ top: 1 }).cycles;
+    const seenPaths = new Set<string>();
+    for (const a of anchors) {
+      const m = this.graph.metric(a as SymbolId);
+      if (m && m.fanIn >= 3) notes.push(`\`${name(a)}\` is load-bearing: ${m.fanIn} other parts depend on it — check them before changing its contract.`);
+      if (m && m.tests === 0 && ['class', 'function', 'method'].includes(m.kind)) notes.push(`No test reaches \`${name(a)}\` directly — add or extend one as part of this change.`);
+      const path = a.slice(0, a.indexOf('#'));
+      if (seenPaths.has(path)) continue;
+      seenPaths.add(path);
+      const h = hot.get(path);
+      if (h && (h.rank <= 10 || h.fixShare >= 0.3)) notes.push(`\`${path}\` is a change hotspot (#${h.rank}): ${h.commits} changes, ${Math.round(h.fixShare * 100)}% of them fixes.`);
+      if (this.store.history.count()) {
+        const o = this.history.ownership(path);
+        if (o.owners[0]) notes.push(`\`${path}\` is mostly changed by ${o.owners[0].author} (${Math.round(o.owners[0].share * 100)}%)${o.busFactor === 1 ? '; bus factor 1, so ask them if the intent is unclear' : ''}.`);
+      }
+      const cyc = cycles.find((c) => c.includes(path));
+      if (cyc) notes.push(`\`${path}\` sits in an import cycle with ${cyc.filter((c) => c !== path).map((c) => `\`${c}\``).join(', ')}; avoid adding to it.`);
+    }
+    const meanings = new Set<string>();
+    for (const t of this.semantic.terms(text).filter((g) => g.meaning && !meanings.has(g.meaning) && meanings.add(g.meaning)).slice(0, 3)) {
+      notes.push(`**${t.term}** — ${t.meaning}${t.defines[0] ? ` (see \`${name(t.defines[0])}\`)` : ''}`);
+    }
+    return notes.slice(0, 8);
+  }
+
   repoView(): RepoView {
     let constraints: string | undefined;
     try {
@@ -252,17 +297,27 @@ export class DaemonCore implements RpcCaller {
       const routeId = p.route ? undefined : this.logRoute(p.request!.text, policy, p.sessionId);
       const includeRunbook = p.includeRunbook ?? !['claude', 'json'].includes(p.target);
       const pack = compile(policy, this.repoView(), { ...(p.budget ? { budget: p.budget } : {}), includeRunbook, ...(p.sessionId ? { sessionId: p.sessionId } : {}) });
-      this.store.compileLog.recordPack({
-        packId: pack.packId, ...(routeId ? { routeId } : {}), ...(p.sessionId ? { sessionId: p.sessionId } : {}), createdAt: pack.createdAt, budget: pack.budget,
-        tokensUsed: pack.tokensUsed, policyVersion: pack.policyVersion, json: JSON.stringify(pack),
-        items: pack.items.map((i) => ({ itemId: i.id, tier: i.tier, kind: i.kind, ...((i.source as { path?: string }).path ? { path: (i.source as { path: string }).path } : {}), intent: i.why.intent, rule: i.why.rule, score: i.why.score, tokens: i.tokens })),
-      });
-      if (p.sessionId) {
-        this.governor.onPackCompiled(p.sessionId, pack, p.request?.text);
-        for (const sk of pack.items.filter((i) => i.kind === 'skill')) this.store.govern.markSkillUsed((i => i.slice(i.indexOf(':') + 1))((sk.source as { virtual: string }).virtual));
-      }
+      this.recordPack(pack, routeId, p.sessionId, p.request?.text);
       return { pack, rendered: render(pack, p.target) };
     };
+    h['prompt.build'] = async (p) => {
+      const text = p.text ?? p.request!.text;
+      const policy = p.route ?? (await route(p.request!, this.routeDeps())).policy;
+      const routeId = p.route ? undefined : this.logRoute(text, policy, p.sessionId);
+      const { settings } = loadTokenSettings(this.root);
+      const budget = p.budget ?? p.request?.budget ?? blendTokens(policy, settings).pack;
+      const view = this.repoView();
+      const pack = compile(policy, view, { budget, includeRunbook: false, ...(p.sessionId ? { sessionId: p.sessionId } : {}) });
+      this.recordPack(pack, routeId, p.sessionId, text);
+      const governance = loadPolicies(this.root).governance ?? DEFAULT_GOVERNANCE;
+      const prompt = buildAgentPrompt({ text, policy, pack, settings, host: p.host, governance, runbook: this.semantic.runbook(view.constraints), notes: this.promptNotes(policy, text) });
+      return { pack, prompt };
+    };
+    h['tokens.get'] = () => loadTokenSettings(this.root);
+    h['tokens.validate'] = (p) => validateTokensText(p.text);
+    h['graph.insights'] = (p) => this.graph.insights({ top: p.top });
+    h['history.hotspots'] = (p) => ({ hotspots: this.history.hotspots({ top: p.top, byDirectory: p.byDirectory, halfLifeDays: p.halfLifeDays, ...(p.under ? { under: p.under } : {}) }) });
+    h['semantic.glossary'] = (p) => ({ terms: p.phrase ? this.semantic.terms(p.phrase).slice(0, p.top) : this.semantic.glossary(p.top) });
     h['govern.toolCall'] = (p) => this.governor.onToolCall(p);
     h['govern.event'] = (p) => {
       const pl = p.payload;

@@ -51,8 +51,8 @@ async function buildWebview(out = join(root, 'packages/extension/dist/webview'))
     format: 'iife', jsx: 'automatic', minify: true, logLevel: 'warning', define: { 'process.env.NODE_ENV': '"production"' },
   });
   copyFileSync(join(ext, 'webview/console.css'), join(out, 'console.css'));
-  // brand assets: the Bosch MPS logo and the MLFF product mark
-  for (const f of ['mps-logo.png', 'mlff-mark.svg']) copyFileSync(join(ext, 'media', f), join(out, f));
+  // brand asset: the Bosch MPS logo
+  for (const f of ['mps-logo.png']) copyFileSync(join(ext, 'media', f), join(out, f));
   return out;
 }
 

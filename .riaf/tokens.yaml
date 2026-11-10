@@ -1,0 +1,46 @@
+# RIAF v2 token settings — how the agent prompt spends the model's context window.
+# Validated by @riaf/kernel schemas/tokens.ts. Per-intent values are blended by the route's intent weights.
+version: 1
+model:
+  name: claude-sonnet
+  context_window: 200000
+  use_ratio: 0.85
+reasoning: 0
+sections:
+  protocol: 800
+  plan: 900
+  notes: 700
+intents:
+  bugfix:
+    pack: 16000
+    output: 8192
+    plan_gate: false
+  feature:
+    pack: 16000
+    output: 16384
+    plan_gate: true
+  merge:
+    pack: 16000
+    output: 8192
+    plan_gate: false
+  review:
+    pack: 12000
+    output: 4096
+    plan_gate: false
+  refactor:
+    pack: 20000
+    output: 16384
+    plan_gate: true
+  onboarding:
+    pack: 8000
+    output: 4096
+    plan_gate: false
+  unknown:
+    pack: 8000
+    output: 4096
+    plan_gate: false
+plan_gate_min_weight: 0.3
+cache:
+  stable_prefix: true
+  ttl: 5m
+summarize_at: 0.6

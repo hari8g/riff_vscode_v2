@@ -19,3 +19,5 @@ Protocol 1.2 (M3) adds `pack.get`, `wiki.structure`, `wiki.page`, `runbook.get`,
 Protocol 1.3 (M4) adds `history.timeline` and `history.rationale`; `graph.jump` now fills `blame`.
 
 Protocol 1.4 (M5) serves `govern.toolCall` and `govern.event` (kinds `session.start`, `tool.result`, `pack.read`, `session.end`) and adds `telemetry.query`.
+
+Protocol 1.5 adds `prompt.build` (the detailed agent prompt and its token plan, see ADR-0005), `tokens.get` and `tokens.validate` (`.riaf/tokens.yaml`), `graph.insights` (L1), `history.hotspots` (L2) and `semantic.glossary` (L3).

@@ -72,7 +72,6 @@ export function Ask({ go }: { go: (page: string, arg?: string) => void }) {
 
       <section className="askbox">
         <div className="askbox-in">
-          <Icon name="ask" size={20} />
           <textarea ref={ta} rows={2} value={text} placeholder="e.g. What would be affected if we change how prices are calculated?" aria-label="Your question"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void run(text, forced ?? undefined); } }} />
@@ -105,14 +104,14 @@ function Understanding({ text, p, forced, onForce }: { text: string; p: Parsed |
       <div className="lens-pills" role="radiogroup" aria-label="Kind of answer">
         {ranked.map((l) => (
           <button key={l} role="radio" aria-checked={forced === l} className={`lens-pill ${l === p.primary ? 'top' : ''} ${forced === l ? 'forced' : ''}`} style={{ ['--c' as string]: LENS_INFO[l].color }} onClick={() => onForce(l)} title={LENS_INFO[l].ask}>
-            <span className="lp-fill" style={{ width: pct(p.p[l]) }} /><Icon name={LENS_INFO[l].icon} size={13} /><span>{LENS_INFO[l].label}</span>{detailed ? <b>{pct(p.p[l])}</b> : null}
+            <span className="lp-fill" style={{ width: pct(p.p[l]) }} /><span>{LENS_INFO[l].label}</span>{detailed ? <b>{pct(p.p[l])}</b> : null}
           </button>
         ))}
       </div>
       {p.subjects.length || p.timeframe ? <div className="u-row">
         <span className="u-k">About</span>
         {p.subjects.map((s) => <span key={s.kind + s.text} className={`subj ${s.kind}`} title={s.kind === 'code' ? 'a name from the code' : s.kind === 'area' ? 'a product area' : s.kind === 'quoted' ? 'quoted phrase' : 'words to look up'}><Icon name={s.kind === 'area' ? 'folder' : s.kind === 'code' ? 'code' : 'search'} size={12} />{s.text}</span>)}
-        {p.timeframe ? <span className="subj time"><Icon name="history" size={12} />{p.timeframe.label}</span> : null}
+        {p.timeframe ? <span className="subj time">{p.timeframe.label}</span> : null}
       </div> : null}
     </div>
   );
@@ -136,9 +135,9 @@ function Starters({ ex, onPick, onFill }: { ex: Record<Lens, string[]>; onPick: 
     <section className="starters">
       {LENSES.map((l, i) => (
         <div key={l} className="starter" style={{ ['--c' as string]: LENS_INFO[l].color, animationDelay: `${i * 40}ms` }}>
-          <div className="starter-h"><span className="starter-i"><Icon name={LENS_INFO[l].icon} size={16} /></span><b>{LENS_INFO[l].label}</b></div>
+          <div className="starter-h"><b>{LENS_INFO[l].label}</b></div>
           <p className="muted small">{LENS_INFO[l].ask}</p>
-          {ex[l].map((q) => <button key={q} className="starter-q" onClick={() => onPick(q)} onContextMenu={(e) => { e.preventDefault(); onFill(q); }} title="Click to ask · right-click to edit first">{q}<Icon name="arrow" size={12} /></button>)}
+          {ex[l].map((q) => <button key={q} className="starter-q" onClick={() => onPick(q)} onContextMenu={(e) => { e.preventDefault(); onFill(q); }} title="Click to ask · right-click to edit first">{q}</button>)}
         </div>
       ))}
     </section>
@@ -186,7 +185,7 @@ function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string
   return (
     <article className={`turn ${t.status}`}>
       <header className="turn-q">
-        <Icon name="ask" size={16} /><h3>{t.q}</h3>
+        <h3>{t.q}</h3>
         <span className="grow" />
         {a ? <><LensTag l={a.lens} />{a.secondary ? <LensTag l={a.secondary} /> : null}</> : null}
         <span className="muted small">{ago(t.at)}</span>
@@ -194,7 +193,7 @@ function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string
 
       <Pipeline plan={r?.plan} running={t.status === 'running'} shown={shown} />
 
-      {t.status === 'error' ? <div className="turn-err"><Icon name="alert" />{t.error}</div> : null}
+      {t.status === 'error' ? <div className="turn-err">{t.error}</div> : null}
       {t.status === 'running' ? <div className="turn-wait"><div className="skeleton" style={{ height: 22, width: '70%' }} /><div className="skeleton" style={{ height: 14, width: '92%' }} /><div className="skeleton" style={{ height: 14, width: '60%' }} /></div> : null}
 
       {a && r && revealed ? <div className="answer">
@@ -229,7 +228,7 @@ function TurnView({ t, go, onAsk, onCopy, onHandoff }: { t: Turn; go: (p: string
   );
 }
 
-const LensTag = ({ l }: { l: Lens }) => <span className="lens-tag" style={{ ['--c' as string]: LENS_INFO[l].color }}><Icon name={LENS_INFO[l].icon} size={12} />{LENS_INFO[l].label}</span>;
+const LensTag = ({ l }: { l: Lens }) => <span className="lens-tag" style={{ ['--c' as string]: LENS_INFO[l].color }}>{LENS_INFO[l].label}</span>;
 
 function Pipeline({ plan, running, shown }: { plan?: PlanStep[]; running: boolean; shown: number }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -305,7 +304,7 @@ function BlockView({ b, go, onCopy }: { b: Block; go: (p: string, a?: string) =>
     }
     case 'flow': return (
       <section className="blk wide"><h4>{b.title}</h4>
-        <div className="flow">{b.steps.map((s, i) => <div key={s.symbol + i} className="flow-step"><button className={`flow-n ${i === b.steps.length - 1 ? 'focus' : ''}`} onClick={() => go('repository', s.symbol)}><b>{s.name}</b><span>{s.what}</span></button>{i < b.steps.length - 1 ? <Icon name="arrow" size={16} /> : null}</div>)}</div>
+        <div className="flow">{b.steps.map((s, i) => <div key={s.symbol + i} className="flow-step"><button className={`flow-n ${i === b.steps.length - 1 ? 'focus' : ''}`} onClick={() => go('repository', s.symbol)}><b>{s.name}</b><span>{s.what}</span></button>{i < b.steps.length - 1 ? <span className="flow-link" aria-hidden="true" /> : null}</div>)}</div>
       </section>);
     case 'rings': return <section className="blk wide"><h4>{b.title}</h4><Rings b={b} go={go} /></section>;
     case 'risk': return <section className="blk"><h4>{b.title}</h4><RiskGauge b={b} /></section>;
@@ -314,7 +313,7 @@ function BlockView({ b, go, onCopy }: { b: Block; go: (p: string, a?: string) =>
         {b.items.length ? <ol className="atl">{b.items.map((c) => (
           <li key={c.commit} className={c.flag ?? ''}><span className="atl-d">{c.date}</span><span className="atl-dot" /><div><span className="atl-type">{c.type}</span>{c.flag ? <span className={`atl-flag ${c.flag}`}>{c.flag === 'reverted' ? 'rolled back' : 'incident'}</span> : null}<p>{c.summary}</p><span className="muted small">{c.author} · {c.commit.slice(0, 8)}</span></div></li>))}</ol>
           : <p className="muted">No changes on record for this period.</p>}
-        {b.decisions.map((d) => <div key={d.path} className="decision"><Icon name="rule" /><div><b>{d.title}</b> <span className="chip quiet">{d.status}</span><p className="muted small">{d.excerpt}</p></div></div>)}
+        {b.decisions.map((d) => <div key={d.path} className="decision"><div><b>{d.title}</b> <span className="chip quiet">{d.status}</span><p className="muted small">{d.excerpt}</p></div></div>)}
       </section>);
     case 'people': return (
       <section className="blk"><h4>{b.title}</h4>
@@ -335,7 +334,7 @@ function BlockView({ b, go, onCopy }: { b: Block; go: (p: string, a?: string) =>
           </div>
           <div>
             <span className="u-k">Questions to settle first</span>
-            <ul className="qs">{b.questions.map((q) => <li key={q}><Icon name="check" size={12} />{q}</li>)}</ul>
+            <ul className="qs">{b.questions.map((q) => <li key={q}>{q}</li>)}</ul>
             <Btn sm kind="primary" icon="copy" onClick={() => onCopy(b.brief, 'Ticket brief')}>Copy ticket brief</Btn>
           </div>
         </div>
@@ -348,7 +347,7 @@ function BlockView({ b, go, onCopy }: { b: Block; go: (p: string, a?: string) =>
           <div className="tests">
             <svg viewBox="0 0 80 80" width="88" height="88" role="img" aria-label={`${pct(share)} covered`}><circle cx="40" cy="40" r="32" className="donut-track" /><circle cx="40" cy="40" r="32" fill="none" stroke={share > 0.6 ? 'var(--moss)' : share > 0.3 ? 'var(--i-merge)' : 'var(--ember)'} strokeWidth="9" strokeDasharray={`${share * 201} 201`} transform="rotate(-90 40 40)" /><text x="40" y="45" textAnchor="middle" className="donut-v" style={{ fontSize: 15 }}>{b.items.length}</text></svg>
             <div><b>{b.items.length ? `${b.items.length} automated check${b.items.length === 1 ? '' : 's'}` : 'No automated checks'}</b>
-              <ul>{b.items.slice(0, 6).map((x) => <li key={x}><Icon name="check" size={12} />{x}</li>)}</ul></div>
+              <ul>{b.items.slice(0, 6).map((x) => <li key={x}>{x}</li>)}</ul></div>
           </div>
         </section>);
     }
@@ -382,7 +381,7 @@ function Rings({ b, go }: { b: Extract<Block, { kind: 'rings' }>; go: (p: string
       <div className="ring-legend">
         <div><b className="num">{total}</b><span className="muted small"> parts affected</span></div>
         {areas.map(([a, n]) => <div key={a} className="rl"><i className="sw" style={{ background: toneOf(a) }} />{a}<span className="num">{n}</span></div>)}
-        <div className="rl"><Icon name="check" size={12} />automated checks<span className="num">{b.tests.length}</span></div>
+        <div className="rl">automated checks<span className="num">{b.tests.length}</span></div>
       </div>
     </div>
   );

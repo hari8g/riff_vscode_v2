@@ -20,6 +20,7 @@ const repoArg = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--po
 
 const { DaemonCore } = await import(join(root, 'packages/daemon/dist/index.js'));
 const { handleConsole } = await import(join(root, 'packages/extension/out-tsc/consoleHost.js'));
+const { ClaudeLive } = await import(join(root, 'packages/extension/out-tsc/claudeLive.js'));
 const { silentLogger } = await import(join(root, 'packages/kernel/dist/index.js'));
 
 let repo = repoArg ? resolve(repoArg) : undefined;
@@ -30,9 +31,33 @@ if (!repo) {
   mkdirSync(join(repo, '.riaf'), { recursive: true });
   for (const f of ['policies.yaml', 'governance.yaml']) writeFileSync(join(repo, '.riaf', f), readFileSync(join(root, '.riaf', f)));
 }
-const core = await DaemonCore.open({ root: repo, storePath: ':memory:', logger: silentLogger });
+let core = await DaemonCore.open({ root: repo, storePath: ':memory:', logger: silentLogger });
 console.log(`indexing ${repo}…`);
 await core.index('console-dev');
+const recent = [repo];
+
+// Claude Code activity in the open repository, streamed to the page over server-sent events
+const streams = new Set();
+let live;
+const follow = () => {
+  live?.stop();
+  live = new ClaudeLive(repo);
+  live.on((events) => { for (const res of streams) res.write(`data: ${JSON.stringify({ type: 'push', channel: 'live', events })}\n\n`); });
+  live.start();
+};
+follow();
+
+/** Switches the console to another folder with a new in-memory core (a fresh start, like VS Code). */
+const openRepo = async (next) => {
+  const old = core;
+  core = await DaemonCore.open({ root: next, storePath: ':memory:', logger: silentLogger });
+  repo = next;
+  recent.splice(0, recent.length, next, ...recent.filter((r) => r !== next).slice(0, 7));
+  await old.close().catch(() => undefined);
+  follow();
+  console.log(`indexing ${repo}…`);
+  void core.index('console-dev').then(() => console.log(`indexed ${repo}`));
+};
 
 if (seed) {
   const requests = [
@@ -64,7 +89,7 @@ if (seed) {
 }
 
 const html = () => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RIAF Console</title><link rel="stylesheet" href="/console.css"></head>
-<body data-repo="${repo}" data-mps="/mps-logo.png" data-mlff="/mlff-mark.svg"><div id="root"></div>
+<body data-repo="${repo}" data-mps="/mps-logo.png"><div id="root"></div>
 <script>
   // stands in for VS Code's webview API: requests go to the dev server, answers come back as message events
   window.acquireVsCodeApi = () => ({
@@ -72,12 +97,19 @@ const html = () => `<!doctype html><html><head><meta charset="utf-8"><meta name=
     getState: () => { try { return JSON.parse(sessionStorage.getItem('riaf.state') || '{}'); } catch { return {}; } },
     setState: (s) => sessionStorage.setItem('riaf.state', JSON.stringify(s)),
   });
+  new EventSource('/events').onmessage = (e) => window.postMessage(JSON.parse(e.data), '*');
 </script>
 <script src="/console.js"></script></body></html>`;
 
 const webview = join(root, 'packages/extension/dist/webview');
 const server = createServer(async (req, res) => {
   try {
+    if (req.url === '/events') {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' }).write(': live\n\n');
+      streams.add(res);
+      req.on('close', () => streams.delete(res));
+      return;
+    }
     if (req.method === 'POST' && req.url === '/rpc') {
       let body = '';
       for await (const c of req) body += c;
@@ -87,11 +119,14 @@ const server = createServer(async (req, res) => {
         writeRiafFile: async (name, text) => writeFileSync(join(repo, '.riaf', name), text),
         modelSettings: () => ({ summarize: { provider: 'ollama', model: 'qwen2.5:7b' }, classify: { provider: 'openai', model: 'gpt-4o-mini', baseUrl: 'https://gateway.internal/v1', apiKeyEnv: 'GATEWAY_TOKEN' } }),
         runCommand: async (cmd) => console.log(`(dev) would run VS Code command ${cmd}`),
+        repo: { current: () => repo, recent: () => recent, open: openRepo, reloadOnSwitch: true },
+        live: () => live.snapshot(),
+        liveSession: (id) => live.sessionEvents(id),
       }, msg).catch((e) => ({ type: 'error', message: e.message }));
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(out));
       return;
     }
-    const assets = { '/console.js': 'text/javascript', '/console.css': 'text/css', '/mps-logo.png': 'image/png', '/mlff-mark.svg': 'image/svg+xml' };
+    const assets = { '/console.js': 'text/javascript', '/console.css': 'text/css', '/mps-logo.png': 'image/png' };
     const file = assets[req.url] ? join(webview, req.url.slice(1)) : undefined;
     if (file && existsSync(file)) {
       res.writeHead(200, { 'content-type': assets[req.url], 'cache-control': 'no-store' }).end(readFileSync(file));

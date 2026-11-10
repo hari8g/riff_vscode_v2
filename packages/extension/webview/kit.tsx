@@ -31,6 +31,8 @@ export const BRANCH_TEXT: Record<string, string> = {
 
 /* ───────────── icons (24px stroke) ───────────── */
 const P: Record<string, ReactNode> = {
+  prompt: <><rect x="3.5" y="4" width="17" height="16" rx="2.5" /><path d="M7.5 9l3 3-3 3" /><path d="M13 15h4" /></>,
+  health: <><path d="M3 12h4l2-5 4 10 2-5h6" /></>,
   ask: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z" /><path d="M9.5 8.2a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.6-.8 1.1v.3" /><path d="M12 14h.01" /></>,
   savings: <><path d="M4 19h16" /><path d="M6 15l4-4 3 3 5-6" /><path d="M15 8h3v3" /></>,
   overview: <><rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="5" rx="2" /><rect x="13" y="11" width="8" height="10" rx="2" /><rect x="3" y="14" width="8" height="7" rx="2" /></>,
@@ -43,6 +45,8 @@ const P: Record<string, ReactNode> = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" /></>,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
   auto: <><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5v17" /><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" /></>,
+  live: <><circle cx="12" cy="12" r="2.5" /><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" /></>,
+  terminal: <><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5" /></>,
   bolt: <path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12z" />,
   copy: <><rect x="8" y="8" width="12" height="12" rx="2.5" /><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" /></>,
   send: <><path d="M4 12l16-8-6 16-2.5-6.5z" /><path d="M11.5 13.5L20 4" /></>,
@@ -123,7 +127,7 @@ export function ToastHost({ children }: { children: ReactNode }) {
 /* ───────────── primitives ───────────── */
 export const Btn = ({ children, onClick, kind, sm, disabled, title, icon }: { children?: ReactNode; onClick?: () => void; kind?: 'primary' | 'ghost' | 'soft'; sm?: boolean; disabled?: boolean; title?: string; icon?: string }) => (
   <button type="button" className={`btn ${kind ?? ''} ${sm ? 'sm' : ''}`} onClick={onClick} disabled={disabled} title={title}>
-    {icon && <Icon name={icon} size={sm ? 14 : 15} />}{children}
+    {children}
   </button>
 );
 export const Chip = ({ children, tone, mono, onClick, title, dot }: { children: ReactNode; tone?: string; mono?: boolean; onClick?: () => void; title?: string; dot?: string }) => (
@@ -139,7 +143,7 @@ export const Card = ({ children, title, actions, className, sub }: { children: R
   </section>
 );
 export const Empty = ({ title, children, icon }: { title: string; children?: ReactNode; icon?: string }) => (
-  <div className="empty">{icon && <span className="empty-ic"><Icon name={icon} size={22} /></span>}<b>{title}</b>{children && <div>{children}</div>}</div>
+  <div className="empty" data-icon={icon}><b>{title}</b>{children && <div>{children}</div>}</div>
 );
 export const Skeleton = ({ h = 120 }: { h?: number }) => <div className="skeleton" style={{ height: h }} />;
 export const Stat = ({ v, l, accent }: { v: ReactNode; l: string; accent?: string }) => (

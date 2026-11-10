@@ -9,3 +9,4 @@ export * from './cochange.js';
 export * from './adr.js';
 export * from './stage.js';
 export * from './history.js';
+export * from './hotspots.js';

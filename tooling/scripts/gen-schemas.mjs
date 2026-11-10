@@ -23,6 +23,8 @@ const contracts = {
   'composed-policy': kernel.ComposedPolicySchema,
   'policies-file': kernel.PoliciesFileSchema,
   'governance-file': kernel.GovernanceFileSchema,
+  'token-settings': kernel.TokenSettingsSchema,
+  'agent-prompt': kernel.AgentPromptSchema,
   'pack': kernel.PackSchema,
   'tool-call': kernel.ToolCallSchema,
   'tool-decision': kernel.ToolDecisionSchema,

@@ -13,3 +13,4 @@ export * from './clusters.js';
 export * from './jump.js';
 export * from './graph.js';
 export * from './stats.js';
+export * from './insights.js';

@@ -52,7 +52,8 @@ describe('riaf CLI (in-process)', () => {
   it('findRoot walks up to the nearest .riaf or .git', () => {
     const root = copy('toll-ts');
     rmSync(join(root, '.riaf'), { recursive: true, force: true });
-    cpSync(join(REPO, '.riaf'), join(root, '.riaf'), { recursive: true });
+    // skip runtime state: a running daemon's socket makes cpSync throw
+    cpSync(join(REPO, '.riaf'), join(root, '.riaf'), { recursive: true, filter: (src) => !/daemon\.(sock|json)$|index\.sqlite/.test(src) });
     expect(findRoot(join(root, 'src/toll'))).toBe(root);
   });
 });

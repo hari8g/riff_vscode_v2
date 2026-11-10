@@ -5,7 +5,7 @@
  * only denies, to serve an answer from the index/cache, to ask for reflection, or to block a loop.
  *
  *   session-start  register the session
- *   prompt         route the prompt; inject a pack on the first prompt or when the reading changes
+ *   prompt         route the prompt; inject the detailed agent prompt on the first prompt or when the reading changes
  *   pre            ask the governor (PreToolUse)
  *   post           record the result (PostToolUse)
  *   stop           end the session: utilisation, priors, skills (Stop)
@@ -14,7 +14,7 @@
 export interface HookScriptOptions {
   /** Absolute path of the riaf CLI, used to start the daemon when none is running. */
   cliPath?: string;
-  /** Token budget for packs injected on prompts. */
+  /** Pins the pack budget for injected prompts (default: per intent from `.riaf/tokens.yaml`). */
   budget?: number;
 }
 
@@ -27,7 +27,8 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 
 const CLI = ${JSON.stringify(opts.cliPath ?? '')};
-const BUDGET = Number(process.env.RIAF_HOOK_BUDGET ?? ${opts.budget ?? 8000});
+// Pack budget: per intent from .riaf/tokens.yaml unless RIAF_HOOK_BUDGET (or the generator) pins one.
+const BUDGET = process.env.RIAF_HOOK_BUDGET ? Number(process.env.RIAF_HOOK_BUDGET) : ${opts.budget ?? 0};
 const event = process.argv[2];
 const done = (out) => { if (out) process.stdout.write(JSON.stringify(out)); process.exit(0); };
 
@@ -95,7 +96,11 @@ try {
     if (prev && prev.top === top && route.branch !== 'clarify') {
       done({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: 'RIAF: same task (' + top + '); the pack from earlier in this session still applies — call riaf_pack for a fresh one if the focus moved.' } });
     }
-    const r = await rpc(socket, 'pack.compile', { route, target: 'claude', budget: BUDGET, sessionId }, 60000);
+    // The detailed agent prompt (protocol, task, plan, token budget, notes, pack, checks); older daemons get the pack.
+    const pin = BUDGET > 0 ? { budget: BUDGET } : {};
+    const r = await rpc(socket, 'prompt.build', { route, text, host: 'claude', sessionId, ...pin }, 60000)
+      .then((b) => ({ pack: b.pack, rendered: b.prompt.text }))
+      .catch(() => rpc(socket, 'pack.compile', { route, target: 'claude', budget: BUDGET || 8000, sessionId }, 60000));
     await rpc(socket, 'govern.event', { sessionId, kind: 'session.start', payload: { request: text } });
     writeFileSync(stateFile, JSON.stringify({ top, packId: r.pack.packId }));
     done({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: r.rendered } });

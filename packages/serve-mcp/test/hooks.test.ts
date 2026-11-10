@@ -38,7 +38,7 @@ describe('Claude Code hook script against a live daemon', () => {
   it('injects a pack on the first prompt and a short note while the task stays the same', async () => {
     const first = await hook('prompt', { prompt: 'Fix ReadingDeduper.accept: it keeps the blurrier read' });
     expect(first.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
-    expect(first.hookSpecificOutput.additionalContext).toMatch(/^# RIAF context pack pk-/);
+    expect(first.hookSpecificOutput.additionalContext).toMatch(/^# RIAF agent prompt · pack pk-/);
     const again = await hook('prompt', { prompt: 'also fix the dedupe window bug please' });
     expect(again.hookSpecificOutput.additionalContext).toMatch(/^RIAF: same task \(bugfix\)/);
   });
