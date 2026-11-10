@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ask, onPush, save, saved } from '../api.js';
 import { Btn, Card, copy, Empty, fmtK, Icon, Skeleton, useToast } from '../kit.js';
 import { Live } from './live.js';
+import { CopyPair } from './prompt.js';
 
 /**
  * Claude Code: every prompt RIAF compiled, keyed to the Claude Code session that ran it, with what
@@ -15,7 +16,7 @@ interface Run {
 }
 interface Edit { path: string; before?: string; after: string }
 interface Result {
-  run: Run; prompt: string; response?: string; command: string;
+  run: Run; prompt: string; response?: string; command: string; message: string;
   activity: { id: string; at: string; kind: 'prompt' | 'text' | 'tool' | 'result'; text: string; tool?: string; error?: boolean }[];
   files: { path: string; edits: Edit[] }[]; commands: { text: string; status: string }[];
   turns: { id: string; prompt: string; stages: { phase: string; steps: unknown[]; failed: number }[]; steps: number; failed: number; response?: string; open: boolean }[];
@@ -111,8 +112,8 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
   const linked = !!run.session;
   const exportIt = async () => {
     const x = await ask({ type: 'exportPrompt', promptId });
-    if (x['launched']) toast('Claude Code is starting in a terminal with this prompt');
-    else void copy(String(x['command'])).then(() => toast(`${x['reason'] ? `${String(x['reason'])}. ` : ''}Command copied: run it in a terminal`));
+    if (x['launched']) toast(`Claude Code is starting in ${String(x['how'] ?? 'a terminal')}`);
+    else toast(`${x['reason'] ? String(x['reason']) : 'Could not open a terminal'}: copy the shell command below`, 'err');
     load();
   };
   return (
@@ -135,9 +136,9 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
           <Icon name="live" size={20} />
           <div>
             <b>{run.status === 'exported' ? 'Waiting for Claude Code to start' : 'Not sent to Claude Code yet'}</b>
-            <p className="muted small">When a Claude Code session in this repository starts with this prompt, it is linked here automatically. To start it yourself, run:</p>
+            <p className="muted small">When a Claude Code session in this repository starts with this prompt, it is linked here automatically. <b>Export to Claude Code</b> opens one for you; to start it yourself, paste this into a <b>shell</b>, or paste the prompt into a Claude Code session that is already open:</p>
             <pre className="cmd">{r.command}</pre>
-            <Btn sm icon="copy" onClick={() => void copy(r.command).then(() => toast('Command copied'))}>Copy command</Btn>
+            <div className="row"><CopyPair command={r.command} message={r.message} /></div>
           </div>
         </div>
       ) : (

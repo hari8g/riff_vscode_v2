@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { editsOf, parseTranscriptLine, type LiveEvent, type LiveSession } from '../src/claudeLive.js';
-import { launchText, linkRuns, listPrompts, markExported, marker, promptIdIn, readPrompt, recordPrompt, runResult, statusOf, type PromptRecord } from '../src/runs.js';
+import { launchMessage, linkRuns, listPrompts, markExported, marker, promptIdIn, readPrompt, recordPrompt, runResult, statusOf, type PromptRecord } from '../src/runs.js';
 
 const root = mkdtempSync(join(tmpdir(), 'riaf-runs-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -25,10 +25,9 @@ describe('prompt registry', () => {
     expect(() => recordPrompt(root, rec('../x'), '')).toThrow();
   });
 
-  it('builds a keyed, single-line launch text and a safely quoted command', () => {
+  it('starts the launch message with the marker and the task on one line, then the prompt', () => {
     const r = { promptId: 'pr_abc', task: "Don't break\n$HOME `pwd`" };
-    expect(launchText(r)).toMatch(/^\[RIAF pr_abc\] Don't break \$HOME `pwd` — RIAF compiled the full prompt for this task in \.riaf\/prompts\/pr_abc\.md/);
-    expect(launchText(r)).not.toContain('\n');
+    expect(launchMessage(r, '# RIAF agent prompt\n')).toBe("[RIAF pr_abc] Don't break $HOME `pwd`\n\n# RIAF agent prompt\n");
     expect(promptIdIn(`${marker('pr_x1y2')} do it`)).toBe('pr_x1y2');
   });
 });

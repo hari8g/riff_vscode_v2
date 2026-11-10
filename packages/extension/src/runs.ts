@@ -91,9 +91,23 @@ export function readPrompt(root: string, promptId: string): string | undefined {
   return existsSync(f) ? readFileSync(f, 'utf8') : undefined;
 }
 
-/** What to type into Claude Code: the marker, the task, and where the full prompt is. */
-export function launchText(rec: Pick<PromptRecord, 'promptId' | 'task'>): string {
-  return `${marker(rec.promptId)} ${rec.task.trim().replace(/\s+/g, ' ')} — RIAF compiled the full prompt for this task in .riaf/prompts/${rec.promptId}.md: the plan, the token budget, what to watch and the context. Read it first and follow it.`;
+/**
+ * Claude Code's first message for a prompt run: the marker (which keys the session to the prompt), the
+ * task in one line, then the whole compiled prompt, so Claude Code starts with the plan, budget, notes
+ * and context rather than having to go and read a file.
+ */
+export function launchMessage(rec: Pick<PromptRecord, 'promptId' | 'task'>, prompt: string): string {
+  return `${marker(rec.promptId)} ${rec.task.trim().replace(/\s+/g, ' ')}\n\n${prompt.trim()}\n`;
+}
+
+/** Writes `.riaf/prompts/<id>.launch.md` (the message Claude Code starts with) and returns its path. */
+export function writeLaunchFile(root: string, rec: Pick<PromptRecord, 'promptId' | 'task'>, prompt: string): { file: string; relative: string; message: string } {
+  if (!SAFE_ID.test(rec.promptId)) throw new Error(`bad prompt id ${rec.promptId}`);
+  const relativePath = `.riaf/prompts/${rec.promptId}.launch.md`;
+  const message = launchMessage(rec, prompt);
+  mkdirSync(promptsDir(root), { recursive: true });
+  writeFileSync(join(root, relativePath), message);
+  return { file: join(root, relativePath), relative: relativePath, message };
 }
 
 /** The prompt id a session's prompts carry, if any. */

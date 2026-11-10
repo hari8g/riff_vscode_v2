@@ -73,7 +73,7 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
   const [phase, setPhase] = useState(0);
   const [c, setC] = useState<Compiled | null>(() => saved('prompt.last', null));
   const [tab, setTab] = useState<'prompt' | 'context' | 'tokens'>('prompt');
-  const [exported, setExported] = useState<{ promptId: string; launched: boolean; command: string; reason?: string } | null>(() => saved('prompt.exported', null));
+  const [exported, setExported] = useState<{ promptId: string; launched: boolean; command: string; reason?: string; how?: string } | null>(() => saved('prompt.exported', null));
   const [reading, setReading] = useState<Reading | null>(null);
   const [reading_busy, setReadingBusy] = useState(false);
   const [forced, setForced] = useState<string | null>(null);
@@ -121,8 +121,8 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
     if (!c) return;
     try {
       const r = await ask({ type: 'exportPrompt', promptId: c.prompt.promptId });
-      setExported({ promptId: c.prompt.promptId, launched: !!r['launched'], command: String(r['command']), ...(r['reason'] ? { reason: String(r['reason']) } : {}) });
-      toast(r['launched'] ? 'Claude Code is starting in a terminal with this prompt' : 'Could not open a terminal: copy the command below');
+      setExported({ promptId: c.prompt.promptId, launched: !!r['launched'], command: String(r['command']), ...(r['reason'] ? { reason: String(r['reason']) } : {}), ...(r['how'] ? { how: String(r['how']) } : {}) });
+      toast(r['launched'] ? `Claude Code is starting in ${String(r['how'] ?? 'a terminal')}` : 'Could not open a terminal: copy the command below');
     } catch (e) {
       toast((e as Error).message, 'err');
     }
@@ -189,15 +189,15 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
 
       {exported && exported.launched && c && exported.promptId === c.prompt.promptId ? (
         <section className="cmdbox ok rise">
-          <div className="cmd-live"><i className="pulse-dot" /><div><b>Claude Code is working in a terminal window</b><span className="muted small">It started in the repository with this prompt. Approve its steps there; every change it makes shows up here, keyed to prompt <code>{exported.promptId}</code>.</span></div></div>
-          <div className="row"><Btn sm kind="primary" icon="live" onClick={() => go('claude', exported.promptId)}>Follow it live</Btn><Btn sm kind="ghost" icon="copy" onClick={() => void copy(exported.command).then(() => toast('Command copied'))}>Copy the command</Btn></div>
+          <div className="cmd-live"><i className="pulse-dot" /><div><b>Claude Code is starting in {exported.how ?? 'a terminal'}</b><span className="muted small">It opens in the repository with the whole prompt as its first message and starts working; a new terminal window can take up to a minute while your shell starts. Approve Claude Code's steps there; every change it makes shows up here, keyed to prompt <code>{exported.promptId}</code>.</span></div></div>
+          <div className="row"><Btn sm kind="primary" icon="live" onClick={() => go('claude', exported.promptId)}>Follow it live</Btn><CopyPair command={exported.command} message={c.prompt ? `[RIAF ${exported.promptId}] ${text.trim().replace(/\s+/g, ' ')}\n\n${c.prompt.text.trim()}\n` : ''} /></div>
         </section>
       ) : null}
       {exported && !exported.launched && c && exported.promptId === c.prompt.promptId ? (
         <section className="cmdbox rise">
-          <div><b>{exported.reason ? `Could not open a terminal: ${exported.reason}` : 'Run this in a terminal'}</b><span className="muted small">It changes into the repository first, so Claude Code works on the right folder and the run is keyed to prompt <code>{exported.promptId}</code>.</span></div>
+          <div><b>{exported.reason ? `Could not open a terminal: ${exported.reason}` : 'Start Claude Code yourself'}</b><span className="muted small">Paste this into a <b>shell</b> (not into Claude Code): it changes into the repository and starts Claude Code with the whole prompt. Already in a Claude Code session? Use <b>Copy the prompt</b> and paste it there instead.</span></div>
           <pre>{exported.command}</pre>
-          <div className="row"><Btn sm icon="copy" onClick={() => void copy(exported.command).then(() => toast('Command copied'))}>Copy command</Btn><Btn sm kind="ghost" icon="live" onClick={() => go('claude', exported.promptId)}>Open Claude Code page</Btn></div>
+          <div className="row"><CopyPair command={exported.command} message={`[RIAF ${exported.promptId}] ${text.trim().replace(/\s+/g, ' ')}\n\n${c.prompt.text.trim()}\n`} /><Btn sm kind="ghost" icon="live" onClick={() => go('claude', exported.promptId)}>Open Claude Code page</Btn></div>
         </section>
       ) : null}
 
@@ -221,6 +221,15 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
       {tab === 'tokens' && c && !busy ? <TokenSettingsCard onSaved={() => void compile()} /> : null}
     </div>
   );
+}
+
+/** Two clearly different copies: a command for a shell, and the prompt itself for an open Claude Code session. */
+export function CopyPair({ command, message }: { command: string; message: string }) {
+  const toast = useToast();
+  return <>
+    <Btn sm kind="soft" icon="terminal" onClick={() => void copy(command).then(() => toast('Shell command copied: paste it into a terminal'))} title="For a shell: changes into the repository and starts Claude Code with the prompt">Copy shell command</Btn>
+    {message ? <Btn sm kind="ghost" icon="copy" onClick={() => void copy(message).then(() => toast('Prompt copied: paste it into Claude Code'))} title="For a Claude Code session that is already open">Copy the prompt</Btn> : null}
+  </>;
 }
 
 /** Live: what kind of prompt the task will compile to, what that means, and a one-click correction. */

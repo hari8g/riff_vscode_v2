@@ -3,12 +3,12 @@ import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { answerQuestion, isLens, resetAskCache, understand } from './askHost.js';
 import type { LiveEvent, LiveSession } from './claudeLive.js';
-import { launchText, linkRuns, listPrompts, markExported, readPrompt, recordPrompt, runResult, statusOf, type PromptRun } from './runs.js';
+import { launchMessage, linkRuns, listPrompts, markExported, readPrompt, recordPrompt, runResult, statusOf, writeLaunchFile, type PromptRun } from './runs.js';
 import { suggestTasks } from './suggest.js';
 import { BENCHMARKS, live } from './savings.js';
 import { INTENTS, TOKEN_PRESETS, type Intent } from '@riaf/kernel';
 import { tokensYaml } from '@riaf/daemon';
-import { claudeCommand, type LaunchResult } from './terminal.js';
+import { shellCommand, type LaunchResult, type LaunchSpec } from './terminal.js';
 import type { Rpc } from './tools.js';
 
 /** Messages between the console webview and the extension; the data side is pure and tested. */
@@ -64,8 +64,8 @@ export interface ConsoleDeps {
   repo?: RepoHost;
   /** What Claude Code is doing in this repository (its transcripts, tailed). */
   live?(): { dir: string; found: boolean; sessions: LiveSession[]; events: LiveEvent[] };
-  /** Starts Claude Code on `text` in a terminal in `root` (VS Code's terminal, or a new terminal window). */
-  launchClaude?(root: string, text: string): Promise<LaunchResult>;
+  /** Starts Claude Code in a terminal in the repository with the launch file as its first message (VS Code's terminal, or a new terminal window). */
+  launchClaude?(spec: LaunchSpec): Promise<LaunchResult>;
   /** Every event of one Claude Code session (for its workflow). */
   liveSession?(session: string): LiveEvent[];
 }
@@ -146,10 +146,13 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       const rec = root ? listPrompts(root).find((x) => x.promptId === req.promptId) : undefined;
       if (!root || !rec) return { type: 'error', message: 'compile the prompt first' };
       markExported(root, rec.promptId);
-      const text = launchText(rec);
-      // a terminal opens in the repository with Claude Code already working; else the command (with its cd) is shown to copy
-      const r = deps.launchClaude ? await deps.launchClaude(root, text).catch((e: Error) => ({ launched: false, command: claudeCommand(root, text), reason: e.message })) : { launched: false, command: claudeCommand(root, text) };
-      return { type: 'exported', promptId: rec.promptId, ...r };
+      // Claude Code starts with the whole prompt as its first message, read from a file: nothing is typed into a terminal
+      const lf = writeLaunchFile(root, rec, readPrompt(root, rec.promptId) ?? '');
+      const spec: LaunchSpec = { root, promptId: rec.promptId, file: lf.file, relative: lf.relative };
+      const r: LaunchResult = deps.launchClaude
+        ? await deps.launchClaude(spec).catch((e: Error) => ({ launched: false, command: shellCommand(spec), reason: e.message }))
+        : { launched: false, command: shellCommand(spec), reason: 'this console cannot open a terminal' };
+      return { type: 'exported', promptId: rec.promptId, ...r, message: lf.message };
     }
     case 'runs': {
       const root = deps.repo?.current();
@@ -172,7 +175,8 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       const s = linkRuns([rec], sessions, prompts).get(rec.promptId);
       const run: PromptRun = { ...rec, status: statusOf(rec, s), ...(s ? { session: { id: s.id, title: s.title, active: s.active, updatedAt: s.updatedAt } } : {}) };
       const events = s ? deps.liveSession?.(s.id) ?? [] : [];
-      return { type: 'run', ...runResult(run, readPrompt(root, rec.promptId) ?? '', events), command: claudeCommand(root, launchText(rec)) };
+      const prompt = readPrompt(root, rec.promptId) ?? '';
+      return { type: 'run', ...runResult(run, prompt, events), command: shellCommand({ root, relative: `.riaf/prompts/${rec.promptId}.launch.md` }), message: launchMessage(rec, prompt) };
     }
     case 'tokens': {
       const t = await rpc.call('tokens.get', {});

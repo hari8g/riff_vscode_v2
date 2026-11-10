@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -7,7 +7,7 @@ import { silentLogger } from '@riaf/kernel';
 import type { LiveEvent, LiveSession } from '../src/claudeLive.js';
 import { handleConsole, type ConsoleDeps } from '../src/consoleHost.js';
 import { marker } from '../src/runs.js';
-import { claudeCommand } from '../src/terminal.js';
+import { shellCommand, type LaunchSpec } from '../src/terminal.js';
 
 const REPO = resolve(__dirname, '../../..');
 const root = mkdtempSync(join(tmpdir(), 'riaf-ext-runs-'));
@@ -18,10 +18,10 @@ const events = new Map<string, LiveEvent[]>();
 const ran: string[] = [];
 const deps = (launch: boolean): ConsoleDeps => ({
   rpc: core, writeRiafFile: async () => undefined, modelSettings: () => ({}),
-  launchClaude: async (r: string, text: string) => {
-    const command = claudeCommand(r, text, { platform: 'darwin' });
+  launchClaude: async (spec: LaunchSpec) => {
+    const command = shellCommand(spec, 'darwin');
     if (!launch) return { launched: false, command, reason: 'no terminal' };
-    ran.push(command);
+    ran.push(readFileSync(spec.file, 'utf8'));
     return { launched: true, command };
   },
   repo: { current: () => root, recent: () => [root], open: async () => undefined, reloadOnSwitch: false },
@@ -46,10 +46,12 @@ describe('console: prompt runs keyed to Claude Code sessions', () => {
 
     const launched = await handleConsole(deps(true), { type: 'exportPrompt', promptId: id });
     expect(launched).toMatchObject({ type: 'exported', launched: true });
-    expect(ran[0]).toMatch(new RegExp(`^cd '${root.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}' && claude '\\[RIAF ${id}\\] Fix ReadingDeduper`));
+    expect(ran[0]).toMatch(new RegExp(`^\\[RIAF ${id}\\] Fix ReadingDeduper`));
+    expect(ran[0]).toContain('# RIAF agent prompt');
+    expect(launched['message']).toBe(ran[0]);
     const offered = await handleConsole(deps(false), { type: 'exportPrompt', promptId: id });
     expect(offered).toMatchObject({ launched: false, reason: 'no terminal' });
-    expect(String(offered['command'])).toContain(marker(id));
+    expect(String(offered['command'])).toBe(`cd '${root}' && claude "$(cat '.riaf/prompts/${id}.launch.md')"`);
 
     const waiting = await handleConsole(deps(true), { type: 'run', promptId: id });
     expect((waiting['run'] as { status: string }).status).toBe('exported');

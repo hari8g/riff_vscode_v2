@@ -122,7 +122,7 @@ const server = createServer(async (req, res) => {
         runCommand: async (cmd) => console.log(`(dev) would run VS Code command ${cmd}`),
         // opens a real terminal window in the repository with Claude Code working on the prompt
         // RIAF_DRY_LAUNCH=1 logs the command instead of opening a terminal (for demos and tests)
-        launchClaude: process.env.RIAF_DRY_LAUNCH ? async (r, text) => { console.log(`(dry run) would open a terminal in ${r} running Claude Code on: ${text}`); return { launched: true, command: `(dry run) ${text}` }; } : (r, text) => openClaudeTerminal(r, text),
+        launchClaude: process.env.RIAF_DRY_LAUNCH ? async (spec) => { console.log(`(dry run) would open a terminal in ${spec.root} running Claude Code on ${spec.file}`); return { launched: true, how: 'a dry run', command: `(dry run) ${spec.relative}` }; } : (spec) => openClaudeTerminal(spec),
         repo: { current: () => repo, recent: () => recent, open: openRepo, reloadOnSwitch: true },
         live: () => live.snapshot(),
         liveSession: (id) => live.sessionEvents(id),

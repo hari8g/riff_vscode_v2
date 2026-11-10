@@ -531,7 +531,6 @@ button.repo-pill span { flex: 1; }
 .norepo { max-width: 680px; }
 
 /* ───────────── enterprise refinements ───────────── */
-.supergraphic { display: none; }
 .rail { gap: 12px; padding: 16px 12px; }
 .brand-t b { font-size: 14px; letter-spacing: .01em; }
 .nav { font-size: 13px; }
@@ -862,3 +861,22 @@ button.repo-pill span { flex: 1; }
 .sure.chosen { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal-ink); }
 .ptype-note { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px !important; color: var(--i-merge) !important; } .ptype-note .icon { margin-top: 2px; flex: none; }
 .cmdbox > .cmd-live { display: flex; }
+
+/* ══ Bosch MPS supergraphic ("rainbow") ══════════════════════════════════
+   The Bosch colour band: across the top of the console, under the brand, as the active-page
+   marker, under the repository name on Home, and along the top of the task boxes. */
+:root { --supergraphic-v: linear-gradient(180deg, #e20015 0%, #9e2896 34%, #007bc0 62%, #18837e 82%, #00884a 100%); }
+.supergraphic { display: block; position: fixed; top: 0; left: 0; right: 0; height: 6px; background: var(--supergraphic); z-index: 30; }
+.shell { padding-top: 6px; } .topbar { top: 6px; } .rail { top: 6px; height: calc(100vh - 6px); }
+.brand { position: relative; border-bottom: 0; padding-bottom: 14px; }
+.brand::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 0; height: 3px; border-radius: 2px; background: var(--supergraphic); }
+.nav.active::before { background: var(--supergraphic-v); width: 4px; }
+.home-hero h1 { position: relative; padding-bottom: 14px; }
+.home-hero h1::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 88px; height: 4px; margin-left: -44px; border-radius: 2px; background: var(--supergraphic); }
+.home-ask, .composer { position: relative; overflow: hidden; }
+.home-ask::before, .composer::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--supergraphic); }
+.runview, .ptype { position: relative; overflow: hidden; }
+.runview::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--supergraphic); }
+.pipeline4 li.done .p4-n { background: var(--teal); }
+.flow4 button::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: 6px 6px 0 0; background: var(--supergraphic); opacity: 0; transition: opacity .2s; }
+.flow4 button:hover::before { opacity: 1; }

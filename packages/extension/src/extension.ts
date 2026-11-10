@@ -6,7 +6,7 @@ import { ClaudeLive } from './claudeLive.js';
 import { bundledCli, connectDaemon } from './client.js';
 import { handleConsole, type ConsoleRequest, type RepoHost } from './consoleHost.js';
 import { handleChat, handoffPrompt } from './participant.js';
-import { claudeCommand, findClaude, type LaunchResult } from './terminal.js';
+import { resolveClaude, shellCommand, vscodeTerminal, type LaunchResult, type LaunchSpec } from './terminal.js';
 import { invokeTool, TOOL_DEFS, type ToolName } from './tools.js';
 
 /**
@@ -74,14 +74,15 @@ async function writePackFile(root: string, packId: string, rendered: string): Pr
   return file;
 }
 
-/** Runs Claude Code on `text` in a VS Code terminal opened in the repository, so it starts working at once. */
-function startClaude(root: string, text: string): LaunchResult {
-  const claudePath = findClaude();
-  const command = claudeCommand(root, text, claudePath ? { claudePath } : {});
-  const term = vscode.window.createTerminal({ name: 'Claude Code (RIAF)', cwd: root });
+/**
+ * Opens a VS Code terminal whose own process is Claude Code, started in the repository on the launch file.
+ * Nothing is typed into a terminal: typing lands in whatever runs there (an open Claude Code session got
+ * the shell command as its task).
+ */
+function startClaude(spec: LaunchSpec): LaunchResult {
+  const term = vscode.window.createTerminal(vscodeTerminal(spec, resolveClaude()));
   term.show();
-  term.sendText(command);
-  return { launched: true, command };
+  return { launched: true, how: 'a VS Code terminal', command: shellCommand(spec) };
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -169,9 +170,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     term.sendText(`claude ${JSON.stringify(file ? handoffPrompt(task, vscode.workspace.asRelativePath(file)) : task)}`);
   });
   /** Starts Claude Code in a terminal with an exported RIAF prompt (the console's "Export to Claude Code"). */
-  reg('riaf.runClaude', async (text: string) => {
+  reg('riaf.runClaude', async (spec: LaunchSpec) => {
     const root = workspaceRoot();
-    if (root && typeof text === 'string' && text.trim()) startClaude(root, text);
+    if (root && spec && spec.root === root && /^pr_\w+$/.test(spec.promptId) && typeof spec.file === 'string') startClaude(spec);
   });
   reg('riaf.init', async () => {
     const root = workspaceRoot();
@@ -239,7 +240,7 @@ function openConsole(context: vscode.ExtensionContext): void {
         },
         modelSettings: () => vscode.workspace.getConfiguration('riaf').get<Record<string, unknown>>('models') ?? {},
         runCommand: async (command, ...args) => void (await vscode.commands.executeCommand(command, ...args)),
-        launchClaude: async (root, text) => startClaude(root, text),
+        launchClaude: async (spec) => startClaude(spec),
         repo: repoHost,
         live: () => live?.snapshot() ?? { dir: '', found: false, sessions: [], events: [] },
         liveSession: (id) => live?.sessionEvents(id) ?? [],

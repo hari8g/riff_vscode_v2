@@ -91,6 +91,17 @@ try {
     mkdirSync(stateDir, { recursive: true });
     const stateFile = join(stateDir, sessionId.replace(/[^\\w-]/g, '_') + '.json');
     const prev = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : undefined;
+    // A prompt RIAF already compiled (exported from the console, it starts with [RIAF pr_…]): link this
+    // session to it and inject nothing — compiling the launch message again would stack a second prompt.
+    const keyed = /\\[RIAF (pr_\\w+)\\]/.exec(text);
+    if (keyed) {
+      const promptsDir = join(root, '.riaf', 'prompts');
+      mkdirSync(promptsDir, { recursive: true });
+      appendFileSync(join(promptsDir, 'index.jsonl'), JSON.stringify({ promptId: keyed[1], sessionId }) + '\\n');
+      writeFileSync(stateFile, JSON.stringify({ top: 'riaf', promptId: keyed[1] }));
+      await rpc(socket, 'govern.event', { sessionId, kind: 'session.start', payload: { request: text.slice(0, 2000) } });
+      done();
+    }
     const route = await rpc(socket, 'route', { text, ide: { interactive: true } });
     const top = Object.entries(route.w).sort((a, b) => b[1] - a[1])[0][0];
     if (prev && prev.top === top && route.branch !== 'clarify') {

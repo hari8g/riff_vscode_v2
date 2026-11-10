@@ -47,6 +47,13 @@ describe('Claude Code hook script against a live daemon', () => {
     expect(again.hookSpecificOutput.additionalContext).toMatch(/^RIAF: same task \(bugfix\)/);
   });
 
+  it('links a session that starts with a console-exported prompt instead of compiling it again', async () => {
+    const out = await hook('prompt', { session_id: 'cc-export', prompt: '[RIAF pr_abc123def456] Add a monthly pass discount\n\n# RIAF agent prompt · pack pk-1\n…' });
+    expect(out).toBeUndefined();
+    const lines = readFileSync(join(root, '.riaf/prompts/index.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines.at(-1)).toEqual({ promptId: 'pr_abc123def456', sessionId: 'cc-export' });
+  });
+
   it('serves grep from the index, stays silent on ordinary calls, records results, and ends the session', async () => {
     const pre = await hook('pre', { tool_name: 'Grep', tool_input: { pattern: 'charge-on-close' } });
     expect(pre.hookSpecificOutput.permissionDecision).toBe('deny');
