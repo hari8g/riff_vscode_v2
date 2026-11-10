@@ -16,6 +16,7 @@ interface Run {
 interface Edit { path: string; before?: string; after: string }
 interface Result {
   run: Run; prompt: string; response?: string; command: string;
+  activity: { id: string; at: string; kind: 'prompt' | 'text' | 'tool' | 'result'; text: string; tool?: string; error?: boolean }[];
   files: { path: string; edits: Edit[] }[]; commands: { text: string; status: string }[];
   turns: { id: string; prompt: string; stages: { phase: string; steps: unknown[]; failed: number }[]; steps: number; failed: number; response?: string; open: boolean }[];
   totals: { steps: number; failed: number; filesChanged: number; durationMs: number };
@@ -110,8 +111,8 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
   const linked = !!run.session;
   const exportIt = async () => {
     const x = await ask({ type: 'exportPrompt', promptId });
-    if (x['launched']) toast('Started Claude Code with this prompt');
-    else void copy(String(x['command'])).then(() => toast('Command copied: run it in your terminal'));
+    if (x['launched']) toast('Claude Code is starting in a terminal with this prompt');
+    else void copy(String(x['command'])).then(() => toast(`${x['reason'] ? `${String(x['reason'])}. ` : ''}Command copied: run it in a terminal`));
     load();
   };
   return (
@@ -149,6 +150,8 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
             <div><b>{r.totals.durationMs ? dur(r.totals.durationMs) : '–'}</b><span>time</span></div>
           </div>
 
+          <Console lines={r.activity} running={run.status === 'running'} />
+
           <div className="reply">
             <div className="mini-h">Claude Code's reply</div>
             {r.response ? <Rich text={r.response} /> : <p className="muted">{run.status === 'running' ? 'Working… the reply appears when it finishes.' : 'No reply recorded.'}</p>}
@@ -169,6 +172,33 @@ function RunView({ promptId, onLive }: { promptId: string; onLive: () => void })
         </>
       )}
     </section>
+  );
+}
+
+/** Claude Code's activity for the prompt, as a terminal: prompts, its messages, tool calls and their results. */
+function Console({ lines, running }: { lines: Result['activity']; running: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [follow, setFollow] = useState(true);
+  useEffect(() => { if (follow && box.current) box.current.scrollTop = box.current.scrollHeight; }, [lines.length, follow]);
+  if (!lines.length) return null;
+  const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return (
+    <div className="term">
+      <div className="term-h"><span className="dots"><i /><i /><i /></span><b>Claude Code</b>{running ? <span className="term-live"><i className="pulse-dot" />working</span> : <span className="muted small">finished</span>}
+        <label className="term-follow"><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />follow</label></div>
+      <div className="term-b" ref={box}>
+        {lines.map((l) => (
+          <div key={l.id} className={`tm tm-${l.kind} ${l.error ? 'err' : ''}`}>
+            <span className="tm-t">{time(l.at)}</span>
+            {l.kind === 'prompt' ? <span><b className="tm-p">❯</b> {l.text.replace(/^\[RIAF pr_\w+\]\s*/, '').replace(/ — RIAF compiled.*$/, '')}</span>
+              : l.kind === 'tool' ? <span><b>{(l.tool ?? 'tool').replace(/^mcp__[^_]+__/, '')}</b> {l.text}</span>
+              : l.kind === 'result' ? <span className="tm-r">{l.error ? '✗ ' : '⎿ '}{l.text.split('\n')[0]}</span>
+              : <span className="tm-m">● {l.text}</span>}
+          </div>
+        ))}
+        {running ? <div className="tm tm-cursor"><span className="tm-t" /><span className="cursor">▍</span></div> : null}
+      </div>
+    </div>
   );
 }
 

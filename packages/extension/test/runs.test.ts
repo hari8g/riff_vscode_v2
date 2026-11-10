@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { editsOf, parseTranscriptLine, type LiveEvent, type LiveSession } from '../src/claudeLive.js';
-import { launchCommand, launchText, linkRuns, listPrompts, markExported, marker, promptIdIn, readPrompt, recordPrompt, runResult, statusOf, type PromptRecord } from '../src/runs.js';
+import { launchText, linkRuns, listPrompts, markExported, marker, promptIdIn, readPrompt, recordPrompt, runResult, statusOf, type PromptRecord } from '../src/runs.js';
 
 const root = mkdtempSync(join(tmpdir(), 'riaf-runs-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -29,7 +29,6 @@ describe('prompt registry', () => {
     const r = { promptId: 'pr_abc', task: "Don't break\n$HOME `pwd`" };
     expect(launchText(r)).toMatch(/^\[RIAF pr_abc\] Don't break \$HOME `pwd` — RIAF compiled the full prompt for this task in \.riaf\/prompts\/pr_abc\.md/);
     expect(launchText(r)).not.toContain('\n');
-    expect(launchCommand(r)).toMatch(/^claude '\[RIAF pr_abc\] Don'\\''t break \$HOME `pwd`/);
     expect(promptIdIn(`${marker('pr_x1y2')} do it`)).toBe('pr_x1y2');
   });
 });
@@ -71,6 +70,9 @@ describe('keying sessions to prompts', () => {
     expect(r.commands).toEqual([{ text: 'npm test', status: 'ok' }]);
     expect(r.totals.filesChanged).toBe(2);
     expect(r.run.status).toBe('done');
+    expect(r.activity[0]!.text).toContain(marker('pr_r1'));
+    expect(r.activity.some((a) => a.text.includes('next task'))).toBe(false);
+    expect(r.activity.at(-1)!.text).toBe('Added.');
   });
 });
 

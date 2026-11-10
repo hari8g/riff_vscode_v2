@@ -1,7 +1,8 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { symbolId, type SymbolId } from '@riaf/kernel';
 import { Graph } from '@riaf/graph';
@@ -33,7 +34,7 @@ describe('history on the synthetic toll-ts history (known answers)', () => {
   let m: Manifest;
   let ctx: Awaited<ReturnType<typeof indexAll>>;
   beforeAll(async () => {
-    m = JSON.parse(execFileSync(process.execPath, [join(REPO, 'tooling/scripts/make-fixture-history.mjs'), 'toll-ts', root], { encoding: 'utf8' })) as Manifest;
+    m = JSON.parse((await promisify(execFile)(process.execPath, [join(REPO, 'tooling/scripts/make-fixture-history.mjs'), 'toll-ts', root])).stdout) as Manifest;
     ctx = await indexAll(root);
   }, 120_000);
 

@@ -44,6 +44,8 @@ export interface RunResult {
   /** The code it wrote, grouped by file in order. */
   files: { path: string; edits: CodeEdit[] }[];
   commands: { text: string; status: string }[];
+  /** Claude Code's activity for this prompt, oldest first (the last 80 events), for a terminal-style feed. */
+  activity: { id: string; at: string; kind: LiveEvent['kind']; text: string; tool?: string; error?: boolean }[];
   totals: { steps: number; failed: number; filesChanged: number; durationMs: number };
 }
 
@@ -92,11 +94,6 @@ export function readPrompt(root: string, promptId: string): string | undefined {
 /** What to type into Claude Code: the marker, the task, and where the full prompt is. */
 export function launchText(rec: Pick<PromptRecord, 'promptId' | 'task'>): string {
   return `${marker(rec.promptId)} ${rec.task.trim().replace(/\s+/g, ' ')} — RIAF compiled the full prompt for this task in .riaf/prompts/${rec.promptId}.md: the plan, the token budget, what to watch and the context. Read it first and follow it.`;
-}
-
-/** The shell command that starts Claude Code with the prompt (for copying where no terminal can be opened). */
-export function launchCommand(rec: Pick<PromptRecord, 'promptId' | 'task'>): string {
-  return `claude '${launchText(rec).replace(/'/g, "'\\''")}'`;
 }
 
 /** The prompt id a session's prompts carry, if any. */
@@ -157,6 +154,15 @@ export function runResult(run: PromptRun, prompt: string, events: readonly LiveE
     for (const ed of e.edits) files.set(ed.path, [...(files.get(ed.path) ?? []), ed]);
   }
   const response = [...turns].reverse().find((t) => t.response)?.response;
+  // the run's slice of the event stream: from its first turn's prompt to the next RIAF prompt
+  const from = turns.length ? events.findIndex((e) => e.id === turns[0]!.id) : -1;
+  let to = events.length;
+  if (from >= 0) for (let i = from + 1; i < events.length; i++) {
+    const other = events[i]!.kind === 'prompt' ? promptIdIn(events[i]!.text) : undefined;
+    if (other && other !== run.promptId) { to = i; break; }
+  }
+  const activity = from < 0 ? [] : events.slice(from, to).filter((e) => !e.sidechain).slice(-80)
+    .map((e) => ({ id: e.id, at: e.at, kind: e.kind, text: e.kind === 'result' ? e.text.slice(0, 240) : e.text.slice(0, 600), ...(e.tool ? { tool: e.tool } : {}), ...(e.error ? { error: true } : {}) }));
   const status = statusOf(run, run.session as LiveSession | undefined, { turns });
   return {
     run: { ...run, status },
@@ -165,6 +171,7 @@ export function runResult(run: PromptRun, prompt: string, events: readonly LiveE
     ...(response ? { response } : {}),
     files: [...files.entries()].map(([path, edits]) => ({ path, edits })),
     commands: turns.flatMap((t) => t.commands.map((c) => ({ text: c.text, status: c.status }))),
+    activity,
     totals: {
       steps: turns.reduce((a, t) => a + t.steps, 0), failed: turns.reduce((a, t) => a + t.failed, 0),
       filesChanged: files.size || new Set(turns.flatMap((t) => t.filesChanged)).size, durationMs: turns.reduce((a, t) => a + t.durationMs, 0),

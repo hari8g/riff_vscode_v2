@@ -26,6 +26,18 @@ interface Settings {
   plan_gate_min_weight: number; cache: { stable_prefix: boolean; ttl: '5m' | '1h' }; summarize_at: number;
 }
 
+/** What each kind of prompt means: what RIAF gathers and what Claude Code is told to do. */
+const KINDS: { id: string; label: string; icon: string; gathers: string; does: string }[] = [
+  { id: 'bugfix', label: 'Bug fix', icon: 'alert', gathers: 'the failing code, its callers and callees, the test that exercises it, and the commits that last touched it', does: 'reproduce the bug with a test, make the smallest fix, and rerun the tests' },
+  { id: 'feature', label: 'New feature', icon: 'sparkle', gathers: 'the closest existing feature to copy from, the extension points and their tests', does: 'show its plan first, follow the existing pattern, and add tests for the new behaviour' },
+  { id: 'refactor', label: 'Refactor', icon: 'refresh', gathers: 'every reference to what changes, the class hierarchy and indirect callers', does: 'show its plan first, change in small steps, and keep behaviour identical' },
+  { id: 'review', label: 'Code review', icon: 'check', gathers: 'the changed code, its invariants, past incidents and files that usually change with it', does: 'report findings with file and line, without editing' },
+  { id: 'merge', label: 'Merge', icon: 'commit', gathers: 'both branches\' changes, files that usually change together, and the tests over them', does: 'resolve keeping both intents, then run the tests' },
+  { id: 'onboarding', label: 'Explain', icon: 'overview', gathers: 'summaries of the areas involved, the repository map and recorded decisions', does: 'explain with file references, without editing' },
+];
+const KIND = Object.fromEntries(KINDS.map((k) => [k.id, k]));
+interface Reading { w: Record<string, number>; H: number; branch: string; question: { question: string } | null; units: { id: string; text: string }[]; anchors: string[] }
+
 const HOSTS: { id: Host; label: string }[] = [{ id: 'claude', label: 'Claude Code' }, { id: 'copilot', label: 'Copilot' }, { id: 'generic', label: 'Any model' }];
 const SECTION_PLAIN: Record<string, string> = {
   protocol: 'How to work here', repository: 'Team rules', reply: 'Reply format', task: 'The task',
@@ -61,7 +73,10 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
   const [phase, setPhase] = useState(0);
   const [c, setC] = useState<Compiled | null>(() => saved('prompt.last', null));
   const [tab, setTab] = useState<'prompt' | 'context' | 'tokens'>('prompt');
-  const [exported, setExported] = useState<{ promptId: string; launched: boolean; command: string } | null>(() => saved('prompt.exported', null));
+  const [exported, setExported] = useState<{ promptId: string; launched: boolean; command: string; reason?: string } | null>(() => saved('prompt.exported', null));
+  const [reading, setReading] = useState<Reading | null>(null);
+  const [reading_busy, setReadingBusy] = useState(false);
+  const [forced, setForced] = useState<string | null>(null);
   const ta = useRef<HTMLTextAreaElement>(null);
   const preview = useRef<HTMLPreElement>(null);
 
@@ -75,6 +90,15 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
     else if (!text) ta.current?.focus();
   }, []);
 
+  // read the task live while typing: what kind of prompt it will compile to
+  useEffect(() => {
+    if (text.trim().split(/\s+/).length < 3) { setReading(null); return; }
+    setReadingBusy(true);
+    const t = setTimeout(() => void ask({ type: 'route', text, ...(forced ? { intent: forced } : {}) })
+      .then((r) => setReading(r['policy'] as Reading)).catch(() => undefined).finally(() => setReadingBusy(false)), 300);
+    return () => clearTimeout(t);
+  }, [text, forced]);
+
   const compile = async () => {
     if (!text.trim()) return ta.current?.focus();
     setBusy(true);
@@ -82,7 +106,7 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
     setPhase(1);
     const t1 = setTimeout(() => setPhase(2), 220), t2 = setTimeout(() => setPhase(3), 440);
     try {
-      const r = await ask({ type: 'prompt', text, host });
+      const r = await ask({ type: 'prompt', text, host, ...(forced ? { intent: forced } : {}) });
       setC({ prompt: r['prompt'], pack: r['pack'], route: r['route'] } as Compiled);
       setPhase(4);
     } catch (e) {
@@ -97,8 +121,8 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
     if (!c) return;
     try {
       const r = await ask({ type: 'exportPrompt', promptId: c.prompt.promptId });
-      setExported({ promptId: c.prompt.promptId, launched: !!r['launched'], command: String(r['command']) });
-      toast(r['launched'] ? 'Started Claude Code with this prompt' : 'Ready: run the command in your terminal');
+      setExported({ promptId: c.prompt.promptId, launched: !!r['launched'], command: String(r['command']), ...(r['reason'] ? { reason: String(r['reason']) } : {}) });
+      toast(r['launched'] ? 'Claude Code is starting in a terminal with this prompt' : 'Could not open a terminal: copy the command below');
     } catch (e) {
       toast((e as Error).message, 'err');
     }
@@ -135,6 +159,8 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
         {!text && !c ? <div className="examples">{EXAMPLES.map((x) => <Chip key={x} onClick={() => setText(x)}>{x.length > 60 ? `${x.slice(0, 58)}…` : x}</Chip>)}</div> : null}
       </section>
 
+      {text.trim() && (reading || reading_busy) ? <PromptType reading={reading} busy={reading_busy} forced={forced} onForce={(k) => setForced((f) => (f === k ? null : k))} /> : null}
+
       {busy || c ? (
         <ol className="pipeline4">
           <li className={done(1) ? 'done' : phase === 1 ? 'active' : ''}>
@@ -161,9 +187,15 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
         </ol>
       ) : null}
 
+      {exported && exported.launched && c && exported.promptId === c.prompt.promptId ? (
+        <section className="cmdbox ok rise">
+          <div className="cmd-live"><i className="pulse-dot" /><div><b>Claude Code is working in a terminal window</b><span className="muted small">It started in the repository with this prompt. Approve its steps there; every change it makes shows up here, keyed to prompt <code>{exported.promptId}</code>.</span></div></div>
+          <div className="row"><Btn sm kind="primary" icon="live" onClick={() => go('claude', exported.promptId)}>Follow it live</Btn><Btn sm kind="ghost" icon="copy" onClick={() => void copy(exported.command).then(() => toast('Command copied'))}>Copy the command</Btn></div>
+        </section>
+      ) : null}
       {exported && !exported.launched && c && exported.promptId === c.prompt.promptId ? (
         <section className="cmdbox rise">
-          <div><b>Run this in your terminal, in the repository folder</b><span className="muted small">The run is keyed to prompt <code>{exported.promptId}</code> and appears on the Claude Code page as it happens.</span></div>
+          <div><b>{exported.reason ? `Could not open a terminal: ${exported.reason}` : 'Run this in a terminal'}</b><span className="muted small">It changes into the repository first, so Claude Code works on the right folder and the run is keyed to prompt <code>{exported.promptId}</code>.</span></div>
           <pre>{exported.command}</pre>
           <div className="row"><Btn sm icon="copy" onClick={() => void copy(exported.command).then(() => toast('Command copied'))}>Copy command</Btn><Btn sm kind="ghost" icon="live" onClick={() => go('claude', exported.promptId)}>Open Claude Code page</Btn></div>
         </section>
@@ -188,6 +220,44 @@ export function PromptPage({ go }: { go: (page: string, arg?: string) => void })
 
       {tab === 'tokens' && c && !busy ? <TokenSettingsCard onSaved={() => void compile()} /> : null}
     </div>
+  );
+}
+
+/** Live: what kind of prompt the task will compile to, what that means, and a one-click correction. */
+function PromptType({ reading, busy, forced, onForce }: { reading: Reading | null; busy: boolean; forced: string | null; onForce: (k: string) => void }) {
+  const ranked = reading ? KINDS.map((k) => ({ ...k, w: reading.w[k.id] ?? 0 })).sort((a, b) => b.w - a.w) : [];
+  const chosen = forced ? ranked.find((k) => k.id === forced) : undefined;
+  const top = chosen ?? ranked[0];
+  const leader = ranked[0];
+  const second = !chosen && ranked[1] && reading && reading.branch === 'blended' && ranked[1].w >= 0.2 ? ranked[1] : undefined;
+  const unclear = !chosen && !!reading && (reading.branch === 'clarify' || reading.branch === 'generic' || (reading.w['unknown'] ?? 0) > (top?.w ?? 0));
+  const sure = reading ? (unclear ? 'unclear' : reading.branch === 'single' ? 'clear' : 'mixed') : '';
+  return (
+    <section className={`ptype ${busy ? 'reading' : ''}`} aria-live="polite">
+      {!reading || !top ? <div className="ptype-h"><span className="ptype-i"><Icon name="sparkle" size={18} /></span><div><span className="eyebrow">Reading your task…</span></div></div> : <>
+        <div className="ptype-h">
+          <span className="ptype-i" style={{ ['--c' as string]: unclear ? 'var(--slate)' : intentVar(top.id) }}><Icon name={unclear ? 'alert' : top.icon} size={18} /></span>
+          <div className="ptype-t">
+            <span className="eyebrow">{forced ? 'Compiling as you chose' : 'This prompt will compile as'}</span>
+            <h3>{unclear ? 'Not clear yet' : <><b style={{ color: intentVar(top.id) }}>{top.label}</b>{second ? <> + <b style={{ color: intentVar(second.id) }}>{second.label}</b></> : null}</>}
+              <span className={`sure ${chosen ? 'chosen' : sure}`}>{chosen ? 'your choice' : sure === 'clear' ? 'clear reading' : sure === 'mixed' ? 'two kinds of work' : 'needs a question'}</span></h3>
+            {unclear
+              ? <p>{reading.question?.question ?? 'Name the part of the code or say what should change, or pick a kind of prompt below.'}</p>
+              : <p>RIAF will gather {top.gathers}{second ? <>, plus {second.gathers}</> : null}. Claude Code will be told to {top.does}{second ? <>; for the {second.label.toLowerCase()} part, {second.does}</> : null}.</p>}
+            {chosen && leader && leader.id !== chosen.id ? <p className="ptype-note"><Icon name="alert" size={13} />Your choice weighs {pct(chosen.w)} in RIAF's reading; the task still reads mostly as {leader.label.toLowerCase()} ({pct(leader.w)}), so the gathered context mixes both.</p> : null}
+            {reading.units.length > 1 ? <ol className="ptype-parts">{reading.units.map((u) => <li key={u.id}>{u.text}</li>)}</ol> : null}
+          </div>
+        </div>
+        <div className="ptype-pick" role="radiogroup" aria-label="Kind of prompt">
+          <span className="muted small">{forced ? 'Change it:' : 'Not right? Compile it as'}</span>
+          {ranked.map((k) => (
+            <button key={k.id} role="radio" aria-checked={forced === k.id} className={`kchip ${forced === k.id ? 'on' : ''} ${!forced && k.id === top.id && !unclear ? 'top' : ''}`} style={{ ['--c' as string]: intentVar(k.id) }} onClick={() => onForce(k.id)} title={`RIAF gathers ${k.gathers}`}>
+              <span className="kfill" style={{ width: pct(k.w) }} /><Icon name={k.icon} size={13} /><span>{k.label}</span><b>{pct(k.w)}</b>
+            </button>
+          ))}
+        </div>
+      </>}
+    </section>
   );
 }
 

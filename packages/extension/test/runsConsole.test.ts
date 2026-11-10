@@ -7,6 +7,7 @@ import { silentLogger } from '@riaf/kernel';
 import type { LiveEvent, LiveSession } from '../src/claudeLive.js';
 import { handleConsole, type ConsoleDeps } from '../src/consoleHost.js';
 import { marker } from '../src/runs.js';
+import { claudeCommand } from '../src/terminal.js';
 
 const REPO = resolve(__dirname, '../../..');
 const root = mkdtempSync(join(tmpdir(), 'riaf-ext-runs-'));
@@ -17,7 +18,12 @@ const events = new Map<string, LiveEvent[]>();
 const ran: string[] = [];
 const deps = (launch: boolean): ConsoleDeps => ({
   rpc: core, writeRiafFile: async () => undefined, modelSettings: () => ({}),
-  runCommand: async (cmd: string, arg?: unknown) => { if (!launch) throw new Error('no terminal'); ran.push(`${cmd} ${String(arg)}`); },
+  launchClaude: async (r: string, text: string) => {
+    const command = claudeCommand(r, text, { platform: 'darwin' });
+    if (!launch) return { launched: false, command, reason: 'no terminal' };
+    ran.push(command);
+    return { launched: true, command };
+  },
   repo: { current: () => root, recent: () => [root], open: async () => undefined, reloadOnSwitch: false },
   live: () => ({ dir: '', found: true, sessions, events: [] }),
   liveSession: (id: string) => events.get(id) ?? [],
@@ -40,9 +46,9 @@ describe('console: prompt runs keyed to Claude Code sessions', () => {
 
     const launched = await handleConsole(deps(true), { type: 'exportPrompt', promptId: id });
     expect(launched).toMatchObject({ type: 'exported', launched: true });
-    expect(ran[0]).toMatch(new RegExp(`^riaf\\.runClaude claude '\\[RIAF ${id}\\] Fix ReadingDeduper`));
+    expect(ran[0]).toMatch(new RegExp(`^cd '${root.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}' && claude '\\[RIAF ${id}\\] Fix ReadingDeduper`));
     const offered = await handleConsole(deps(false), { type: 'exportPrompt', promptId: id });
-    expect(offered).toMatchObject({ launched: false });
+    expect(offered).toMatchObject({ launched: false, reason: 'no terminal' });
     expect(String(offered['command'])).toContain(marker(id));
 
     const waiting = await handleConsole(deps(true), { type: 'run', promptId: id });

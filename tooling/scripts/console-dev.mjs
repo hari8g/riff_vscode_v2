@@ -20,6 +20,7 @@ const repoArg = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--po
 
 const { DaemonCore } = await import(join(root, 'packages/daemon/dist/index.js'));
 const { handleConsole } = await import(join(root, 'packages/extension/out-tsc/consoleHost.js'));
+const { openClaudeTerminal } = await import(join(root, 'packages/extension/out-tsc/terminal.js'));
 const { ClaudeLive } = await import(join(root, 'packages/extension/out-tsc/claudeLive.js'));
 const { silentLogger } = await import(join(root, 'packages/kernel/dist/index.js'));
 
@@ -118,7 +119,10 @@ const server = createServer(async (req, res) => {
         rpc: core,
         writeRiafFile: async (name, text) => writeFileSync(join(repo, '.riaf', name), text),
         modelSettings: () => ({ summarize: { provider: 'ollama', model: 'qwen2.5:7b' }, classify: { provider: 'openai', model: 'gpt-4o-mini', baseUrl: 'https://gateway.internal/v1', apiKeyEnv: 'GATEWAY_TOKEN' } }),
-        runCommand: async (cmd) => { if (cmd === 'riaf.runClaude') throw new Error('no terminal in the dev server'); console.log(`(dev) would run VS Code command ${cmd}`); },
+        runCommand: async (cmd) => console.log(`(dev) would run VS Code command ${cmd}`),
+        // opens a real terminal window in the repository with Claude Code working on the prompt
+        // RIAF_DRY_LAUNCH=1 logs the command instead of opening a terminal (for demos and tests)
+        launchClaude: process.env.RIAF_DRY_LAUNCH ? async (r, text) => { console.log(`(dry run) would open a terminal in ${r} running Claude Code on: ${text}`); return { launched: true, command: `(dry run) ${text}` }; } : (r, text) => openClaudeTerminal(r, text),
         repo: { current: () => repo, recent: () => recent, open: openRepo, reloadOnSwitch: true },
         live: () => live.snapshot(),
         liveSession: (id) => live.sessionEvents(id),

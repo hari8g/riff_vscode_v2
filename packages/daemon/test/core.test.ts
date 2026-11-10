@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -92,10 +94,9 @@ describe('DaemonCore M3 surface', () => {
 
 describe('DaemonCore M4: history', () => {
   it('mines a git repo, fills jump blame, serves timeline and rationale, and feeds blame into bugfix packs', async () => {
-    const { execFileSync } = await import('node:child_process');
     const root = mkdtempSync(join(tmpdir(), 'riaf-core-hist-'));
     dirs.push(root);
-    execFileSync(process.execPath, [join(REPO, 'tooling/scripts/make-fixture-history.mjs'), 'telemetry-py', root], { encoding: 'utf8' });
+    await promisify(execFile)(process.execPath, [join(REPO, 'tooling/scripts/make-fixture-history.mjs'), 'telemetry-py', root]);
     const core = await DaemonCore.open({ root, storePath: ':memory:', logger: silentLogger, validateResults: true });
     const run = await core.index('test');
     expect(run.stages.find((s) => s.stage === 'history')?.changed).toBeGreaterThan(200);

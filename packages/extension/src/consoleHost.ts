@@ -3,18 +3,19 @@ import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { answerQuestion, isLens, resetAskCache, understand } from './askHost.js';
 import type { LiveEvent, LiveSession } from './claudeLive.js';
-import { launchCommand, linkRuns, listPrompts, markExported, readPrompt, recordPrompt, runResult, statusOf, type PromptRun } from './runs.js';
+import { launchText, linkRuns, listPrompts, markExported, readPrompt, recordPrompt, runResult, statusOf, type PromptRun } from './runs.js';
 import { suggestTasks } from './suggest.js';
 import { BENCHMARKS, live } from './savings.js';
-import { TOKEN_PRESETS } from '@riaf/kernel';
+import { INTENTS, TOKEN_PRESETS, type Intent } from '@riaf/kernel';
 import { tokensYaml } from '@riaf/daemon';
+import { claudeCommand, type LaunchResult } from './terminal.js';
 import type { Rpc } from './tools.js';
 
 /** Messages between the console webview and the extension; the data side is pure and tested. */
 
 export type ConsoleRequest =
   | { type: 'load'; page: 'overview' | 'repository' | 'policies' | 'sessions' | 'adapters' | 'savings' | 'health' }
-  | { type: 'prompt'; text: string; host?: 'claude' | 'copilot' | 'generic'; budget?: number }
+  | { type: 'prompt'; text: string; host?: 'claude' | 'copilot' | 'generic'; budget?: number; intent?: string }
   | { type: 'tokens' }
   | { type: 'exportPrompt'; promptId: string }
   | { type: 'runs' }
@@ -24,7 +25,7 @@ export type ConsoleRequest =
   | { type: 'validatePolicies'; policies: string; governance: string }
   | { type: 'savePolicies'; policies: string; governance: string }
   | { type: 'wikiPage'; node: string }
-  | { type: 'route'; text: string; activeFile?: string }
+  | { type: 'route'; text: string; activeFile?: string; intent?: string }
   | { type: 'compile'; text: string; budget?: number; activeFile?: string; intent?: string }
   | { type: 'render'; packId: string; target: 'claude' | 'copilot' | 'fragment' | 'json' | 'agentsmd' }
   | { type: 'jump'; query: string }
@@ -63,6 +64,8 @@ export interface ConsoleDeps {
   repo?: RepoHost;
   /** What Claude Code is doing in this repository (its transcripts, tailed). */
   live?(): { dir: string; found: boolean; sessions: LiveSession[]; events: LiveEvent[] };
+  /** Starts Claude Code on `text` in a terminal in `root` (VS Code's terminal, or a new terminal window). */
+  launchClaude?(root: string, text: string): Promise<LaunchResult>;
   /** Every event of one Claude Code session (for its workflow). */
   liveSession?(session: string): LiveEvent[];
 }
@@ -132,7 +135,8 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       }
       break;
     case 'prompt': {
-      const r = await rpc.call('prompt.build', { request: { text: req.text, ide: { interactive: true } }, host: req.host ?? 'claude', sessionId: 'console', ...(req.budget ? { budget: req.budget } : {}) });
+      const intentHint = req.intent && (INTENTS as readonly string[]).includes(req.intent) ? { intentHint: req.intent as Intent } : {};
+      const r = await rpc.call('prompt.build', { request: { text: req.text, ide: { interactive: true }, ...intentHint }, host: req.host ?? 'claude', sessionId: 'console', ...(req.budget ? { budget: req.budget } : {}) });
       const root = deps.repo?.current();
       if (root) recordPrompt(root, { promptId: r.prompt.promptId, packId: r.pack.packId, task: req.text, host: r.prompt.host, tokens: r.prompt.plan.prompt, createdAt: new Date().toISOString(), source: 'console' }, r.prompt.text);
       return { type: 'prompt', pack: r.pack, prompt: r.prompt, route: { w: r.pack.route.w, branch: r.pack.route.branch, H: r.pack.route.H } };
@@ -142,12 +146,10 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       const rec = root ? listPrompts(root).find((x) => x.promptId === req.promptId) : undefined;
       if (!root || !rec) return { type: 'error', message: 'compile the prompt first' };
       markExported(root, rec.promptId);
-      if (deps.runCommand) {
-        // where no terminal can be opened (the browser dev server) the command is shown to copy instead
-        const launched = await deps.runCommand('riaf.runClaude', launchCommand(rec)).then(() => true, () => false);
-        return { type: 'exported', promptId: rec.promptId, launched, command: launchCommand(rec) };
-      }
-      return { type: 'exported', promptId: rec.promptId, launched: false, command: launchCommand(rec) };
+      const text = launchText(rec);
+      // a terminal opens in the repository with Claude Code already working; else the command (with its cd) is shown to copy
+      const r = deps.launchClaude ? await deps.launchClaude(root, text).catch((e: Error) => ({ launched: false, command: claudeCommand(root, text), reason: e.message })) : { launched: false, command: claudeCommand(root, text) };
+      return { type: 'exported', promptId: rec.promptId, ...r };
     }
     case 'runs': {
       const root = deps.repo?.current();
@@ -170,7 +172,7 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
       const s = linkRuns([rec], sessions, prompts).get(rec.promptId);
       const run: PromptRun = { ...rec, status: statusOf(rec, s), ...(s ? { session: { id: s.id, title: s.title, active: s.active, updatedAt: s.updatedAt } } : {}) };
       const events = s ? deps.liveSession?.(s.id) ?? [] : [];
-      return { type: 'run', ...runResult(run, readPrompt(root, rec.promptId) ?? '', events), command: launchCommand(rec) };
+      return { type: 'run', ...runResult(run, readPrompt(root, rec.promptId) ?? '', events), command: claudeCommand(root, launchText(rec)) };
     }
     case 'tokens': {
       const t = await rpc.call('tokens.get', {});
@@ -197,7 +199,8 @@ export async function handleConsole(deps: ConsoleDeps, req: ConsoleRequest): Pro
     case 'wikiPage':
       return { type: 'wikiPage', page: await rpc.call('wiki.page', { node: req.node }) };
     case 'route': {
-      const policy = await rpc.call('route', { text: req.text, ide: { ...(req.activeFile ? { activeFile: req.activeFile } : {}), interactive: true } });
+      const hint = req.intent && (INTENTS as readonly string[]).includes(req.intent) ? { intentHint: req.intent as Intent } : {};
+      const policy = await rpc.call('route', { text: req.text, ide: { ...(req.activeFile ? { activeFile: req.activeFile } : {}), interactive: true }, ...hint });
       return { type: 'route', policy };
     }
     case 'compile': {
